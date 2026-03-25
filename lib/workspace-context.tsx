@@ -26,6 +26,7 @@ const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const supabase = createClient()
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null)
+  const [noWorkspace, setNoWorkspace] = useState(false)
 
   const load = useCallback(async () => {
     const { data: memberRow } = await supabase
@@ -35,7 +36,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       .eq('status', 'active')
       .single()
 
-    if (!memberRow) return
+    if (!memberRow) { setNoWorkspace(true); return }
 
     const { data: members } = await supabase
       .from('workspace_members')
@@ -62,6 +63,17 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   }, [supabase, userId])
 
   useEffect(() => { load() }, [load])
+
+  if (noWorkspace) return (
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="card p-8 max-w-sm w-full text-center space-y-4">
+        <p className="text-sm font-semibold text-foreground">No workspace found</p>
+        <p className="text-xs text-muted-foreground">Your account is not linked to a workspace. Please contact your admin or create a new workspace in Settings.</p>
+        <a href="/settings" className="btn-primary w-full block">Go to Settings</a>
+        <button onClick={async () => { const s = createClient(); await s.auth.signOut(); window.location.href = '/login' }} className="btn-secondary w-full">Sign out</button>
+      </div>
+    </div>
+  )
 
   if (!ctx) return (
     <div className="flex items-center justify-center h-screen">

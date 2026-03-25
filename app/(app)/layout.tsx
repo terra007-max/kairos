@@ -29,8 +29,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     window.addEventListener('resize', checkMobile)
 
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push('/login'); return }
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+      if (error || !user) {
+        await supabase.auth.signOut()
+        router.push('/login')
+        return
+      }
       const { data: profile } = await supabase
         .from('profiles').select('full_name, email').eq('id', user.id).single()
       setUser({ id: user.id, name: profile?.full_name || profile?.email || 'You' })
