@@ -18,9 +18,14 @@ function InviteForm() {
   const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
-    // Supabase JS client auto-processes hash tokens on init.
-    // Give it a moment then check the session.
-    const timer = setTimeout(async () => {
+    async function init() {
+      // Sign out any existing session first — this ensures we don't accidentally
+      // update the wrong user's password if an admin opens the link while logged in.
+      await supabase.auth.signOut()
+
+      // Give Supabase JS a moment to process the hash tokens (#access_token=...&type=invite)
+      await new Promise(r => setTimeout(r, 800))
+
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setSessionReady(true)
@@ -28,8 +33,8 @@ function InviteForm() {
         setError('This invite link is invalid or has already been used.')
       }
       setLoading(false)
-    }, 800)
-    return () => clearTimeout(timer)
+    }
+    init()
   }, [])
 
   async function activate() {
