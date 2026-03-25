@@ -11,6 +11,7 @@ export type ProjectLevelRate = {
   project_id: string
   level_id: string
   hourly_rate: number
+  rate_type: 'hourly' | 'daily'
   level?: ConsultantLevel
 }
 

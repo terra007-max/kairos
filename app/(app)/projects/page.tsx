@@ -198,7 +198,12 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
   const [budgetHours, setBudgetHours] = useState(String(project?.budget_hours || ''))
   const [budgetAmount, setBudgetAmount] = useState(String(project?.budget_amount || ''))
   const [levelRates, setLevelRates] = useState<Record<string, string>>(
-    Object.fromEntries((project?.level_rates || []).map(lr => [lr.level_id, String(lr.hourly_rate)]))
+    Object.fromEntries((project?.level_rates || []).map(lr => [lr.level_id, String(
+      lr.rate_type === 'daily' ? lr.hourly_rate * 8 : lr.hourly_rate
+    )]))
+  )
+  const [levelRateTypes, setLevelRateTypes] = useState<Record<string, 'hourly' | 'daily'>>(
+    Object.fromEntries((project?.level_rates || []).map(lr => [lr.level_id, lr.rate_type || 'hourly']))
   )
   const [saving, setSaving] = useState(false)
 
@@ -224,9 +229,15 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
     }
     if (projectId && levels.length > 0) {
       for (const level of levels) {
-        const rateVal = parseFloat(levelRates[level.id] || '')
-        if (!isNaN(rateVal) && levelRates[level.id] !== '') {
-          await supabase.from('project_level_rates').upsert({ project_id: projectId, level_id: level.id, hourly_rate: rateVal }, { onConflict: 'project_id,level_id' })
+        const inputVal = parseFloat(levelRates[level.id] || '')
+        if (!isNaN(inputVal) && levelRates[level.id] !== '') {
+          const rateType = levelRateTypes[level.id] || 'hourly'
+          // Always store as hourly_rate; daily = input / 8
+          const hourlyEquiv = rateType === 'daily' ? inputVal / 8 : inputVal
+          await supabase.from('project_level_rates').upsert(
+            { project_id: projectId, level_id: level.id, hourly_rate: hourlyEquiv, rate_type: rateType },
+            { onConflict: 'project_id,level_id' }
+          )
         } else {
           await supabase.from('project_level_rates').delete().eq('project_id', projectId).eq('level_id', level.id)
         }
@@ -271,14 +282,37 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
         </div>
         {levels.length > 0 && (
           <div className="col-span-2">
-            <label className="label">Hourly rate per consultant level (€)</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-1">
-              {levels.map(level => (
-                <div key={level.id} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-24 flex-shrink-0">{level.name}</span>
-                  <input type="number" className="input" placeholder={t('rate')} value={levelRates[level.id] || ''} onChange={e => setLevelRates(prev => ({ ...prev, [level.id]: e.target.value }))} min="0" step="0.01" />
-                </div>
-              ))}
+            <label className="label">Charging rate per consultant level — Admin only</label>
+            <div className="space-y-2 mt-1">
+              {levels.map(level => {
+                const rType = levelRateTypes[level.id] || 'hourly'
+                return (
+                  <div key={level.id} className="flex items-center gap-3">
+                    <span className="text-xs font-medium text-foreground w-28 flex-shrink-0">{level.name}</span>
+                    {/* hourly / daily toggle */}
+                    <div className="flex gap-0.5 bg-muted p-0.5 rounded-md flex-shrink-0">
+                      {(['hourly', 'daily'] as const).map(rt => (
+                        <button key={rt} type="button"
+                          onClick={() => setLevelRateTypes(prev => ({ ...prev, [level.id]: rt }))}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${rType === rt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                          {rt === 'hourly' ? '€/h' : '€/day'}
+                        </button>
+                      ))}
+                    </div>
+                    <input type="number" className="input flex-1" placeholder={rType === 'hourly' ? 'e.g. 120' : 'e.g. 960'}
+                      value={levelRates[level.id] || ''}
+                      onChange={e => setLevelRates(prev => ({ ...prev, [level.id]: e.target.value }))}
+                      min="0" step="0.01" />
+                    <span className="text-xs text-muted-foreground flex-shrink-0 w-20">
+                      {levelRates[level.id] && rType === 'daily'
+                        ? `= ${formatMoney(parseFloat(levelRates[level.id]) / 8)}/h`
+                        : levelRates[level.id] && rType === 'hourly'
+                        ? `= ${formatMoney(parseFloat(levelRates[level.id]) * 8)}/day`
+                        : ''}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

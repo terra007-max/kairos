@@ -191,3 +191,11 @@ create policy "Admins manage invoices" on public.invoices
 
 create index if not exists idx_invoices_workspace on public.invoices(workspace_id);
 create index if not exists idx_invoices_status on public.invoices(workspace_id, status);
+
+-- ================================================================
+-- MIGRATION 4: RATE TYPE ON PROJECT LEVEL RATES
+-- Allows hourly or daily rates per consultant level per project
+-- ================================================================
+alter table public.project_level_rates
+  add column if not exists rate_type text default 'hourly'
+    check (rate_type in ('hourly', 'daily'));
