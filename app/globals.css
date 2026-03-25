@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --brand: 221.2 83.2% 53.3%; /* This is your brand-600 */
+    
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 40% 98%;
+    --card: 217.2 32.6% 12%; /* Deep dark for cards */
+    --card-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+  }
+
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-muted rounded-full; }
+}
+
+@layer components {
+  /* PRIMARY BUTTON - Adaptive */
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium px-3.5 py-2 rounded-lg transition-all text-sm disabled:opacity-40 shadow-sm inline-flex items-center justify-center select-none;
+  }
+
+  /* SECONDARY BUTTON - Adaptive */
+  .btn-secondary {
+    @apply bg-card hover:bg-muted border border-border text-foreground font-medium px-3.5 py-2 rounded-lg transition-all text-sm shadow-sm inline-flex items-center justify-center select-none;
+  }
+
+  /* INPUTS - Adaptive */
+  .input {
+    @apply w-full border border-input rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all bg-card text-foreground placeholder:text-muted-foreground;
+    font-size: 14px;
+  }
+
+  /* CARDS - Adaptive */
+  .card {
+    @apply bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-muted-foreground mb-1.5 tracking-wide;
+  }
+
+  /* TRENDS - Fixed contrast for Dark Mode */
+  .trend-up {
+    @apply inline-flex items-center gap-0.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full;
+  }
+  .trend-down {
+    @apply inline-flex items-center gap-0.5 text-xs font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full;
+  }
+
+  .mobile-nav { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
+  .mobile-content { padding-bottom: calc(5rem + var(--safe-bottom)); }
+}
+
+/* Mobile larger touch targets */
+@media (max-width: 767px) {
+  .input { font-size: 16px !important; min-height: 44px; }
+  .btn-primary, .btn-secondary { min-height: 44px; }
+}
