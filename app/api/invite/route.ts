@@ -31,12 +31,11 @@ export async function POST(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const { error } = await adminSupabase.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${appUrl}/api/auth/callback?workspace=${workspaceId}`,
+    redirectTo: `${appUrl}/invite?workspace=${workspaceId}`,
     data: { workspace_id: workspaceId },
   })
 
