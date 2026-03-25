@@ -46,8 +46,8 @@ export default function ClientsPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{t('clientsTitle')}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{isAdmin ? t('manageClients') : t('viewClients')}</p>
+          <h1 className="text-xl font-semibold text-foreground">{t('clientsTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{isAdmin ? t('manageClients') : t('viewClients')}</p>
         </div>
         {isAdmin && (
           <button onClick={() => { setEditClient(null); setShowForm(true) }} className="btn-primary flex items-center gap-2">
@@ -64,8 +64,8 @@ export default function ClientsPage() {
 
       {clients.length === 0 ? (
         <div className="card px-6 py-16 text-center">
-          <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">{t('noClients')}</p>
+          <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">{t('noClients')}</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -77,19 +77,19 @@ export default function ClientsPage() {
                     {c.name[0].toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{c.name}</h3>
-                    {c.email && <p className="text-xs text-gray-400 mt-0.5">{c.email}</p>}
+                    <h3 className="font-semibold text-foreground">{c.name}</h3>
+                    {c.email && <p className="text-xs text-muted-foreground mt-0.5">{c.email}</p>}
                   </div>
                 </div>
                 {isAdmin && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditClient(c); setShowForm(false) }} className="p-1.5 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => remove(c.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => { setEditClient(c); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => remove(c.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 )}
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-50">
-                <span className="text-xs text-gray-400">{c.projectCount} {t('projects').toLowerCase()}</span>
+              <div className="mt-4 pt-4 border-t border-border">
+                <span className="text-xs text-muted-foreground">{c.projectCount} {t('projects').toLowerCase()}</span>
               </div>
             </div>
           ))}
@@ -124,14 +124,14 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
 
   return (
     <div className="card p-6 mb-6">
-      <h2 className="font-semibold text-gray-900 mb-5 text-sm">{client ? t('editClient') : t('newClient')}</h2>
+      <h2 className="font-semibold text-foreground mb-5 text-sm">{client ? t('editClient') : t('newClient')}</h2>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div><label className="label">{t('clientName')}</label><input className="input" placeholder="Acme Corp" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
         <div><label className="label">{t('email')}</label><input type="email" className="input" placeholder="contact@acme.com" value={email} onChange={e => setEmail(e.target.value)} /></div>
         <div>
           <label className="label">{t('color')}</label>
           <div className="flex items-center gap-2 mt-1">
-            {COLORS.map(c => <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-gray-400' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />)}
+            {COLORS.map(c => <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-border' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />)}
           </div>
         </div>
         <div><label className="label">{t('notes')}</label><input className="input" placeholder="Optional…" value={notes} onChange={e => setNotes(e.target.value)} /></div>

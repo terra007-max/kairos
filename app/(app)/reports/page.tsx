@@ -98,8 +98,8 @@ export default function ReportsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{t('reportsTitle')}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{role === 'admin' ? t('teamAnalysis') : t('yourAnalysis')}</p>
+          <h1 className="text-xl font-semibold text-foreground">{t('reportsTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{role === 'admin' ? t('teamAnalysis') : t('yourAnalysis')}</p>
         </div>
         <button onClick={exportCSV} className="btn-secondary flex items-center gap-2">
           <Download className="w-3.5 h-3.5" /> {t('exportCSV')}
@@ -108,15 +108,15 @@ export default function ReportsPage() {
 
       {/* Range picker */}
       <div className="card p-3 mb-5 flex items-center gap-3 flex-wrap">
-        <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-lg">
+        <div className="flex gap-0.5 bg-muted p-0.5 rounded-lg">
           {([['this_week', t('thisWeekLabel')], ['this_month', t('thisMonthLabel')], ['last_month', t('lastMonthLabel')], ['custom', t('custom')]] as [Range, string][]).map(([v, label]) => (
-            <button key={v} onClick={() => setRange(v)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${range === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{label}</button>
+            <button key={v} onClick={() => setRange(v)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${range === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
           ))}
         </div>
         {range === 'custom' && (
           <div className="flex items-center gap-2">
             <input type="date" className="input w-auto text-xs" value={custom.from} onChange={e => setCustom(c => ({ ...c, from: e.target.value }))} />
-            <span className="text-gray-300">–</span>
+            <span className="text-muted-foreground/50">–</span>
             <input type="date" className="input w-auto text-xs" value={custom.to} onChange={e => setCustom(c => ({ ...c, to: e.target.value }))} />
           </div>
         )}
@@ -125,24 +125,24 @@ export default function ReportsPage() {
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
-          { label: t('totalTracked'), value: formatDuration(totalSecs), icon: Clock, color: 'text-brand-600 bg-brand-50' },
-          { label: t('billable'), value: formatDuration(billableSecs), icon: TrendingUp, color: 'text-violet-600 bg-violet-50' },
-          { label: t('nonBillable'), value: formatDuration(totalSecs - billableSecs), icon: Clock, color: 'text-gray-500 bg-gray-100' },
-          { label: t('earnings'), value: formatMoney(totalEarnings), icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
+          { label: t('totalTracked'), value: formatDuration(totalSecs), icon: Clock, color: 'text-brand-600 bg-brand-600/10' },
+          { label: t('billable'), value: formatDuration(billableSecs), icon: TrendingUp, color: 'text-violet-600 bg-violet-500/10' },
+          { label: t('nonBillable'), value: formatDuration(totalSecs - billableSecs), icon: Clock, color: 'text-muted-foreground bg-muted' },
+          { label: t('earnings'), value: formatMoney(totalEarnings), icon: DollarSign, color: 'text-emerald-600 bg-emerald-500/10' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4">
             <div className={`inline-flex p-1.5 rounded-lg ${color} mb-2`}><Icon className="w-3.5 h-3.5" /></div>
-            <p className="text-lg font-bold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+            <p className="text-lg font-bold text-foreground">{value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-lg w-fit mb-5">
+      <div className="flex gap-0.5 bg-muted p-0.5 rounded-lg w-fit mb-5">
         {[['overview', t('overview')], ...(role === 'admin' ? [['team', t('team')]] : []), ['entries', t('entries')]].map(([v, label]) => (
           <button key={v} onClick={() => setActiveTab(v as any)}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}
           </button>
         ))}
@@ -155,27 +155,27 @@ export default function ReportsPage() {
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="card p-5 lg:col-span-2">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('dailyHours')}</h2>
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('dailyHours')}</h2>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={dailyData} barSize={days.length > 14 ? 6 : 16}>
                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(v: number) => [`${v}h`, t('hours')]} contentStyle={{ borderRadius: 8, border: '1px solid #f3f4f6', fontSize: 11 }} />
+                    <Tooltip formatter={(v: number) => [`${v}h`, t('hours')]} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
                     <Bar dataKey="hours" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="card p-5">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('byProject')}</h2>
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('byProject')}</h2>
                 {pieData.length === 0 ? (
-                  <div className="flex items-center justify-center h-48 text-gray-300 text-xs">{t('noData')}</div>
+                  <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">{t('noData')}</div>
                 ) : (
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2} dataKey="value">
                         {pieData.map((p, i) => <Cell key={i} fill={p.color} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid #f3f4f6', fontSize: 11 }} />
+                      <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
                       <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -187,7 +187,7 @@ export default function ReportsPage() {
           {activeTab === 'team' && role === 'admin' && (
             <div className="space-y-4">
               {teamRows.length === 0 ? (
-                <div className="card px-6 py-16 text-center"><p className="text-sm text-gray-400">{t('noTimeTracked')}</p></div>
+                <div className="card px-6 py-16 text-center"><p className="text-sm text-muted-foreground">{t('noTimeTracked')}</p></div>
               ) : teamRows.map(row => {
                 const name = row.member?.full_name || row.member?.email || 'Unknown'
                 const billablePct = row.secs > 0 ? Math.round(row.billableSecs / row.secs * 100) : 0
@@ -196,48 +196,48 @@ export default function ReportsPage() {
                   <div key={row.userId} className="card p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm flex-shrink-0">{name[0].toUpperCase()}</div>
+                        <div className="w-9 h-9 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 font-bold text-sm flex-shrink-0">{name[0].toUpperCase()}</div>
                         <div>
-                          <p className="font-semibold text-gray-900 text-sm">{name}</p>
-                          {row.member?.full_name && <p className="text-xs text-gray-400">{row.member.email}</p>}
+                          <p className="font-semibold text-foreground text-sm">{name}</p>
+                          {row.member?.full_name && <p className="text-xs text-muted-foreground">{row.member.email}</p>}
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900 tabular-nums">{formatDuration(row.secs)}</p>
-                        <p className="text-xs text-gray-400">{t('totalHours')}</p>
+                        <p className="text-lg font-bold text-foreground tabular-nums">{formatDuration(row.secs)}</p>
+                        <p className="text-xs text-muted-foreground">{t('totalHours')}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-0.5">{t('billable')}</p>
-                        <p className="text-sm font-semibold text-gray-800">{formatDuration(row.billableSecs)}</p>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-0.5">{t('billable')}</p>
+                        <p className="text-sm font-semibold text-foreground">{formatDuration(row.billableSecs)}</p>
                         <p className="text-xs text-brand-600 font-medium mt-0.5">{billablePct}%</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-0.5">{t('earnings')}</p>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-0.5">{t('earnings')}</p>
                         <p className="text-sm font-semibold text-emerald-600">{formatMoney(row.earnings)}</p>
-                        <p className="text-xs text-gray-300 mt-0.5">{t('billableOnly')}</p>
+                        <p className="text-xs text-muted-foreground/50 mt-0.5">{t('billableOnly')}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-0.5">{t('projects')}</p>
-                        <p className="text-sm font-semibold text-gray-800">{row.projects.size}</p>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-0.5">{t('projects')}</p>
+                        <p className="text-sm font-semibold text-foreground">{row.projects.size}</p>
                       </div>
                     </div>
                     <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-400 mb-1"><span>{t('billableRatio')}</span><span>{billablePct}%</span></div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-brand-500 rounded-full" style={{ width: `${billablePct}%` }} /></div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>{t('billableRatio')}</span><span>{billablePct}%</span></div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-brand-500 rounded-full" style={{ width: `${billablePct}%` }} /></div>
                     </div>
                     {topProjects.length > 0 && (
                       <div>
-                        <p className="text-xs text-gray-400 mb-2">{t('timeByProject')}</p>
+                        <p className="text-xs text-muted-foreground mb-2">{t('timeByProject')}</p>
                         <div className="space-y-1.5">
                           {topProjects.map(([projName, secs]) => {
                             const pct = Math.round((secs / row.secs) * 100)
                             return (
                               <div key={projName} className="flex items-center gap-2">
-                                <p className="text-xs text-gray-600 w-32 truncate flex-shrink-0">{projName}</p>
-                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-violet-400 rounded-full" style={{ width: `${pct}%` }} /></div>
-                                <p className="text-xs font-mono text-gray-400 w-14 text-right flex-shrink-0">{formatDuration(secs)}</p>
+                                <p className="text-xs text-muted-foreground w-32 truncate flex-shrink-0">{projName}</p>
+                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-violet-400 rounded-full" style={{ width: `${pct}%` }} /></div>
+                                <p className="text-xs font-mono text-muted-foreground w-14 text-right flex-shrink-0">{formatDuration(secs)}</p>
                               </div>
                             )
                           })}
@@ -255,40 +255,40 @@ export default function ReportsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-400">{t('date')}</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-400">{t('description')}</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-400">{t('projects')}</th>
-                      {role === 'admin' && <th className="px-5 py-3 text-left text-xs font-medium text-gray-400">{t('member')}</th>}
-                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-400">{t('duration')}</th>
-                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-400">{t('earnings')}</th>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">{t('date')}</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">{t('description')}</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">{t('projects')}</th>
+                      {role === 'admin' && <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">{t('member')}</th>}
+                      <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">{t('duration')}</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-muted-foreground">{t('earnings')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-border">
                     {entries.length === 0 ? (
-                      <tr><td colSpan={6} className="px-5 py-10 text-center text-xs text-gray-400">{t('noEntriesPeriod')}</td></tr>
+                      <tr><td colSpan={6} className="px-5 py-10 text-center text-xs text-muted-foreground">{t('noEntriesPeriod')}</td></tr>
                     ) : entries.map(e => {
                       const earnings = e.billable ? (((e.duration_sec || 0) / 3600) * (e.project?.hourly_rate || 0)) : 0
                       const member = members.find(m => m.user_id === e.user_id)
                       return (
-                        <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">{format(parseISO(e.start_time), 'MMM d, yyyy')}</td>
-                          <td className="px-5 py-3 text-xs text-gray-800 max-w-xs truncate">{e.description || <span className="text-gray-300 italic">—</span>}</td>
+                        <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{format(parseISO(e.start_time), 'MMM d, yyyy')}</td>
+                          <td className="px-5 py-3 text-xs text-foreground max-w-xs truncate">{e.description || <span className="text-muted-foreground/50 italic">—</span>}</td>
                           <td className="px-5 py-3">
-                            {e.project ? <span className="flex items-center gap-1.5 text-xs text-gray-600"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.project.color }} />{e.project.name}</span> : <span className="text-xs text-gray-300">—</span>}
+                            {e.project ? <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.project.color }} />{e.project.name}</span> : <span className="text-xs text-muted-foreground/50">—</span>}
                           </td>
-                          {role === 'admin' && <td className="px-5 py-3 text-xs text-gray-500">{member?.full_name || member?.email || '—'}</td>}
-                          <td className="px-5 py-3 text-right font-mono text-xs text-gray-700">{e.duration_sec ? formatDuration(e.duration_sec) : '—'}</td>
-                          <td className="px-5 py-3 text-right text-xs font-medium text-emerald-600">{earnings > 0 ? formatMoney(earnings) : <span className="text-gray-300">—</span>}</td>
+                          {role === 'admin' && <td className="px-5 py-3 text-xs text-muted-foreground">{member?.full_name || member?.email || '—'}</td>}
+                          <td className="px-5 py-3 text-right font-mono text-xs text-foreground">{e.duration_sec ? formatDuration(e.duration_sec) : '—'}</td>
+                          <td className="px-5 py-3 text-right text-xs font-medium text-emerald-600">{earnings > 0 ? formatMoney(earnings) : <span className="text-muted-foreground/50">—</span>}</td>
                         </tr>
                       )
                     })}
                   </tbody>
                   {entries.length > 0 && (
-                    <tfoot className="border-t border-gray-200 bg-gray-50/50">
+                    <tfoot className="border-t border-border bg-muted/30">
                       <tr>
-                        <td colSpan={role === 'admin' ? 4 : 3} className="px-5 py-3 text-xs font-semibold text-gray-400">{t('total')} — {entries.length} {t('entries').toLowerCase()}</td>
-                        <td className="px-5 py-3 text-right font-mono font-bold text-xs text-gray-900">{formatDuration(totalSecs)}</td>
+                        <td colSpan={role === 'admin' ? 4 : 3} className="px-5 py-3 text-xs font-semibold text-muted-foreground">{t('total')} — {entries.length} {t('entries').toLowerCase()}</td>
+                        <td className="px-5 py-3 text-right font-mono font-bold text-xs text-foreground">{formatDuration(totalSecs)}</td>
                         <td className="px-5 py-3 text-right font-bold text-xs text-emerald-600">{formatMoney(totalEarnings)}</td>
                       </tr>
                     </tfoot>

@@ -66,8 +66,8 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{t('projectsTitle')}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{isAdmin ? t('manageProjects') : t('viewProjects')}</p>
+          <h1 className="text-xl font-semibold text-foreground">{t('projectsTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{isAdmin ? t('manageProjects') : t('viewProjects')}</p>
         </div>
         {isAdmin && (
           <button onClick={() => { setEditProject(null); setShowForm(true) }} className="btn-primary flex items-center gap-2">
@@ -82,10 +82,10 @@ export default function ProjectsPage() {
           onCancel={() => { setShowForm(false); setEditProject(null) }} />
       )}
 
-      <div className="flex gap-0.5 mb-6 bg-gray-100 p-0.5 rounded-lg w-fit">
+      <div className="flex gap-0.5 mb-6 bg-muted p-0.5 rounded-lg w-fit">
         {(['active', 'archived'] as const).map(tabVal => (
           <button key={tabVal} onClick={() => setTab(tabVal)}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === tabVal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === tabVal ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
             {tabVal === 'active' ? t('active') : t('archived')}
           </button>
         ))}
@@ -93,8 +93,8 @@ export default function ProjectsPage() {
 
       {filtered.length === 0 ? (
         <div className="card px-6 py-16 text-center">
-          <FolderOpen className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">{tab === 'active' ? t('noActiveProjects') : t('noArchivedProjects')}</p>
+          <FolderOpen className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">{tab === 'active' ? t('noActiveProjects') : t('noArchivedProjects')}</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -108,21 +108,21 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: p.color }} />
                     <div>
-                      <Link href={`/projects/${p.id}`} className="font-semibold text-gray-900 hover:text-brand-600 transition-colors text-sm">{p.name}</Link>
-                      {p.client && <p className="text-xs text-gray-400 mt-0.5">{(p.client as Client).name}</p>}
+                      <Link href={`/projects/${p.id}`} className="font-semibold text-foreground hover:text-brand-600 transition-colors text-sm">{p.name}</Link>
+                      {p.client && <p className="text-xs text-muted-foreground mt-0.5">{(p.client as Client).name}</p>}
                     </div>
                   </div>
                   {isAdmin && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditProject(p); setShowForm(false) }} className="p-1.5 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>
-                      <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setEditProject(p); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>
+                      <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   )}
                 </div>
 
                 {(p.start_date || p.end_date) && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                     <CalendarDays className="w-3.5 h-3.5" />
                     {p.start_date && format(parseISO(p.start_date), 'MMM d, yyyy')}
                     {p.start_date && p.end_date && ' → '}
@@ -133,28 +133,28 @@ export default function ProjectsPage() {
                 {p.level_rates && p.level_rates.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {p.level_rates.map(lr => (
-                      <span key={lr.id} className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full font-medium">
+                      <span key={lr.id} className="text-xs bg-brand-600/10 text-brand-600 px-2 py-0.5 rounded-full font-medium">
                         {(lr.level as ConsultantLevel)?.name}: {formatMoney(lr.hourly_rate)}/h
                       </span>
                     ))}
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-50">
-                  <div><p className="text-xs text-gray-400">{t('tracked')}</p><p className="text-xs font-mono font-semibold text-gray-800 mt-0.5">{formatDuration(p.totalSecs || 0)}</p></div>
-                  <div><p className="text-xs text-gray-400">{t('rate')}</p><p className="text-xs font-medium text-gray-800 mt-0.5">{p.hourly_rate ? `${formatMoney(p.hourly_rate)}/h` : '—'}</p></div>
-                  <div><p className="text-xs text-gray-400">{t('earnings')}</p><p className="text-xs font-medium text-emerald-600 mt-0.5">{p.earnings ? formatMoney(p.earnings) : '—'}</p></div>
+                <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
+                  <div><p className="text-xs text-muted-foreground">{t('tracked')}</p><p className="text-xs font-mono font-semibold text-foreground mt-0.5">{formatDuration(p.totalSecs || 0)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('rate')}</p><p className="text-xs font-medium text-foreground mt-0.5">{p.hourly_rate ? `${formatMoney(p.hourly_rate)}/h` : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">{t('earnings')}</p><p className="text-xs font-medium text-emerald-600 mt-0.5">{p.earnings ? formatMoney(p.earnings) : '—'}</p></div>
                 </div>
 
                 {budgetHoursPct !== null && (
-                  <div className="mt-3 pt-3 border-t border-gray-50">
+                  <div className="mt-3 pt-3 border-t border-border">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className={budgetHoursPct >= 100 ? 'text-red-500 font-semibold' : budgetHoursPct >= 80 ? 'text-amber-500 font-semibold' : 'text-gray-400'}>
+                      <span className={budgetHoursPct >= 100 ? 'text-red-500 font-semibold' : budgetHoursPct >= 80 ? 'text-amber-500 font-semibold' : 'text-muted-foreground'}>
                         {budgetHoursPct >= 100 ? t('hoursExceeded') : budgetHoursPct >= 80 ? t('nearLimit') : t('hoursBudget')}
                       </span>
-                      <span className="text-gray-400">{trackedHours.toFixed(1)}h / {p.budget_hours}h</span>
+                      <span className="text-muted-foreground">{trackedHours.toFixed(1)}h / {p.budget_hours}h</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all ${budgetHoursPct >= 100 ? 'bg-red-500' : budgetHoursPct >= 80 ? 'bg-amber-400' : 'bg-brand-500'}`} style={{ width: `${budgetHoursPct}%` }} />
                     </div>
                   </div>
@@ -163,12 +163,12 @@ export default function ProjectsPage() {
                 {budgetAmountPct !== null && (
                   <div className="mt-2">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className={budgetAmountPct >= 100 ? 'text-red-500 font-semibold' : budgetAmountPct >= 80 ? 'text-amber-500 font-semibold' : 'text-gray-400'}>
+                      <span className={budgetAmountPct >= 100 ? 'text-red-500 font-semibold' : budgetAmountPct >= 80 ? 'text-amber-500 font-semibold' : 'text-muted-foreground'}>
                         {budgetAmountPct >= 100 ? t('amountExceeded') : budgetAmountPct >= 80 ? t('nearLimit') : t('amountBudget')}
                       </span>
-                      <span className="text-gray-400">{formatMoney(p.earnings || 0)} / {formatMoney(p.budget_amount || 0)}</span>
+                      <span className="text-muted-foreground">{formatMoney(p.earnings || 0)} / {formatMoney(p.budget_amount || 0)}</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all ${budgetAmountPct >= 100 ? 'bg-red-500' : budgetAmountPct >= 80 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${budgetAmountPct}%` }} />
                     </div>
                   </div>
@@ -237,7 +237,7 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
 
   return (
     <div className="card p-6 mb-6">
-      <h2 className="font-semibold text-gray-900 mb-5 text-sm">{project ? t('editProject') : t('newProject')}</h2>
+      <h2 className="font-semibold text-foreground mb-5 text-sm">{project ? t('editProject') : t('newProject')}</h2>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="col-span-2 md:col-span-1"><label className="label">{t('projectName')}</label><input className="input" placeholder="e.g. Website Redesign" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
         <div>
@@ -266,7 +266,7 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
         <div>
           <label className="label">{t('color')}</label>
           <div className="flex items-center gap-2 mt-1">
-            {COLORS.map(c => <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-gray-400' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />)}
+            {COLORS.map(c => <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-border' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />)}
           </div>
         </div>
         {levels.length > 0 && (
@@ -275,7 +275,7 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-1">
               {levels.map(level => (
                 <div key={level.id} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 w-24 flex-shrink-0">{level.name}</span>
+                  <span className="text-xs text-muted-foreground w-24 flex-shrink-0">{level.name}</span>
                   <input type="number" className="input" placeholder={t('rate')} value={levelRates[level.id] || ''} onChange={e => setLevelRates(prev => ({ ...prev, [level.id]: e.target.value }))} min="0" step="0.01" />
                 </div>
               ))}

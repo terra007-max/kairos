@@ -84,6 +84,12 @@
   .trend-down {
     @apply inline-flex items-center gap-0.5 text-xs font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full;
   }
+  .trend-neutral {
+    @apply inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full;
+  }
+  .skeleton {
+    @apply bg-muted animate-pulse rounded-lg;
+  }
 
   .mobile-nav { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
   .mobile-content { padding-bottom: calc(5rem + var(--safe-bottom)); }

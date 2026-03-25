@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project, type ConsultantLevel } from '@/lib/types'
-import { Play, Square, Trash2, Pencil, Check, X, Clock, PenLine, AlertTriangle, StopCircle } from 'lucide-react'
+import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
 type EntryMode = 'timer' | 'fromto' | 'duration'
@@ -237,23 +237,23 @@ export default function TimerPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">{t('timerTitle')}</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{t('timerSubtitle')}</p>
+        <h1 className="text-xl font-semibold text-foreground">{t('timerTitle')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('timerSubtitle')}</p>
       </div>
 
       {/* IDLE ALERT */}
       {showIdleAlert && running && (
-        <div className="mb-5 card border-amber-200 bg-amber-50 p-5">
+        <div className="mb-5 card border-amber-500/30 bg-amber-500/10 p-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-amber-800 text-sm">{t('idleTitle')} {Math.floor(elapsed / 3600)}h {Math.floor((elapsed % 3600) / 60)}m</p>
-              <p className="text-xs text-amber-600 mt-1">{t('idleQuestion')}</p>
+              <p className="font-semibold text-amber-600 dark:text-amber-400 text-sm">{t('idleTitle')} {Math.floor(elapsed / 3600)}h {Math.floor((elapsed % 3600) / 60)}m</p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">{t('idleQuestion')}</p>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 <button onClick={() => stopTimer(false)} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors">{t('idleKeep')}</button>
-                <button onClick={() => stopTimer(true)} className="px-3 py-1.5 bg-white border border-amber-200 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-50 transition-colors">{t('idleTrim')}</button>
-                <button onClick={discardTimer} className="px-3 py-1.5 bg-white border border-red-200 text-red-500 text-xs font-medium rounded-lg hover:bg-red-50 transition-colors">{t('idleDiscard')}</button>
-                <button onClick={() => setShowIdleAlert(false)} className="px-3 py-1.5 text-amber-500 text-xs font-medium hover:bg-amber-100 rounded-lg transition-colors">{t('idleDismiss')}</button>
+                <button onClick={() => stopTimer(true)} className="px-3 py-1.5 bg-card border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium rounded-lg hover:bg-amber-500/10 transition-colors">{t('idleTrim')}</button>
+                <button onClick={discardTimer} className="px-3 py-1.5 bg-card border border-red-500/30 text-red-500 text-xs font-medium rounded-lg hover:bg-red-500/10 transition-colors">{t('idleDiscard')}</button>
+                <button onClick={() => setShowIdleAlert(false)} className="px-3 py-1.5 text-amber-500 text-xs font-medium hover:bg-amber-500/10 rounded-lg transition-colors">{t('idleDismiss')}</button>
               </div>
             </div>
           </div>
@@ -262,22 +262,22 @@ export default function TimerPage() {
 
       {/* ADMIN: forgotten timers */}
       {role === 'admin' && forgottenTimers.length > 0 && (
-        <div className="mb-5 card border-orange-200 bg-orange-50 p-5">
+        <div className="mb-5 card border-orange-500/30 bg-orange-500/10 p-5">
           <div className="flex items-center gap-2 mb-3">
             <StopCircle className="w-4 h-4 text-orange-500" />
-            <p className="text-sm font-semibold text-orange-800">{t('forgottenTimers')}</p>
+            <p className="text-sm font-semibold text-orange-600 dark:text-orange-400">{t('forgottenTimers')}</p>
           </div>
           <div className="space-y-2">
             {forgottenTimers.map((ft: any) => {
               const ftElapsed = Math.floor((Date.now() - new Date(ft.start_time).getTime()) / 1000)
               return (
-                <div key={ft.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-orange-100">
+                <div key={ft.id} className="flex items-center justify-between bg-card rounded-lg px-4 py-3 border border-border">
                   <div>
-                    <p className="text-xs font-medium text-gray-800">{getMemberName(ft.user_id)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{ft.project?.name || t('noProject')} · {t('runningSince')} {format(new Date(ft.start_time), 'MMM d, HH:mm')}</p>
+                    <p className="text-xs font-medium text-foreground">{getMemberName(ft.user_id)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ft.project?.name || t('noProject')} · {t('runningSince')} {format(new Date(ft.start_time), 'MMM d, HH:mm')}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-orange-600 font-medium">{formatDuration(ftElapsed)}</span>
+                    <span className="font-mono text-sm text-orange-500 font-medium">{formatDuration(ftElapsed)}</span>
                     <button onClick={() => stopForgottenTimer(ft.id)} className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5">
                       <Square className="w-3 h-3 fill-current" /> {t('stop')}
                     </button>
@@ -290,10 +290,10 @@ export default function TimerPage() {
       )}
 
       {/* Mode tabs */}
-      <div className="flex gap-0.5 mb-4 bg-gray-100 p-0.5 rounded-lg w-fit">
+      <div className="flex gap-0.5 mb-4 bg-muted p-0.5 rounded-lg w-fit">
         {([['timer', t('liveTimer')], ['fromto', t('fromTo')], ['duration', t('enterHours')]] as [EntryMode, string][]).map(([m, label]) => (
           <button key={m} onClick={() => setEntryMode(m)} disabled={!!running && m !== 'timer'}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${entryMode === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 disabled:opacity-40'}`}>
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${entryMode === m ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground disabled:opacity-40'}`}>
             {label}
           </button>
         ))}
@@ -313,7 +313,7 @@ export default function TimerPage() {
               {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           )}
-          <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
             <input type="checkbox" className="rounded accent-brand-600" checked={billable} onChange={e => setBillable(e.target.checked)} disabled={!!running} />
             {t('billable')}
           </label>
@@ -321,7 +321,7 @@ export default function TimerPage() {
 
         {entryMode === 'timer' && (
           <div className="flex items-center gap-4">
-            <span className="font-mono text-3xl font-bold text-gray-900 tabular-nums">{formatDuration(elapsed)}</span>
+            <span className="font-mono text-3xl font-bold text-foreground tabular-nums">{formatDuration(elapsed)}</span>
             {running ? (
               <button onClick={() => stopTimer(false)} className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-medium px-5 py-2 rounded-lg transition-colors text-sm">
                 <Square className="w-4 h-4 fill-current" /> {t('stop')}
@@ -332,8 +332,8 @@ export default function TimerPage() {
               </button>
             )}
             {running && (
-              <p className="text-xs text-gray-400 flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 {t('runningSince')} {format(new Date(running.start_time), 'HH:mm')}
               </p>
             )}
@@ -361,9 +361,9 @@ export default function TimerPage() {
 
       {/* Edit modal */}
       {editingEntry && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-md">
-            <h3 className="font-semibold text-gray-900 mb-5 text-sm">{t('editEntry')}</h3>
+            <h3 className="font-semibold text-foreground mb-5 text-sm">{t('editEntry')}</h3>
             <div className="space-y-4">
               <div><label className="label">{t('description')}</label><input className="input" value={editingEntry.description || ''} onChange={e => setEditingEntry({ ...editingEntry, description: e.target.value })} placeholder={t('whatWorkingOn')} /></div>
               <div>
@@ -378,7 +378,7 @@ export default function TimerPage() {
                 <div><label className="label">{t('from')}</label><input type="time" className="input" value={editingEntry.editStart} onChange={e => setEditingEntry({ ...editingEntry, editStart: e.target.value })} /></div>
                 <div><label className="label">{t('to')}</label><input type="time" className="input" value={editingEntry.editEnd} onChange={e => setEditingEntry({ ...editingEntry, editEnd: e.target.value })} /></div>
               </div>
-              <div><label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer"><input type="checkbox" className="accent-brand-600" checked={editingEntry.billable} onChange={e => setEditingEntry({ ...editingEntry, billable: e.target.checked })} />{t('billable')}</label></div>
+              <div><label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer"><input type="checkbox" className="accent-brand-600" checked={editingEntry.billable} onChange={e => setEditingEntry({ ...editingEntry, billable: e.target.checked })} />{t('billable')}</label></div>
             </div>
             <div className="flex items-center gap-2 mt-5">
               <button onClick={saveEdit} className="btn-primary flex items-center gap-2 text-sm"><Check className="w-3.5 h-3.5" />{t('saveChanges')}</button>
@@ -391,47 +391,49 @@ export default function TimerPage() {
       {/* Entries */}
       {Object.keys(grouped).length === 0 ? (
         <div className="card px-6 py-16 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-5 h-5 text-gray-300" />
+          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+            <Clock className="w-5 h-5 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-gray-400">{t('noEntriesYet')}</p>
-          <p className="text-xs text-gray-300 mt-1">{t('startTimerHint')}</p>
+          <p className="text-sm font-medium text-muted-foreground">{t('noEntriesYet')}</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">{t('startTimerHint')}</p>
         </div>
       ) : Object.entries(grouped).map(([day, dayEntries]) => {
         const dayTotal = dayEntries.reduce((s, e) => s + (e.duration_sec || 0), 0)
         return (
           <div key={day} className="mb-5">
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-xs font-semibold text-gray-500">{format(new Date(day), 'EEEE, MMMM d')}</span>
-              <span className="text-xs font-mono font-semibold text-gray-500">{formatDuration(dayTotal)}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{format(new Date(day), 'EEEE, MMMM d')}</span>
+              <span className="text-xs font-mono font-semibold text-muted-foreground">{formatDuration(dayTotal)}</span>
             </div>
-            <div className="card divide-y divide-gray-50">
+            <div className="card divide-y divide-border">
               {dayEntries.map((entry: any) => (
-                <div key={entry.id} className="px-4 py-3.5 flex items-center gap-3 group hover:bg-gray-50/50 transition-colors">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.project?.color || '#e5e7eb' }} />
+                <div key={entry.id} className="px-4 py-3.5 flex items-center gap-3 group hover:bg-muted/30 transition-colors">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.project?.color || '#6b7280' }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{entry.description || <span className="italic text-gray-300 font-normal">{t('noDescription')}</span>}</p>
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {entry.description || <span className="italic text-muted-foreground/60 font-normal">{t('noDescription')}</span>}
+                    </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {entry.project?.name || t('noProject')}
                         {entry.level && <span className="ml-1">· {entry.level.name}</span>}
                         {' · '}{format(new Date(entry.start_time), 'HH:mm')} – {entry.end_time ? format(new Date(entry.end_time), 'HH:mm') : '…'}
-                        {role === 'admin' && entry.user_id !== currentUserId && <span className="ml-1 text-gray-300">· {getMemberName(entry.user_id)}</span>}
+                        {role === 'admin' && entry.user_id !== currentUserId && <span className="ml-1 text-muted-foreground/50">· {getMemberName(entry.user_id)}</span>}
                       </p>
-                      {entry.billable && <span className="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">{t('billable')}</span>}
+                      {entry.billable && <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">{t('billable')}</span>}
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-semibold text-gray-600 tabular-nums">{entry.duration_sec ? formatDuration(entry.duration_sec) : '—'}</span>
+                  <span className="font-mono text-xs font-semibold text-muted-foreground tabular-nums">{entry.duration_sec ? formatDuration(entry.duration_sec) : '—'}</span>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                     {!running && (
-                      <button onClick={() => restartEntry(entry)} className="p-1.5 text-gray-300 hover:text-emerald-500 rounded-lg hover:bg-emerald-50" title={t('start')}>
+                      <button onClick={() => restartEntry(entry)} className="p-1.5 text-muted-foreground/50 hover:text-emerald-500 rounded-lg hover:bg-emerald-500/10" title={t('start')}>
                         <Play className="w-3 h-3 fill-current" />
                       </button>
                     )}
                     {entry.user_id === currentUserId && (
                       <>
-                        <button onClick={() => openEdit(entry)} className="p-1.5 text-gray-300 hover:text-gray-600 rounded-lg hover:bg-gray-100"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => deleteEntry(entry.id)} className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => openEdit(entry)} className="p-1.5 text-muted-foreground/50 hover:text-foreground rounded-lg hover:bg-muted"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => deleteEntry(entry.id)} className="p-1.5 text-muted-foreground/50 hover:text-red-500 rounded-lg hover:bg-red-500/10"><Trash2 className="w-3 h-3" /></button>
                       </>
                     )}
                   </div>
