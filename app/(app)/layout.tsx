@@ -7,7 +7,7 @@ import MobileNav from '@/components/MobileNav'
 import PresenceBar from '@/components/PresenceBar'
 import { WorkspaceProvider } from '@/lib/workspace-context'
 import { I18nProvider } from '@/lib/i18n'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -40,19 +40,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [router])
 
   if (!user) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-        <div style={{ width: '32px', height: '32px', border: '2px solid #0ea5e9', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ fontSize: '12px', color: '#9ca3af' }}>Loading…</p>
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-muted-foreground">Loading…</p>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
   return (
     <I18nProvider>
       <WorkspaceProvider userId={user.id}>
-        <div style={{ display: 'flex', height: '100dvh', backgroundColor: '#f9fafb', overflow: 'hidden', position: 'relative' }}>
+        <div className="flex bg-background overflow-hidden relative" style={{ height: '100dvh' }}>
 
           {/* Desktop sidebar */}
           {!isMobile && <Sidebar userName={user.name} />}
@@ -60,66 +59,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Mobile sidebar overlay */}
           {isMobile && sidebarOpen && (
             <>
-              {/* Backdrop */}
               <div
                 onClick={() => setSidebarOpen(false)}
-                style={{
-                  position: 'fixed', inset: 0,
-                  backgroundColor: 'rgba(0,0,0,0.4)',
-                  zIndex: 40,
-                  backdropFilter: 'blur(2px)',
-                }}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
               />
-              {/* Sidebar drawer */}
-              <div style={{
-                position: 'fixed', top: 0, left: 0, bottom: 0,
-                width: '240px',
-                zIndex: 50,
-                animation: 'slideIn 0.2s ease-out',
-              }}>
+              <div className="fixed top-0 left-0 bottom-0 z-50" style={{ width: '240px', animation: 'slideIn 0.2s ease-out' }}>
                 <Sidebar userName={user.name} onClose={() => setSidebarOpen(false)} />
               </div>
             </>
           )}
 
           {/* Main content */}
-          <main style={{
-            flex: 1,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            marginLeft: isMobile ? '0' : '224px',
-            paddingBottom: isMobile ? '80px' : '0',
-            width: isMobile ? '100%' : 'calc(100% - 224px)',
-          }}>
+          <main
+            className="flex-1 overflow-y-auto overflow-x-hidden"
+            style={{
+              marginLeft: isMobile ? '0' : '224px',
+              paddingBottom: isMobile ? '80px' : '0',
+              width: isMobile ? '100%' : 'calc(100% - 224px)',
+            }}
+          >
             {/* Mobile top bar */}
             {isMobile && (
-              <div style={{
-                position: 'sticky', top: 0, zIndex: 30,
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '12px 16px',
-                backgroundColor: 'white',
-                borderBottom: '1px solid #f3f4f6',
-              }}>
+              <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: '36px', height: '36px',
-                    borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
-                    backgroundColor: 'white',
-                    cursor: 'pointer',
-                  }}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-card hover:bg-muted transition-colors"
                 >
-                  <Menu size={18} color="#6b7280" />
+                  <Menu size={18} className="text-muted-foreground" />
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ backgroundColor: '#0284c7', borderRadius: '8px', padding: '4px', display: 'flex' }}>
+                <div className="flex items-center gap-2">
+                  <div className="bg-brand-600 rounded-lg p-1 flex items-center justify-center">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                     </svg>
                   </div>
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827' }}>Kairos</span>
+                  <span className="text-sm font-bold text-foreground">Kairos</span>
                 </div>
               </div>
             )}

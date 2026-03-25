@@ -92,3 +92,102 @@ create index if not exists idx_time_entries_user_id on public.time_entries(user_
 create index if not exists idx_time_entries_start   on public.time_entries(start_time desc);
 create index if not exists idx_projects_user_id     on public.projects(user_id);
 create index if not exists idx_clients_user_id      on public.clients(user_id);
+
+-- ================================================================
+-- MIGRATION 2: TIMESHEETS
+-- Run this block separately if upgrading an existing database
+-- ================================================================
+
+create table if not exists public.timesheets (
+  id            uuid default gen_random_uuid() primary key,
+  user_id       uuid references public.profiles(id) on delete cascade not null,
+  workspace_id  uuid references public.workspaces(id) on delete cascade not null,
+  week_start    date not null,  -- Monday of the week (YYYY-MM-DD)
+  status        text default 'draft' check (status in ('draft', 'submitted', 'approved', 'rejected')),
+  note          text,           -- consultant's note when submitting
+  reviewer_note text,           -- admin feedback on approve/reject
+  submitted_at  timestamptz,
+  reviewed_at   timestamptz,
+  reviewed_by   uuid references public.profiles(id),
+  created_at    timestamptz default now() not null,
+  unique(user_id, workspace_id, week_start)
+);
+alter table public.timesheets enable row level security;
+
+-- Consultants can manage their own timesheets
+create policy "Users manage own timesheets" on public.timesheets
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Workspace admins can view and update all timesheets in their workspace
+create policy "Admins view workspace timesheets" on public.timesheets
+  for select using (
+    exists (
+      select 1 from public.workspace_members
+      where workspace_id = timesheets.workspace_id
+        and user_id = auth.uid()
+        and status = 'active'
+    )
+  );
+
+create policy "Admins update workspace timesheets" on public.timesheets
+  for update using (
+    exists (
+      select 1 from public.workspace_members
+      where workspace_id = timesheets.workspace_id
+        and user_id = auth.uid()
+        and role = 'admin'
+        and status = 'active'
+    )
+  );
+
+create index if not exists idx_timesheets_user_workspace on public.timesheets(user_id, workspace_id);
+create index if not exists idx_timesheets_workspace_status on public.timesheets(workspace_id, status);
+
+-- ================================================================
+-- MIGRATION 3: SAVED INVOICES
+-- Run this block separately if upgrading an existing database
+-- ================================================================
+
+create table if not exists public.invoices (
+  id             uuid default gen_random_uuid() primary key,
+  workspace_id   uuid references public.workspaces(id) on delete cascade not null,
+  created_by     uuid references public.profiles(id) not null,
+  client_id      uuid references public.clients(id) on delete set null,
+  client_name    text not null,
+  invoice_number text not null,
+  issue_date     date not null,
+  due_date       date not null,
+  period_from    date not null,
+  period_to      date not null,
+  subtotal       numeric(12,2) not null default 0,
+  notes          text,
+  status         text default 'draft' check (status in ('draft', 'sent', 'paid')),
+  lines          jsonb default '[]'::jsonb,  -- [{description, hours, rate, amount}]
+  sent_at        timestamptz,
+  paid_at        timestamptz,
+  created_at     timestamptz default now() not null
+);
+alter table public.invoices enable row level security;
+
+-- Only workspace admins can manage invoices
+create policy "Admins manage invoices" on public.invoices
+  for all using (
+    exists (
+      select 1 from public.workspace_members
+      where workspace_id = invoices.workspace_id
+        and user_id = auth.uid()
+        and role = 'admin'
+        and status = 'active'
+    )
+  ) with check (
+    exists (
+      select 1 from public.workspace_members
+      where workspace_id = invoices.workspace_id
+        and user_id = auth.uid()
+        and role = 'admin'
+        and status = 'active'
+    )
+  );
+
+create index if not exists idx_invoices_workspace on public.invoices(workspace_id);
+create index if not exists idx_invoices_status on public.invoices(workspace_id, status);

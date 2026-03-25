@@ -18,8 +18,7 @@ export default function MobileNav() {
   ]
 
   return (
-    <nav
-      className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-40 md:hidden"
+    <nav className="fixed bottom-0 inset-x-0 bg-card border-t border-border z-40 md:hidden"
       style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
     >
       <div className="flex items-center justify-around px-2 pt-2">
@@ -30,11 +29,11 @@ export default function MobileNav() {
               key={href}
               href={href}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[56px] ${
-                active ? 'text-brand-600' : 'text-gray-400'
+                active ? 'text-brand-600 dark:text-brand-500' : 'text-muted-foreground'
               }`}
             >
-              <Icon className={`w-5 h-5 ${active ? 'text-brand-600' : 'text-gray-400'}`} />
-              <span className={`text-[10px] font-medium leading-tight ${active ? 'text-brand-600' : 'text-gray-400'}`}>
+              <Icon className={`w-5 h-5 ${active ? 'text-brand-600 dark:text-brand-500' : 'text-muted-foreground'}`} />
+              <span className={`text-[10px] font-medium leading-tight ${active ? 'text-brand-600 dark:text-brand-500' : 'text-muted-foreground'}`}>
                 {label}
               </span>
             </Link>
