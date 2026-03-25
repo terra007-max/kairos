@@ -199,3 +199,101 @@ create index if not exists idx_invoices_status on public.invoices(workspace_id, 
 alter table public.project_level_rates
   add column if not exists rate_type text default 'hourly'
     check (rate_type in ('hourly', 'daily'));
+
+-- ================================================================
+-- MIGRATION 5: SECURITY — WORKSPACE-LEVEL ROW LEVEL SECURITY
+-- Run this to enforce proper multi-tenant data isolation.
+-- ================================================================
+
+-- time_entries: workspace members can view ALL entries in their workspace
+-- (needed for admin reports/dashboard). Own entries covered by existing policy.
+drop policy if exists "Workspace members view workspace entries" on public.time_entries;
+create policy "Workspace members view workspace entries" on public.time_entries
+  for select using (
+    exists (
+      select 1 from public.workspace_members wm
+      where wm.workspace_id = time_entries.workspace_id
+        and wm.user_id = auth.uid()
+        and wm.status = 'active'
+    )
+  );
+
+-- projects: all active workspace members can view projects
+drop policy if exists "Workspace members view projects" on public.projects;
+create policy "Workspace members view projects" on public.projects
+  for select using (
+    exists (
+      select 1 from public.workspace_members wm
+      where wm.workspace_id = projects.workspace_id
+        and wm.user_id = auth.uid()
+        and wm.status = 'active'
+    )
+  );
+
+-- clients: all active workspace members can view clients
+drop policy if exists "Workspace members view clients" on public.clients;
+create policy "Workspace members view clients" on public.clients
+  for select using (
+    exists (
+      select 1 from public.workspace_members wm
+      where wm.workspace_id = clients.workspace_id
+        and wm.user_id = auth.uid()
+        and wm.status = 'active'
+    )
+  );
+
+-- consultant_levels RLS (if not already present)
+alter table if exists public.consultant_levels enable row level security;
+drop policy if exists "Workspace members manage levels" on public.consultant_levels;
+create policy "Workspace members manage levels" on public.consultant_levels
+  for all using (
+    exists (
+      select 1 from public.workspace_members wm
+      where wm.workspace_id = consultant_levels.workspace_id
+        and wm.user_id = auth.uid()
+        and wm.status = 'active'
+    )
+  ) with check (
+    exists (
+      select 1 from public.workspace_members wm
+      where wm.workspace_id = consultant_levels.workspace_id
+        and wm.user_id = auth.uid()
+        and wm.role = 'admin'
+        and wm.status = 'active'
+    )
+  );
+
+-- project_level_rates RLS
+alter table if exists public.project_level_rates enable row level security;
+drop policy if exists "Workspace members view rates" on public.project_level_rates;
+create policy "Workspace members view rates" on public.project_level_rates
+  for select using (
+    exists (
+      select 1 from public.projects p
+      join public.workspace_members wm on wm.workspace_id = p.workspace_id
+      where p.id = project_level_rates.project_id
+        and wm.user_id = auth.uid()
+        and wm.status = 'active'
+    )
+  );
+drop policy if exists "Admins manage rates" on public.project_level_rates;
+create policy "Admins manage rates" on public.project_level_rates
+  for all using (
+    exists (
+      select 1 from public.projects p
+      join public.workspace_members wm on wm.workspace_id = p.workspace_id
+      where p.id = project_level_rates.project_id
+        and wm.user_id = auth.uid()
+        and wm.role = 'admin'
+        and wm.status = 'active'
+    )
+  ) with check (
+    exists (
+      select 1 from public.projects p
+      join public.workspace_members wm on wm.workspace_id = p.workspace_id
+      where p.id = project_level_rates.project_id
+        and wm.user_id = auth.uid()
+        and wm.role = 'admin'
+        and wm.status = 'active'
+    )
+  );
