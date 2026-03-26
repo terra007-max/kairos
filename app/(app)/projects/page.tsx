@@ -5,16 +5,16 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { type Project, type Client, type ConsultantLevel, type ProjectLevelRate, formatMoney, formatDuration } from '@/lib/types'
-import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays } from 'lucide-react'
+import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import Link from 'next/link'
 
 const COLORS = ['#f97316','#6366f1','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6']
-type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: number; level_rates?: ProjectLevelRate[] }
+type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: number; level_rates?: ProjectLevelRate[]; memberIds?: string[] }
 
 export default function ProjectsPage() {
   const supabase = createClient()
-  const { workspaceId, role } = useWorkspace()
+  const { workspaceId, role, members } = useWorkspace()
   const { t } = useI18n()
   const isAdmin = role === 'admin'
 
@@ -28,12 +28,13 @@ export default function ProjectsPage() {
 
   const load = useCallback(async () => {
     if (!workspaceId) return
-    const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }] = await Promise.all([
+    const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }, { data: pm }] = await Promise.all([
       supabase.from('projects').select('*, client:clients(*)').eq('workspace_id', workspaceId).order('created_at', { ascending: false }),
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
       supabase.from('time_entries').select('project_id, duration_sec, level_id').eq('workspace_id', workspaceId).not('end_time', 'is', null),
       supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
       supabase.from('project_level_rates').select('*, level:consultant_levels(*)'),
+      supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
     ])
     const entryMap: Record<string, number> = {}
     const levelEntryMap: Record<string, Record<string, number>> = {}
@@ -47,10 +48,12 @@ export default function ProjectsPage() {
     }
     const ratesMap: Record<string, ProjectLevelRate[]> = {}
     for (const r of rates || []) { if (!ratesMap[r.project_id]) ratesMap[r.project_id] = []; ratesMap[r.project_id].push(r as ProjectLevelRate) }
+    const membersMap: Record<string, string[]> = {}
+    for (const m of pm || []) { if (!membersMap[m.project_id]) membersMap[m.project_id] = []; membersMap[m.project_id].push(m.user_id) }
     const rows = (proj || []).map(p => {
       const levelSecs = levelEntryMap[p.id] || {}
       const earnings = (ratesMap[p.id] || []).reduce((sum, lr) => sum + ((levelSecs[lr.level_id] || 0) / 3600) * lr.hourly_rate, 0)
-      return { ...p, totalSecs: entryMap[p.id] || 0, earnings, level_rates: ratesMap[p.id] || [] }
+      return { ...p, totalSecs: entryMap[p.id] || 0, earnings, level_rates: ratesMap[p.id] || [], memberIds: membersMap[p.id] || [] }
     }) as ProjectRow[]
     setProjects(rows); setClients(cl || []); setLevels(lvls || []); setLoading(false)
   }, [supabase, workspaceId])
@@ -89,7 +92,7 @@ export default function ProjectsPage() {
       </div>
 
       {isAdmin && (showForm || editProject) && (
-        <ProjectForm project={editProject} clients={clients} levels={levels} workspaceId={workspaceId}
+        <ProjectForm project={editProject} clients={clients} levels={levels} workspaceId={workspaceId} members={members}
           onSave={() => { setShowForm(false); setEditProject(null); load() }}
           onCancel={() => { setShowForm(false); setEditProject(null) }} />
       )}
@@ -152,6 +155,19 @@ export default function ProjectsPage() {
                   </div>
                 )}
 
+                {p.memberIds && p.memberIds.length > 0 && (
+                  <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                    <Users className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+                    {p.memberIds.map(uid => {
+                      const m = members.find(x => x.user_id === uid)
+                      const name = m?.full_name || m?.email || uid
+                      return (
+                        <span key={uid} className="text-xs bg-brand-600/10 text-brand-600 px-2 py-0.5 rounded-full font-medium">{name}</span>
+                      )
+                    })}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
                   <div><p className="text-xs text-muted-foreground">{t('tracked')}</p><p className="text-xs font-mono font-semibold text-foreground mt-0.5">{formatDuration(p.totalSecs || 0)}</p></div>
                   <div><p className="text-xs text-muted-foreground">{t('earnings')}</p><p className="text-xs font-medium text-emerald-600 mt-0.5">{p.earnings ? formatMoney(p.earnings) : '—'}</p></div>
@@ -193,8 +209,8 @@ export default function ProjectsPage() {
   )
 }
 
-function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }: {
-  project: ProjectRow | null; clients: Client[]; levels: ConsultantLevel[]; workspaceId: string; onSave: () => void; onCancel: () => void
+function ProjectForm({ project, clients, levels, workspaceId, members, onSave, onCancel }: {
+  project: ProjectRow | null; clients: Client[]; levels: ConsultantLevel[]; workspaceId: string; members: any[]; onSave: () => void; onCancel: () => void
 }) {
   const supabase = createClient()
   const { t } = useI18n()
@@ -215,7 +231,21 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
   const [levelRateTypes, setLevelRateTypes] = useState<Record<string, 'hourly' | 'daily'>>(
     Object.fromEntries((project?.level_rates || []).map(lr => [lr.level_id, lr.rate_type || 'hourly']))
   )
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
+    new Set(project?.memberIds || [])
+  )
   const [saving, setSaving] = useState(false)
+
+  const activeMembers = members.filter(m => m.status === 'active')
+
+  function toggleMember(userId: string) {
+    setSelectedMembers(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
 
   async function save() {
     if (!name.trim()) return
@@ -236,6 +266,15 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
     } else {
       const { data } = await supabase.from('projects').insert({ ...payload, user_id: user.id, workspace_id: workspaceId }).select('id').single()
       projectId = data?.id
+    }
+    // Sync project members
+    if (projectId) {
+      await supabase.from('project_members').delete().eq('project_id', projectId)
+      if (selectedMembers.size > 0) {
+        await supabase.from('project_members').insert(
+          Array.from(selectedMembers).map(uid => ({ project_id: projectId, user_id: uid, workspace_id: workspaceId }))
+        )
+      }
     }
     if (projectId && levels.length > 0) {
       for (const level of levels) {
@@ -320,6 +359,28 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
                         : ''}
                     </span>
                   </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {activeMembers.length > 0 && (
+          <div className="col-span-2">
+            <label className="label flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Team — who can book on this project</label>
+            <p className="text-xs text-muted-foreground mb-2">Leave all unchecked to allow everyone. Select specific members to restrict access.</p>
+            <div className="flex flex-wrap gap-2">
+              {activeMembers.map(m => {
+                const uid = m.user_id || ''
+                const checked = selectedMembers.has(uid)
+                const name = m.full_name || m.email || uid
+                return (
+                  <button key={uid} type="button" onClick={() => toggleMember(uid)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${checked ? 'bg-brand-600/10 border-brand-600/30 text-brand-600' : 'border-border text-muted-foreground hover:border-brand-600/30 hover:text-foreground'}`}>
+                    <span className="w-5 h-5 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-[10px] font-bold flex-shrink-0">
+                      {name[0].toUpperCase()}
+                    </span>
+                    {name}
+                  </button>
                 )
               })}
             </div>

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project, type ConsultantLevel } from '@/lib/types'
-import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle } from 'lucide-react'
+import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X } from 'lucide-react'
 import { format } from 'date-fns'
 
 type EntryMode = 'timer' | 'fromto' | 'duration'
@@ -44,6 +44,7 @@ export default function TimerPage() {
   const [saving, setSaving] = useState(false)
   const [editingEntry, setEditingEntry] = useState<any | null>(null)
   const [currentUserId, setCurrentUserId] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const getMemberName = (userId: string) => {
     const m = members.find(m => m.user_id === userId)
@@ -66,7 +67,7 @@ export default function TimerPage() {
 
     if (role === 'member') entriesQuery = entriesQuery.eq('user_id', user.id)
 
-    const [{ data: proj }, { data: ents }, { data: live }, { data: lvls }, forgottenResult] = await Promise.all([
+    const [{ data: proj }, { data: ents }, { data: live }, { data: lvls }, forgottenResult, { data: projectMembers }] = await Promise.all([
       supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').order('name'),
       entriesQuery,
       supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', user.id).is('end_time', null).maybeSingle(),
@@ -74,9 +75,17 @@ export default function TimerPage() {
       role === 'admin'
         ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', user.id).is('end_time', null)
         : Promise.resolve({ data: [] }),
+      supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
     ])
 
-    setProjects(proj || [])
+    // For members: only show projects they're explicitly assigned to, or projects with no assignments (open to all)
+    let visibleProjects = proj || []
+    if (role === 'member') {
+      const assignedToMe = new Set((projectMembers || []).filter(pm => pm.user_id === user.id).map(pm => pm.project_id))
+      const projectsWithAssignments = new Set((projectMembers || []).map(pm => pm.project_id))
+      visibleProjects = visibleProjects.filter(p => !projectsWithAssignments.has(p.id) || assignedToMe.has(p.id))
+    }
+    setProjects(visibleProjects)
     setEntries(ents || [])
     setLevels(lvls || [])
     setForgottenTimers((forgottenResult as any)?.data || [])
@@ -221,7 +230,19 @@ export default function TimerPage() {
     })
   }
 
-  const grouped = entries.reduce<Record<string, any[]>>((acc, e) => {
+  const filteredEntries = searchQuery.trim()
+    ? entries.filter(e => {
+        const q = searchQuery.toLowerCase()
+        return (
+          e.description?.toLowerCase().includes(q) ||
+          e.project?.name?.toLowerCase().includes(q) ||
+          e.project?.client?.name?.toLowerCase().includes(q) ||
+          getMemberName(e.user_id).toLowerCase().includes(q)
+        )
+      })
+    : entries
+
+  const grouped = filteredEntries.reduce<Record<string, any[]>>((acc, e) => {
     const day = format(new Date(e.start_time), 'yyyy-MM-dd')
     if (!acc[day]) acc[day] = []
     acc[day].push(e)
@@ -385,6 +406,24 @@ export default function TimerPage() {
               <button onClick={() => setEditingEntry(null)} className="btn-secondary text-sm">{t('cancel')}</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Search */}
+      {entries.length > 0 && (
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+          <input
+            className="input pl-9 pr-8 text-sm"
+            placeholder="Search entries…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
 

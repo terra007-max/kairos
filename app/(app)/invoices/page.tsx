@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { type Client, type Project, formatMoney } from '@/lib/types'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { FileText, Download, Send, CheckCircle, Clock, Package } from 'lucide-react'
+import { FileText, Download, Send, CheckCircle, Clock, Package, Search, X, Pencil, Trash2, Check } from 'lucide-react'
 
 type InvoiceLine = { description: string; hours: number; rate: number; amount: number }
 
@@ -103,6 +103,9 @@ export default function InvoicesPage() {
   const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([])
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [editingInvoice, setEditingInvoice] = useState<SavedInvoice | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // BMD NTCS settings from localStorage
   const [taxCode, setTaxCode] = useState('')
@@ -215,6 +218,112 @@ export default function InvoicesPage() {
     if (status === 'paid') update.paid_at = new Date().toISOString()
     await supabase.from('invoices').update(update).eq('id', id)
     setSavedInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...update } : inv))
+  }
+
+  async function deleteInvoice(id: string) {
+    await supabase.from('invoices').delete().eq('id', id)
+    setSavedInvoices(prev => prev.filter(inv => inv.id !== id))
+    setDeleteConfirmId(null)
+  }
+
+  async function saveEditInvoice() {
+    if (!editingInvoice) return
+    const update = { invoice_number: editingInvoice.invoice_number, due_date: editingInvoice.due_date, notes: editingInvoice.notes }
+    await supabase.from('invoices').update(update).eq('id', editingInvoice.id)
+    setSavedInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? { ...inv, ...update } : inv))
+    setEditingInvoice(null)
+  }
+
+  async function downloadPDF(inv: SavedInvoice) {
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const W = 210, ml = 20, mr = 190
+
+    // Header
+    doc.setFontSize(28).setFont('helvetica', 'bold')
+    doc.text('INVOICE', ml, 28)
+    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(150)
+    doc.text(`#${inv.invoice_number}`, ml, 36)
+
+    // Sender
+    doc.setTextColor(30).setFontSize(11).setFont('helvetica', 'bold')
+    doc.text(profile?.full_name || profile?.email || 'Consulting', mr, 24, { align: 'right' })
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(120)
+    if (profile?.email) doc.text(profile.email, mr, 30, { align: 'right' })
+
+    // Divider
+    doc.setDrawColor(220).setLineWidth(0.4).line(ml, 44, mr, 44)
+
+    // Bill To + Dates
+    doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold')
+    doc.text('BILL TO', ml, 53)
+    doc.setFontSize(11).setTextColor(30).setFont('helvetica', 'normal')
+    doc.text(inv.client_name, ml, 60)
+
+    const labelX = 130, valX = mr
+    const row = (label: string, val: string, y: number) => {
+      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text(label, labelX, y)
+      doc.setFontSize(9).setTextColor(30).setFont('helvetica', 'normal').text(val, valX, y, { align: 'right' })
+    }
+    row('ISSUE DATE', format(new Date(inv.issue_date), 'MMM d, yyyy'), 53)
+    row('DUE DATE', format(new Date(inv.due_date), 'MMM d, yyyy'), 60)
+    row('PERIOD', `${format(new Date(inv.period_from), 'MMM d')} – ${format(new Date(inv.period_to), 'MMM d, yyyy')}`, 67)
+
+    // Table header
+    let y = 82
+    doc.setFillColor(245, 246, 248).rect(ml, y - 5, mr - ml, 8, 'F')
+    doc.setFontSize(8).setTextColor(100).setFont('helvetica', 'bold')
+    doc.text('DESCRIPTION', ml + 2, y)
+    doc.text('HOURS', 130, y, { align: 'right' })
+    doc.text('RATE', 155, y, { align: 'right' })
+    doc.text('AMOUNT', mr, y, { align: 'right' })
+
+    y += 6
+    doc.setDrawColor(210).setLineWidth(0.3)
+
+    for (const line of inv.lines) {
+      doc.line(ml, y, mr, y)
+      y += 7
+      doc.setFontSize(10).setTextColor(30).setFont('helvetica', 'normal')
+      doc.text(line.description, ml + 2, y)
+      doc.setTextColor(90)
+      doc.text(`${line.hours.toFixed(2)}h`, 130, y, { align: 'right' })
+      doc.text(`€${line.rate.toFixed(2)}/h`, 155, y, { align: 'right' })
+      doc.setTextColor(30).setFont('helvetica', 'bold')
+      doc.text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
+      doc.setFont('helvetica', 'normal')
+    }
+
+    // Total box
+    y += 8
+    doc.line(ml, y, mr, y)
+    y += 7
+    doc.setFontSize(9).setTextColor(100).text('Subtotal', 145, y)
+    doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
+    y += 8
+    doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y)
+    y += 7
+    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(30)
+    doc.text('Total', 145, y)
+    doc.text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
+
+    // Notes
+    if (inv.notes) {
+      y += 16
+      doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y)
+      y += 8
+      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('NOTES', ml, y)
+      y += 5
+      doc.setFontSize(9).setTextColor(80).setFont('helvetica', 'normal')
+      const noteLines = doc.splitTextToSize(inv.notes, mr - ml)
+      doc.text(noteLines, ml, y)
+    }
+
+    // Footer
+    doc.setFontSize(8).setTextColor(180).setFont('helvetica', 'normal')
+    doc.text('Generated by Kairos', W / 2, 285, { align: 'center' })
+
+    doc.save(`${inv.invoice_number}.pdf`)
   }
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
@@ -370,12 +479,35 @@ export default function InvoicesPage() {
 
       {activeTab === 'history' && (
         <div className="space-y-3">
+          {savedInvoices.length > 0 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+              <input
+                className="input pl-9 pr-8 text-sm"
+                placeholder="Search by client, invoice number, status…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           {savedInvoices.length === 0 ? (
             <div className="card p-12 text-center">
               <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">{t('noSavedInvoices')}</p>
             </div>
-          ) : savedInvoices.map(inv => (
+          ) : savedInvoices
+              .filter(inv => {
+                if (!searchQuery.trim()) return true
+                const q = searchQuery.toLowerCase()
+                return inv.invoice_number.toLowerCase().includes(q) || inv.client_name.toLowerCase().includes(q) || inv.status.includes(q)
+              })
+              .map(inv => (
             <div key={inv.id} className="card p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -385,33 +517,87 @@ export default function InvoicesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{inv.client_name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(inv.issue_date), 'MMM d, yyyy')} · {t('period')}: {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
+                    {format(new Date(inv.issue_date), 'MMM d, yyyy')} · Due {format(new Date(inv.due_date), 'MMM d, yyyy')} · {t('period')}: {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
                   </p>
+                  {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{inv.notes}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-foreground">{formatMoney(inv.subtotal)}</p>
                   <div className="flex gap-2 mt-2 justify-end flex-wrap">
-                    {inv.status === 'draft' && (
-                      <button onClick={() => updateStatus(inv.id, 'sent')} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
-                        <Send className="w-3 h-3" /> {t('markAsSent')}
-                      </button>
-                    )}
                     {inv.status === 'sent' && (
                       <button onClick={() => updateStatus(inv.id, 'paid')} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10">
                         <CheckCircle className="w-3 h-3" /> {t('markAsPaid')}
                       </button>
                     )}
-                    <button
-                      onClick={() => exportBMDNTCS(inv, taxCode, revenueAccount, debitorAccount)}
-                      className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1"
-                    >
+                    <button onClick={() => downloadPDF(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
+                      <Download className="w-3 h-3" /> PDF
+                    </button>
+                    <button onClick={() => exportBMDNTCS(inv, taxCode, revenueAccount, debitorAccount)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
                       <Package className="w-3 h-3" /> BMD
                     </button>
+                    <button onClick={() => setEditingInvoice(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    {deleteConfirmId === inv.id ? (
+                      <>
+                        <button onClick={() => deleteInvoice(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-red-500 border-red-500/30 hover:bg-red-500/10">
+                          <Check className="w-3 h-3" /> Confirm
+                        </button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary text-xs py-1 px-2.5">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => setDeleteConfirmId(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/10">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit invoice modal */}
+      {editingInvoice && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-md">
+            <h3 className="font-semibold text-foreground mb-5 text-sm">Edit Invoice</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Invoice Number</label>
+                <input className="input" value={editingInvoice.invoice_number} onChange={e => setEditingInvoice({ ...editingInvoice, invoice_number: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">{t('dueDate')}</label>
+                <input type="date" className="input" value={editingInvoice.due_date} onChange={e => setEditingInvoice({ ...editingInvoice, due_date: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">{t('notesPayment')}</label>
+                <textarea className="input resize-none" rows={3} value={editingInvoice.notes || ''} onChange={e => setEditingInvoice({ ...editingInvoice, notes: e.target.value })} />
+              </div>
+              <div>
+                <p className="label mb-2">Line items (read-only)</p>
+                <div className="rounded-lg border border-border divide-y divide-border text-xs">
+                  {editingInvoice.lines.map((l, i) => (
+                    <div key={i} className="flex justify-between px-3 py-2 text-muted-foreground">
+                      <span>{l.description} · {l.hours.toFixed(2)}h</span>
+                      <span className="font-medium text-foreground">{formatMoney(l.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-3 py-2 font-semibold text-foreground">
+                    <span>Total</span><span>{formatMoney(editingInvoice.subtotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-5">
+              <button onClick={saveEditInvoice} className="btn-primary flex items-center gap-2 text-sm"><Check className="w-3.5 h-3.5" />{t('saveChanges')}</button>
+              <button onClick={() => setEditingInvoice(null)} className="btn-secondary text-sm">{t('cancel')}</button>
+            </div>
+          </div>
         </div>
       )}
 
