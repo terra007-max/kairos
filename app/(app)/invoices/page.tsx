@@ -207,6 +207,8 @@ export default function InvoicesPage() {
     const { data } = await supabase.from('invoices').insert(payload).select().single()
     if (data) {
       setSavedInvoices(prev => [data as SavedInvoice, ...prev])
+      setGenerated(false)
+      setLines([])
       setActiveTab('history')
     }
     setSaving(false)
