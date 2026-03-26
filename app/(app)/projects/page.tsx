@@ -31,15 +31,27 @@ export default function ProjectsPage() {
     const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }] = await Promise.all([
       supabase.from('projects').select('*, client:clients(*)').eq('workspace_id', workspaceId).order('created_at', { ascending: false }),
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
-      supabase.from('time_entries').select('project_id, duration_sec').eq('workspace_id', workspaceId).not('end_time', 'is', null),
+      supabase.from('time_entries').select('project_id, duration_sec, level_id').eq('workspace_id', workspaceId).not('end_time', 'is', null),
       supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
       supabase.from('project_level_rates').select('*, level:consultant_levels(*)'),
     ])
     const entryMap: Record<string, number> = {}
-    for (const e of entries || []) { if (!e.project_id) continue; entryMap[e.project_id] = (entryMap[e.project_id] || 0) + (e.duration_sec || 0) }
+    const levelEntryMap: Record<string, Record<string, number>> = {}
+    for (const e of entries || []) {
+      if (!e.project_id) continue
+      entryMap[e.project_id] = (entryMap[e.project_id] || 0) + (e.duration_sec || 0)
+      if (e.level_id) {
+        if (!levelEntryMap[e.project_id]) levelEntryMap[e.project_id] = {}
+        levelEntryMap[e.project_id][e.level_id] = (levelEntryMap[e.project_id][e.level_id] || 0) + (e.duration_sec || 0)
+      }
+    }
     const ratesMap: Record<string, ProjectLevelRate[]> = {}
     for (const r of rates || []) { if (!ratesMap[r.project_id]) ratesMap[r.project_id] = []; ratesMap[r.project_id].push(r as ProjectLevelRate) }
-    const rows = (proj || []).map(p => ({ ...p, totalSecs: entryMap[p.id] || 0, earnings: ((entryMap[p.id] || 0) / 3600) * (p.hourly_rate || 0), level_rates: ratesMap[p.id] || [] })) as ProjectRow[]
+    const rows = (proj || []).map(p => {
+      const levelSecs = levelEntryMap[p.id] || {}
+      const earnings = (ratesMap[p.id] || []).reduce((sum, lr) => sum + ((levelSecs[lr.level_id] || 0) / 3600) * lr.hourly_rate, 0)
+      return { ...p, totalSecs: entryMap[p.id] || 0, earnings, level_rates: ratesMap[p.id] || [] }
+    }) as ProjectRow[]
     setProjects(rows); setClients(cl || []); setLevels(lvls || []); setLoading(false)
   }, [supabase, workspaceId])
 
@@ -140,9 +152,8 @@ export default function ProjectsPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
+                <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
                   <div><p className="text-xs text-muted-foreground">{t('tracked')}</p><p className="text-xs font-mono font-semibold text-foreground mt-0.5">{formatDuration(p.totalSecs || 0)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">{t('rate')}</p><p className="text-xs font-medium text-foreground mt-0.5">{p.hourly_rate ? `${formatMoney(p.hourly_rate)}/h` : '—'}</p></div>
                   <div><p className="text-xs text-muted-foreground">{t('earnings')}</p><p className="text-xs font-medium text-emerald-600 mt-0.5">{p.earnings ? formatMoney(p.earnings) : '—'}</p></div>
                 </div>
 
@@ -190,7 +201,6 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
   const [name, setName] = useState(project?.name || '')
   const [clientId, setClientId] = useState(project?.client_id || '')
   const [color, setColor] = useState(project?.color || COLORS[0])
-  const [rate, setRate] = useState(String(project?.hourly_rate || ''))
   const [notes, setNotes] = useState(project?.notes || '')
   const [startDate, setStartDate] = useState(project?.start_date || '')
   const [endDate, setEndDate] = useState(project?.end_date || '')
@@ -214,7 +224,7 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
     if (!user) return
     const payload = {
       name: name.trim(), client_id: clientId || null, color,
-      hourly_rate: parseFloat(rate) || 0, notes: notes || null,
+      notes: notes || null,
       start_date: startDate || null, end_date: endDate || null,
       rounding_minutes: parseInt(rounding) || 0,
       budget_hours: parseFloat(budgetHours) || null,
@@ -260,7 +270,6 @@ function ProjectForm({ project, clients, levels, workspaceId, onSave, onCancel }
         </div>
         <div><label className="label">{t('startDate')}</label><input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
         <div><label className="label">{t('endDate')}</label><input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-        <div><label className="label">{t('defaultRate')}</label><input type="number" className="input" placeholder="0" value={rate} onChange={e => setRate(e.target.value)} min="0" step="0.01" /></div>
         <div>
           <label className="label">{t('timeRounding')}</label>
           <select className="input" value={rounding} onChange={e => setRounding(e.target.value)}>

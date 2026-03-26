@@ -76,20 +76,25 @@ export default function DashboardPage() {
     const prevWeekEnd = new Date(weekStart.getTime() - 1)
     const userFilter = role === 'member' ? { user_id: user.id } : {}
 
-    const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }] = await Promise.all([
-      supabase.from('time_entries').select('duration_sec, billable, project_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
-      supabase.from('time_entries').select('duration_sec, billable, project_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', monthStart.toISOString()).not('end_time', 'is', null),
+    const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }, { data: levelRates }] = await Promise.all([
+      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
+      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', monthStart.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevWeekStart.toISOString()).lte('start_time', prevWeekEnd.toISOString()).not('end_time', 'is', null),
-      supabase.from('time_entries').select('duration_sec, billable, project_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevMonthStart.toISOString()).lte('start_time', prevMonthEnd.toISOString()).not('end_time', 'is', null),
+      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevMonthStart.toISOString()).lte('start_time', prevMonthEnd.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('*, project:projects(*, client:clients(*))').eq('workspace_id', workspaceId).match(userFilter).order('start_time', { ascending: false }).limit(8),
-      supabase.from('projects').select('id, hourly_rate').eq('workspace_id', workspaceId).eq('status', 'active'),
+      supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('status', 'active'),
       supabase.from('clients').select('id').eq('workspace_id', workspaceId),
+      supabase.from('project_level_rates').select('project_id, level_id, hourly_rate'),
     ])
 
-    const pMap = Object.fromEntries((projects || []).map(p => [p.id, p]))
+    const rateMap: Record<string, Record<string, number>> = {}
+    for (const r of levelRates || []) {
+      if (!rateMap[r.project_id]) rateMap[r.project_id] = {}
+      rateMap[r.project_id][r.level_id] = r.hourly_rate
+    }
     const calcEarnings = (entries: any[]) => entries.filter(e => e.billable).reduce((s, e) => {
-      const p = pMap[e.project_id]
-      return s + (p?.hourly_rate ? (e.duration_sec || 0) / 3600 * p.hourly_rate : 0)
+      const rate = rateMap[e.project_id]?.[e.level_id] || 0
+      return s + (e.duration_sec || 0) / 3600 * rate
     }, 0)
 
     setStats({
