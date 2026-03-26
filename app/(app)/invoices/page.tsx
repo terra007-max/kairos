@@ -284,8 +284,8 @@ export default function InvoicesPage() {
     doc.setDrawColor(210).setLineWidth(0.3)
 
     for (const line of inv.lines) {
-      doc.line(ml, y, mr, y)
-      y += 7
+      doc.line(ml, y, mr, y)          // separator above row
+      y += 5                           // gap: line → text baseline
       doc.setFontSize(10).setTextColor(30).setFont('helvetica', 'normal')
       doc.text(line.description, ml + 2, y)
       doc.setTextColor(90)
@@ -294,12 +294,13 @@ export default function InvoicesPage() {
       doc.setTextColor(30).setFont('helvetica', 'bold')
       doc.text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
       doc.setFont('helvetica', 'normal')
+      y += 7                           // gap: text baseline → next separator
     }
 
     // Total box
-    y += 8
+    y += 4
     doc.line(ml, y, mr, y)
-    y += 7
+    y += 6
     doc.setFontSize(9).setTextColor(100).text('Subtotal', 145, y)
     doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
     y += 8
