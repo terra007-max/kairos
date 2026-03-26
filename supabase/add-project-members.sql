@@ -3,8 +3,11 @@
 -- Run this in: Supabase Dashboard > SQL Editor > New query
 -- ================================================================
 
+-- Drop and recreate to ensure schema is correct
+drop table if exists public.project_members cascade;
+
 -- PROJECT MEMBERS — controls which workspace members are assigned to a project
-create table if not exists public.project_members (
+create table public.project_members (
   id           uuid default gen_random_uuid() primary key,
   project_id   uuid references public.projects(id) on delete cascade not null,
   user_id      uuid references public.profiles(id) on delete cascade not null,
