@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney, calcEntryEarnings } from '@/lib/types'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -32,6 +33,7 @@ function HealthIcon({ pct }: { pct: number }) {
 export default function AnalyticsPage() {
   const supabase = createClient()
   const { workspaceId, role, members } = useWorkspace()
+  const { t } = useI18n()
   const [entries, setEntries] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +66,7 @@ export default function AnalyticsPage() {
   if (role !== 'admin') return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Lock className="w-8 h-8 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground">Analytics is only available to admins.</p>
+      <p className="text-sm text-muted-foreground">{t('analyticsAdminOnly')}</p>
     </div>
   )
 
@@ -204,17 +206,17 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Consultancy performance overview — current month</p>
+        <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('analyticsSubtitle')}</p>
       </div>
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Revenue MTD', value: formatMoney(revenueMTD), sub: 'billable only', icon: DollarSign, color: 'bg-emerald-500' },
-          { label: 'Pipeline remaining', value: formatMoney(pipeline), sub: 'across all projects', icon: TrendingUp, color: 'bg-brand-600' },
-          { label: 'Team utilization', value: `${utilization}%`, sub: 'billable / total hours', icon: Users, color: 'bg-violet-500' },
-          { label: 'Avg effective rate', value: `${formatMoney(avgRate)}/h`, sub: 'revenue ÷ billable h', icon: Zap, color: 'bg-amber-500' },
+          { label: t('revenueMTD'), value: formatMoney(revenueMTD), sub: t('billableOnly2'), icon: DollarSign, color: 'bg-emerald-500' },
+          { label: t('pipelineRemaining'), value: formatMoney(pipeline), sub: t('acrossAllProjects'), icon: TrendingUp, color: 'bg-brand-600' },
+          { label: t('teamUtilization'), value: `${utilization}%`, sub: t('billableTotalHours'), icon: Users, color: 'bg-violet-500' },
+          { label: t('avgEffectiveRate'), value: `${formatMoney(avgRate)}/h`, sub: t('revenueDivBillable'), icon: Zap, color: 'bg-amber-500' },
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="card p-5">
             <div className={`inline-flex p-2 rounded-lg ${color} mb-3`}>
@@ -231,7 +233,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Revenue trend */}
         <div className="card p-5 lg:col-span-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Revenue & Hours — last 6 months</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('revenueHours6mo')}</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={revenueTrend} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -247,9 +249,9 @@ export default function AnalyticsPage() {
 
         {/* Client revenue pie */}
         <div className="card p-5 lg:col-span-2">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Revenue by client (6 mo)</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('revenueByClient')}</h2>
           {clientData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">No billable data</div>
+            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">{t('noBillableData')}</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -267,19 +269,19 @@ export default function AnalyticsPage() {
       {/* Project burndown */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget burndown</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('budgetBurndown')}</h2>
           <select className="input w-auto text-xs py-1" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-            <option value="all">— select a project —</option>
+            <option value="all">{t('selectProject')}</option>
             {projects.filter(p => p.budget_amount).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
 
         {selectedProject === 'all' ? (
           <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-sm">
-            Select a project with a budget to see its burndown
+            {t('selectProjectHint')}
           </div>
         ) : burndownData.length === 0 ? (
-          <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-sm">No billable entries yet for this project</div>
+          <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-sm">{t('noBillableEntries')}</div>
         ) : (
           <>
             {/* Burndown stats */}
@@ -296,24 +298,24 @@ export default function AnalyticsPage() {
                   return (
                     <>
                       <div className={`rounded-lg p-3 border ${healthBg(pct)}`}>
-                        <p className="text-xs text-muted-foreground">Budget used</p>
+                        <p className="text-xs text-muted-foreground">{t('budgetUsed')}</p>
                         <p className={`text-lg font-bold ${healthColor(pct)}`}>{pct}%</p>
-                        <p className="text-xs text-muted-foreground">{formatMoney(spent)} of {formatMoney(budget)}</p>
+                        <p className="text-xs text-muted-foreground">{formatMoney(spent)} {t('ofBudget')} {formatMoney(budget)}</p>
                       </div>
                       <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground">Remaining</p>
+                        <p className="text-xs text-muted-foreground">{t('remaining')}</p>
                         <p className="text-lg font-bold text-foreground">{formatMoney(remaining)}</p>
                         <p className="text-xs text-muted-foreground">{formatDuration(Math.round((remaining / (spent / Math.max(hoursSpent, 0.1))) * 3600))} est.</p>
                       </div>
                       <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground">Hours logged</p>
+                        <p className="text-xs text-muted-foreground">{t('hoursLogged')}</p>
                         <p className="text-lg font-bold text-foreground">{hoursSpent.toFixed(1)}h</p>
-                        {burndownProject.budget_hours && <p className="text-xs text-muted-foreground">of {burndownProject.budget_hours}h budget</p>}
+                        {burndownProject.budget_hours && <p className="text-xs text-muted-foreground">{t('ofBudget')} {burndownProject.budget_hours}h</p>}
                       </div>
                       <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground">Est. completion</p>
+                        <p className="text-xs text-muted-foreground">{t('estCompletion')}</p>
                         <p className="text-lg font-bold text-foreground">{daysToComplete ? `${daysToComplete}d` : '—'}</p>
-                        <p className="text-xs text-muted-foreground">{burnPerDay > 0 ? `${formatMoney(burnPerDay)}/day burn` : 'no data'}</p>
+                        <p className="text-xs text-muted-foreground">{burnPerDay > 0 ? `${formatMoney(burnPerDay)}${t('dayBurn')}` : t('noData')}</p>
                       </div>
                     </>
                   )
@@ -346,9 +348,9 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Team utilization */}
         <div className="card p-5">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Team utilization — this month</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('teamUtilizationMonth')}</h2>
           {teamUtil.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">No tracked time this month</div>
+            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">{t('noTrackedTimeMonth')}</div>
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(180, teamUtil.length * 52)}>
               <BarChart data={teamUtil} layout="vertical" barGap={2}>
@@ -361,15 +363,15 @@ export default function AnalyticsPage() {
                   return (
                     <div className="bg-card border border-border rounded-lg p-3 text-xs shadow-lg">
                       <p className="font-semibold text-foreground mb-1">{label}</p>
-                      <p className="text-emerald-500">Billable: {d.billable}h</p>
-                      <p className="text-muted-foreground">Non-billable: {d.nonBillable}h</p>
-                      <p className="text-brand-600 font-medium mt-1">{d.pct}% utilization</p>
+                      <p className="text-emerald-500">{t('billableLabel')}: {d.billable}h</p>
+                      <p className="text-muted-foreground">{t('nonBillableLabel')}: {d.nonBillable}h</p>
+                      <p className="text-brand-600 font-medium mt-1">{d.pct}% {t('utilizationLabel')}</p>
                       <p className="text-emerald-600">{formatMoney(d.revenue)}</p>
                     </div>
                   )
                 }} />
-                <Bar dataKey="billable" name="Billable" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="nonBillable" name="Non-billable" stackId="a" fill="hsl(var(--muted-foreground))" opacity={0.4} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="billable" name={t('billableLabel')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="nonBillable" name={t('nonBillableLabel')} stackId="a" fill="hsl(var(--muted-foreground))" opacity={0.4} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -378,10 +380,10 @@ export default function AnalyticsPage() {
         {/* Project health */}
         <div className="card overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project health</h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('projectHealth')}</h2>
           </div>
           {projectHealth.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">No active projects with budgets</div>
+            <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">{t('noProjectsWithBudgets')}</div>
           ) : (
             <div className="divide-y divide-border">
               {projectHealth.map(({ p, spent, hoursSpent, budgetPct, hoursPct, worstPct }) => (
@@ -399,7 +401,7 @@ export default function AnalyticsPage() {
                       <p className={`text-xs ${healthColor(hoursPct)}`}>{hoursSpent.toFixed(1)}h / {p.budget_hours}h</p>
                     )}
                     {budgetPct === null && hoursPct === null && (
-                      <p className="text-xs text-muted-foreground/50">No budget set</p>
+                      <p className="text-xs text-muted-foreground/50">{t('noBudgetSet')}</p>
                     )}
                   </div>
                   <HealthIcon pct={worstPct} />
