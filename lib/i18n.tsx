@@ -214,8 +214,8 @@ const translations = {
     exportBMD: 'Export BMD NTCS',
     savedInvoices: 'Invoice history',
     noSavedInvoices: 'No saved invoices yet.',
-    saveInvoice: 'Save invoice',
-    saving2: 'Saving…',
+    saveInvoice: 'Save & Send',
+    saving2: 'Sending…',
 
     // Timesheets
     timesheetsTitle: 'Timesheets',
@@ -471,8 +471,8 @@ const translations = {
     exportBMD: 'BMD NTCS exportieren',
     savedInvoices: 'Rechnungshistorie',
     noSavedInvoices: 'Noch keine gespeicherten Rechnungen.',
-    saveInvoice: 'Rechnung speichern',
-    saving2: 'Speichern…',
+    saveInvoice: 'Speichern & Senden',
+    saving2: 'Senden…',
 
     // Timesheets
     timesheetsTitle: 'Stundenzettel',

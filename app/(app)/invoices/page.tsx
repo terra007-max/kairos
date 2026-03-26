@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { type Client, type Project, formatMoney } from '@/lib/types'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { FileText, Download, Send, CheckCircle, Clock, Save, Package } from 'lucide-react'
+import { FileText, Download, Send, CheckCircle, Clock, Package } from 'lucide-react'
 
 type InvoiceLine = { description: string; hours: number; rate: number; amount: number }
 
@@ -196,10 +196,10 @@ export default function InvoicesPage() {
       period_to: toDate,
       subtotal: lines.reduce((s, l) => s + l.amount, 0),
       notes,
-      status: currentStatus,
+      status: 'sent' as const,
       lines,
-      sent_at: currentStatus === 'sent' ? new Date().toISOString() : null,
-      paid_at: currentStatus === 'paid' ? new Date().toISOString() : null,
+      sent_at: new Date().toISOString(),
+      paid_at: null,
     }
     const { data } = await supabase.from('invoices').insert(payload).select().single()
     if (data) {
@@ -282,9 +282,9 @@ export default function InvoicesPage() {
                   <button
                     onClick={saveInvoice}
                     disabled={saving}
-                    className="btn-secondary flex items-center gap-2"
+                    className="btn-primary flex items-center gap-2"
                   >
-                    <Save className="w-4 h-4" /> {saving ? t('saving2') : t('saveInvoice')}
+                    <Send className="w-4 h-4" /> {saving ? t('saving2') : t('saveInvoice')}
                   </button>
                   <button
                     onClick={() => exportBMDNTCS(
