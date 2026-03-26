@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
-import { formatDuration, type Project, type ConsultantLevel } from '@/lib/types'
+import { formatDuration, type Project } from '@/lib/types'
 import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -25,7 +25,6 @@ export default function TimerPage() {
   const { t } = useI18n()
 
   const [projects, setProjects] = useState<Project[]>([])
-  const [levels, setLevels] = useState<ConsultantLevel[]>([])
   const [entries, setEntries] = useState<any[]>([])
   const [running, setRunning] = useState<any | null>(null)
   const [forgottenTimers, setForgottenTimers] = useState<any[]>([])
@@ -33,7 +32,6 @@ export default function TimerPage() {
   const [showIdleAlert, setShowIdleAlert] = useState(false)
   const [description, setDescription] = useState('')
   const [projectId, setProjectId] = useState('')
-  const [levelId, setLevelId] = useState('')
   const [billable, setBillable] = useState(true)
   const [entryMode, setEntryMode] = useState<EntryMode>('timer')
   const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -67,11 +65,11 @@ export default function TimerPage() {
 
     if (role === 'member') entriesQuery = entriesQuery.eq('user_id', user.id)
 
-    const [{ data: proj }, { data: ents }, { data: live }, { data: lvls }, forgottenResult, { data: projectMembers }] = await Promise.all([
+    const [{ data: proj }, { data: ents }, { data: live }, , forgottenResult, { data: projectMembers }] = await Promise.all([
       supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').order('name'),
       entriesQuery,
       supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', user.id).is('end_time', null).maybeSingle(),
-      supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
+      Promise.resolve({ data: [] }),
       role === 'admin'
         ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', user.id).is('end_time', null)
         : Promise.resolve({ data: [] }),
@@ -87,7 +85,6 @@ export default function TimerPage() {
     }
     setProjects(visibleProjects)
     setEntries(ents || [])
-    setLevels(lvls || [])
     setForgottenTimers((forgottenResult as any)?.data || [])
     if (live) {
       setRunning(live)
@@ -116,7 +113,7 @@ export default function TimerPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const myMember = members.find(m => m.user_id === user.id)
-    const autoLevelId = levelId || (myMember as any)?.level_id || null
+    const autoLevelId = (myMember as any)?.level_id || null
     const { data } = await supabase.from('time_entries').insert({
       user_id: user.id, workspace_id: workspaceId,
       project_id: projectId || null, level_id: autoLevelId,
@@ -136,7 +133,7 @@ export default function TimerPage() {
     }
     const roundedEnd = applyRounding(endTime, new Date(running.start_time), project?.rounding_minutes || 0)
     await supabase.from('time_entries').update({ end_time: roundedEnd.toISOString() }).eq('id', running.id)
-    setRunning(null); setElapsed(0); setDescription(''); setProjectId(''); setLevelId('')
+    setRunning(null); setElapsed(0); setDescription(''); setProjectId('')
     load()
   }
 
@@ -159,7 +156,7 @@ export default function TimerPage() {
     if (!user) return
     const proj = projects.find(p => p.id === projectId) as any
     const myMember = members.find(m => m.user_id === user.id)
-    const autoLevelId = levelId || (myMember as any)?.level_id || null
+    const autoLevelId = (myMember as any)?.level_id || null
     let startTime: Date, endTime: Date
 
     if (entryMode === 'fromto') {
@@ -198,7 +195,7 @@ export default function TimerPage() {
     if (data) {
       setRunning(data); setElapsed(0)
       setDescription(entry.description || ''); setProjectId(entry.project_id || '')
-      setLevelId(entry.level_id || ''); setBillable(entry.billable)
+      setBillable(entry.billable)
       setEntryMode('timer'); window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -328,12 +325,6 @@ export default function TimerPage() {
             <option value="">{t('noProject')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          {levels.length > 0 && (
-            <select className="input w-40" value={levelId} onChange={e => setLevelId(e.target.value)} disabled={!!running}>
-              <option value="">{t('noLevel')}</option>
-              {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          )}
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
             <input type="checkbox" className="rounded accent-brand-600" checked={billable} onChange={e => setBillable(e.target.checked)} disabled={!!running} />
             {t('billable')}
