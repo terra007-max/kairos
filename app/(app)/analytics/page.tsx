@@ -281,7 +281,7 @@ export default function AnalyticsPage() {
             {t('selectProjectHint')}
           </div>
         ) : burndownData.length === 0 ? (
-          <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-sm">{t('noBillableEntries')}</div>
+          <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-sm">{t('noBillableEntriesProject')}</div>
         ) : (
           <>
             {/* Burndown stats */}
