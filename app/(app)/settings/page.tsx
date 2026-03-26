@@ -134,6 +134,7 @@ export default function SettingsPage() {
     await supabase.from('workspace_members')
       .update({ level_id: levelId || null })
       .eq('id', memberId)
+    reload()
   }
 
   function saveBMDSettings() {
@@ -196,17 +197,18 @@ export default function SettingsPage() {
           </div>
           <p className="text-xs text-muted-foreground mb-4">{t('languageHint')}</p>
           <div className="flex gap-2">
-            {([['en', '🇬🇧 English'], ['de', '🇩🇪 Deutsch']] as [Locale, string][]).map(([l, label]) => (
+            {([['en', 'EN', 'English'], ['de', 'DE', 'Deutsch']] as [Locale, string, string][]).map(([l, code, name]) => (
               <button
                 key={l}
                 onClick={() => setLocale(l)}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+                className={`flex-1 flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
                   locale === l
                     ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
                     : 'bg-card text-muted-foreground border-border hover:border-brand-500/50 hover:text-brand-600'
                 }`}
               >
-                {label}
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${locale === l ? 'bg-white/20 text-white' : 'bg-muted text-foreground'}`}>{code}</span>
+                {name}
               </button>
             ))}
           </div>
@@ -274,12 +276,12 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{m.full_name || m.email}</p>
-                  {m.full_name && <p className="text-xs text-muted-foreground truncate">{m.email}</p>}
+                  {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
                 </div>
 
                 {role === 'admin' && levels.length > 0 && (
                   <select
-                    className="input w-32 text-xs py-1"
+                    className="input w-36 text-xs py-1 flex-shrink-0"
                     value={memberLevels[m.id] || ''}
                     onChange={e => assignLevel(m.id, e.target.value)}
                   >
@@ -290,7 +292,7 @@ export default function SettingsPage() {
                   </select>
                 )}
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   {m.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-400" />}
                   {m.status === 'pending' && (
                     <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
