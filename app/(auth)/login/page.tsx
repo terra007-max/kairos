@@ -106,8 +106,7 @@ export default function LoginPage() {
                 </button>
               </form>
               <p className="mt-5 text-center text-xs text-muted-foreground">
-                No account?{' '}
-                <Link href="/signup" className="text-brand-600 font-medium hover:underline">Create one free</Link>
+                Access by invitation only.
               </p>
             </>
           )}
