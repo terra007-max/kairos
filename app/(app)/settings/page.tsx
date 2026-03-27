@@ -113,7 +113,9 @@ export default function SettingsPage() {
       if (wRows?.length) {
         setMyWorkspaces(wRows.map((r: any) => ({ workspace_id: r.workspace_id, name: r.workspace?.name || r.workspace_id })))
         const saved = localStorage.getItem(WORKSPACE_STORAGE_KEY)
-        const active = (saved ? wRows.find((r: any) => r.workspace_id === saved) : null) || wRows.find((r: any) => r.role === 'member') || wRows[0]
+        const memberRoleRow = wRows.find((r: any) => r.role === 'member')
+        const savedRow = saved ? wRows.find((r: any) => r.workspace_id === saved) : null
+        const active = memberRoleRow || savedRow || wRows[0]
         setSelectedWorkspaceId(active.workspace_id)
         setMyLevelId(active.level_id || '')
         setMyMemberId(active.id)

@@ -39,13 +39,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     if (!memberRows?.length) { setNoWorkspace(true); return }
 
-    // Respect saved workspace preference, fall back to member-role workspace,
-    // then first available
+    // Priority: member-role workspace (admin-assigned) > saved preference > first available
+    // Never let a saved admin-role workspace override an admin-assigned member workspace
     const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-    const memberRow =
-      (savedId ? memberRows.find(r => r.workspace_id === savedId) : null) ||
-      memberRows.find(r => r.role === 'member') ||
-      memberRows[0]
+    const memberRoleRow = memberRows.find(r => r.role === 'member')
+    const savedRow = savedId ? memberRows.find(r => r.workspace_id === savedId) : null
+    const memberRow = memberRoleRow || savedRow || memberRows[0]
 
     const { data: members } = await supabase
       .from('workspace_members')
