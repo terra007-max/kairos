@@ -119,6 +119,17 @@ export default function TimesheetsPage() {
         .order('week_start', { ascending: false })
         .limit(100)
 
+      // For PMs: derive team user IDs from project_members (not time entries)
+      // so members who haven't logged time yet are still included
+      let pmUserIds: string[] | null = null
+      if (role !== 'admin' && isProjectManager && managedProjectIds.length > 0) {
+        const { data: pmRows } = await supabase
+          .from('project_members')
+          .select('user_id')
+          .in('project_id', managedProjectIds)
+        pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
+      }
+
       // Load time entries to build project summaries
       const entryQuery = supabase
         .from('time_entries')
@@ -128,12 +139,9 @@ export default function TimesheetsPage() {
 
       const { data: allEntries } = role === 'admin'
         ? await entryQuery
-        : await entryQuery.in('project_id', managedProjectIds)
-
-      // For PMs: only include timesheets from members who worked on their projects
-      const pmUserIds = role !== 'admin' && isProjectManager
-        ? Array.from(new Set((allEntries || []).map((e: any) => e.user_id)))
-        : null
+        : pmUserIds && pmUserIds.length > 0
+          ? await entryQuery.in('user_id', pmUserIds)
+          : { data: [] }
 
       const enriched = (teamTs || [])
         .filter(ts => ts.user_id !== uid) // exclude own timesheet from review list

@@ -88,7 +88,7 @@ export default function InvoicesPage() {
 
   const [clients, setClients] = useState<Client[]>([])
   const [clientProjects, setClientProjects] = useState<Project[]>([])
-  const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null)
+  const [profile, setProfile] = useState<{ id: string; full_name: string | null; email: string | null } | null>(null)
   const [clientId, setClientId] = useState('')
   const [projectId, setProjectId] = useState('all')
   const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -133,7 +133,7 @@ export default function InvoicesPage() {
     if (!user) return
     const [{ data: cl }, { data: prof }] = await Promise.all([
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
-      supabase.from('profiles').select('full_name, email').eq('id', user.id).single(),
+      supabase.from('profiles').select('id, full_name, email').eq('id', user.id).single(),
     ])
     setClients(cl || [])
     setProfile(prof)
@@ -214,7 +214,7 @@ export default function InvoicesPage() {
 
       if (tsStatus === 'approved') {
         projectMap[pid].approvedHours += hours
-        projectMap[pid].approvedRevenue += hours * projectMap[pid].rate
+        projectMap[pid].approvedRevenue += hours * (e.hourly_rate || 0)
       } else if (tsStatus === 'submitted') {
         projectMap[pid].pendingHours += hours
       } else {
@@ -272,9 +272,10 @@ export default function InvoicesPage() {
 
     const newLines: InvoiceLine[] = Object.values(projectGroups).map(({ project, entries }) => {
       const totalSecs = entries.reduce((s: number, e: any) => s + (e.duration_sec || 0), 0)
+      const totalAmount = entries.reduce((s: number, e: any) => s + ((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0), 0)
       const hours = totalSecs / 3600
-      const rate = project.hourly_rate || 0
-      return { description: project.name, hours: Math.round(hours * 100) / 100, rate, amount: Math.round(hours * rate * 100) / 100 }
+      const blendedRate = hours > 0 ? totalAmount / hours : (project?.hourly_rate || 0)
+      return { description: project.name, hours: Math.round(hours * 100) / 100, rate: Math.round(blendedRate * 100) / 100, amount: Math.round(totalAmount * 100) / 100 }
     })
 
     setLines(newLines)
@@ -284,11 +285,12 @@ export default function InvoicesPage() {
   }
 
   async function saveInvoice() {
-    if (!generated || !clientId) return
+    if (!generated || !clientId || !profile) return
     setSaving(true)
     const selectedClient = clients.find(c => c.id === clientId)
     const payload = {
       workspace_id: workspaceId,
+      created_by: profile.id,
       invoice_number: invoiceNumber,
       client_id: clientId,
       client_name: selectedClient?.name || '',
@@ -303,7 +305,8 @@ export default function InvoicesPage() {
       sent_at: new Date().toISOString(),
       paid_at: null,
     }
-    const { data } = await supabase.from('invoices').insert(payload).select().single()
+    const { data, error } = await supabase.from('invoices').insert(payload).select().single()
+    if (error) { console.error('Invoice save failed:', error.message); setSaving(false); return }
     if (data) {
       setSavedInvoices(prev => [data as SavedInvoice, ...prev])
       setGenerated(false); setLines([])

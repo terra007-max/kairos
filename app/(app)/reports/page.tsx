@@ -24,7 +24,7 @@ function getRange(range: Range, custom: { from: string; to: string }) {
 
 export default function ReportsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members, effectiveUserId } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId, isProjectManager } = useWorkspace()
   const { t } = useI18n()
   const [range, setRange] = useState<Range>('this_month')
   const [custom, setCustom] = useState({ from: '', to: '' })
@@ -41,7 +41,7 @@ export default function ReportsPage() {
       .eq('workspace_id', workspaceId).not('end_time', 'is', null)
       .gte('start_time', from.toISOString()).lte('start_time', toEnd.toISOString())
       .order('start_time', { ascending: true })
-    if (role === 'member') query = query.eq('user_id', effectiveUserId)
+    if (role === 'member' && !isProjectManager) query = query.eq('user_id', effectiveUserId)
     const { data } = await query
     setEntries(data || [])
     setLoading(false)
@@ -110,7 +110,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">{t('reportsTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{role === 'admin' ? t('teamAnalysis') : t('yourAnalysis')}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{role === 'admin' || isProjectManager ? t('teamAnalysis') : t('yourAnalysis')}</p>
         </div>
         <button onClick={exportCSV} className="btn-secondary flex items-center gap-2">
           <Download className="w-3.5 h-3.5" /> {t('exportCSV')}
@@ -151,7 +151,7 @@ export default function ReportsPage() {
 
       {/* Tabs */}
       <div className="flex gap-0.5 bg-muted p-0.5 rounded-lg w-fit mb-5">
-        {[['overview', t('overview')], ...(role === 'admin' ? [['team', t('team')]] : []), ['entries', t('entries')]].map(([v, label]) => (
+        {[['overview', t('overview')], ...(role === 'admin' || isProjectManager ? [['team', t('team')]] : []), ['entries', t('entries')]].map(([v, label]) => (
           <button key={v} onClick={() => setActiveTab(v as any)}
             className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}

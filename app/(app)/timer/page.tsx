@@ -21,7 +21,7 @@ const IDLE_THRESHOLD = 3 * 60 * 60
 
 export default function TimerPage() {
   const supabase = createClient()
-  const { workspaceId, members, role, effectiveUserId, isProxying } = useWorkspace()
+  const { workspaceId, members, role, effectiveUserId, isProxying, isProjectManager } = useWorkspace()
   const { t } = useI18n()
 
   const [projects, setProjects] = useState<Project[]>([])
@@ -71,7 +71,7 @@ export default function TimerPage() {
       entriesQuery,
       supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', uid).is('end_time', null).maybeSingle(),
       Promise.resolve({ data: [] }),
-      role === 'admin' && !isProxying
+      (role === 'admin' || isProjectManager) && !isProxying
         ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', uid).is('end_time', null)
         : Promise.resolve({ data: [] }),
       supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),

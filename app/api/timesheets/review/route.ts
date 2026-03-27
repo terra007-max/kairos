@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (membership.role !== 'admin') {
-    // Must be PM of a project the timesheet user worked on
+    // Must be PM of a project that the timesheet user is a member of
     const { data: ts } = await adminSupabase
       .from('timesheets')
       .select('user_id, week_start')
@@ -45,22 +45,24 @@ export async function POST(req: NextRequest) {
 
     if (!ts) return NextResponse.json({ error: 'Timesheet not found.' }, { status: 404 })
 
-    const { count } = await adminSupabase
+    // Get projects managed by this PM
+    const { data: managedProjects } = await adminSupabase
       .from('projects')
-      .select('id', { count: 'exact', head: true })
+      .select('id')
       .eq('workspace_id', workspaceId)
       .eq('manager_id', user.id)
       .is('deleted_at', null)
-      .in('id',
-        (await adminSupabase
-          .from('time_entries')
-          .select('project_id')
-          .eq('user_id', ts.user_id)
-          .eq('workspace_id', workspaceId)
-          .not('project_id', 'is', null)
-          .then(r => (r.data || []).map((e: any) => e.project_id))
-        )
-      )
+
+    const managedIds = (managedProjects || []).map((p: any) => p.id)
+    if (managedIds.length === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    // Check the timesheet user is a member of one of those projects
+    const { count } = await adminSupabase
+      .from('project_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', ts.user_id)
+      .in('project_id', managedIds)
 
     if (!count || count === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

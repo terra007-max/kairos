@@ -15,7 +15,7 @@ import {
 } from 'date-fns'
 import {
   TrendingUp, DollarSign, Users, Zap, AlertTriangle, CheckCircle,
-  XCircle, Lock, ArrowUpRight, ArrowDownRight, Minus, ChevronLeft, Activity
+  XCircle, Lock, ArrowUpRight, ArrowDownRight, Minus, ChevronLeft, Activity, Receipt
 } from 'lucide-react'
 
 function healthColor(pct: number) {
@@ -51,6 +51,7 @@ export default function AnalyticsPage() {
   const { t } = useI18n()
   const [entries, setEntries] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [utilMemberId, setUtilMemberId] = useState<string>('all')
@@ -61,7 +62,7 @@ export default function AnalyticsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const sixMonthsAgo = subMonths(new Date(), 6)
-    const [{ data: entriesData }, { data: projectsData }] = await Promise.all([
+    const [{ data: entriesData }, { data: projectsData }, { data: invoicesData }] = await Promise.all([
       supabase.from('time_entries')
         .select('id, user_id, project_id, start_time, duration_sec, billable, hourly_rate, level_id, project:projects(id, name, color, hourly_rate, client:clients(name, color))')
         .eq('workspace_id', workspaceId)
@@ -72,9 +73,13 @@ export default function AnalyticsPage() {
         .select('*, client:clients(*), level_rates:project_level_rates(*)')
         .eq('workspace_id', workspaceId)
         .eq('status', 'active'),
+      role === 'admin'
+        ? supabase.from('invoices').select('id, subtotal, status, due_date, sent_at, paid_at, client_name').eq('workspace_id', workspaceId)
+        : Promise.resolve({ data: [] }),
     ])
     setEntries(entriesData || [])
     setProjects(projectsData || [])
+    setInvoices(invoicesData || [])
     setLoading(false)
   }, [supabase, workspaceId])
 
@@ -284,6 +289,22 @@ export default function AnalyticsPage() {
   })
   const clientData = Object.values(clientMap).sort((a, b) => b.revenue - a.revenue).slice(0, 6)
 
+  // ── Cashflow (admin only) ─────────────────────────────────────────────────
+  const today = now
+  const cashflow = isAdmin ? (() => {
+    let billed = 0, paid = 0, open = 0, overdue = 0
+    for (const inv of invoices) {
+      const amount = Number(inv.subtotal) || 0
+      if (inv.status === 'paid') { billed += amount; paid += amount }
+      else if (inv.status === 'sent') {
+        billed += amount
+        if (new Date(inv.due_date) < today) overdue += amount
+        else open += amount
+      }
+    }
+    return { billed, paid, open, overdue }
+  })() : null
+
   // ── Project health ────────────────────────────────────────────────────────
   const projectHealth = scopedProjects.map(p => {
     const spent = withEarnings.filter(e => e.project_id === p.id && e.billable).reduce((s, e) => s + e.earnings, 0)
@@ -352,6 +373,41 @@ export default function AnalyticsPage() {
           </div>
         ))}
       </div>
+
+      {/* ── Cashflow KPI (Partner only) ── */}
+      {cashflow && (
+        <div className="card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Receipt className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cashflow</h2>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total billed', value: formatMoney(cashflow.billed), color: 'bg-brand-600', sub: `${invoices.filter(i => i.status !== 'draft').length} invoices` },
+              { label: 'Collected', value: formatMoney(cashflow.paid), color: 'bg-emerald-500', sub: `${invoices.filter(i => i.status === 'paid').length} paid` },
+              { label: 'Outstanding', value: formatMoney(cashflow.open), color: 'bg-amber-500', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) >= today).length} invoices` },
+              { label: 'Overdue', value: formatMoney(cashflow.overdue), color: cashflow.overdue > 0 ? 'bg-red-500' : 'bg-muted-foreground/30', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} past due` },
+            ].map(({ label, value, color, sub }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className={`w-1 self-stretch rounded-full ${color}`} />
+                <div>
+                  <p className="text-lg font-bold text-foreground">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-[10px] text-muted-foreground/50">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {cashflow.overdue > 0 && (
+            <div className="mt-4 flex items-start gap-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-500">
+                <span className="font-semibold">{formatMoney(cashflow.overdue)} overdue</span> — {invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} invoice{invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length !== 1 ? 's' : ''} past due date. Mark as paid in Invoices once collected.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Unified Team Utilization ── */}
       <div className="card p-5">
