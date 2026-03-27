@@ -29,14 +29,17 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const [noWorkspace, setNoWorkspace] = useState(false)
 
   const load = useCallback(async () => {
-    const { data: memberRow } = await supabase
+    const { data: memberRows } = await supabase
       .from('workspace_members')
       .select('workspace_id, role, workspace:workspaces(name)')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single()
 
-    if (!memberRow) { setNoWorkspace(true); return }
+    if (!memberRows?.length) { setNoWorkspace(true); return }
+
+    // Prefer workspaces where the user is a member (admin-assigned),
+    // fall back to admin role (their own auto-created workspace)
+    const memberRow = memberRows.find(r => r.role === 'member') || memberRows[0]
 
     const { data: members } = await supabase
       .from('workspace_members')
