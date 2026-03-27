@@ -78,8 +78,7 @@ export default function TimerPage() {
     let visibleProjects = proj || []
     if (role === 'member') {
       const assignedToMe = new Set((projectMembers || []).filter(pm => pm.user_id === uid).map(pm => pm.project_id))
-      const projectsWithAssignments = new Set((projectMembers || []).map(pm => pm.project_id))
-      visibleProjects = visibleProjects.filter(p => !projectsWithAssignments.has(p.id) || assignedToMe.has(p.id))
+      visibleProjects = visibleProjects.filter(p => assignedToMe.has(p.id))
     }
     setProjects(visibleProjects)
     setEntries(ents || [])
