@@ -25,6 +25,11 @@ export default function ProjectsPage() {
   const [editProject, setEditProject] = useState<ProjectRow | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [tab, setTab] = useState<'active' | 'archived'>('active')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setCurrentUserId(user.id) })
+  }, [supabase])
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -50,12 +55,20 @@ export default function ProjectsPage() {
     for (const r of rates || []) { if (!ratesMap[r.project_id]) ratesMap[r.project_id] = []; ratesMap[r.project_id].push(r as ProjectLevelRate) }
     const membersMap: Record<string, string[]> = {}
     for (const m of pm || []) { if (!membersMap[m.project_id]) membersMap[m.project_id] = []; membersMap[m.project_id].push(m.user_id) }
+    const { data: { user } } = await supabase.auth.getUser()
+    const uid = user?.id
     const rows = (proj || []).map(p => {
       const levelSecs = levelEntryMap[p.id] || {}
       const earnings = (ratesMap[p.id] || []).reduce((sum, lr) => sum + ((levelSecs[lr.level_id] || 0) / 3600) * lr.hourly_rate, 0)
       return { ...p, totalSecs: entryMap[p.id] || 0, earnings, level_rates: ratesMap[p.id] || [], memberIds: membersMap[p.id] || [] }
     }) as ProjectRow[]
-    setProjects(rows); setClients(cl || []); setLevels(lvls || []); setLoading(false)
+
+    // Members only see projects they are explicitly assigned to
+    const visible = role === 'admin'
+      ? rows
+      : rows.filter(p => p.memberIds && p.memberIds.length > 0 && uid && p.memberIds.includes(uid))
+
+    setProjects(visible); setClients(cl || []); setLevels(lvls || []); setLoading(false)
   }, [supabase, workspaceId])
 
   useEffect(() => { load() }, [load])
