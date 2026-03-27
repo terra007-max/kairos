@@ -14,6 +14,14 @@ export default function ClientsPage() {
   const { workspaceId, role } = useWorkspace()
   const { t } = useI18n()
   const isAdmin = role === 'admin'
+
+  if (role === 'member') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm text-muted-foreground">Access restricted to admins.</p>
+      </div>
+    )
+  }
   const [clients, setClients] = useState<(Client & { projectCount: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)

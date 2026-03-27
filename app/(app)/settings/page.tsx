@@ -33,8 +33,6 @@ export default function SettingsPage() {
   // My profile
   const [myWorkspaces, setMyWorkspaces] = useState<{ workspace_id: string; name: string }[]>([])
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('')
-  const [myLevelId, setMyLevelId] = useState('')
-  const [myMemberId, setMyMemberId] = useState('')
   const [profileSaved, setProfileSaved] = useState(false)
 
   // BMD NTCS settings
@@ -117,8 +115,6 @@ export default function SettingsPage() {
         const savedRow = saved ? wRows.find((r: any) => r.workspace_id === saved) : null
         const active = memberRoleRow || savedRow || wRows[0]
         setSelectedWorkspaceId(active.workspace_id)
-        setMyLevelId(active.level_id || '')
-        setMyMemberId(active.id)
       }
     })
   }, [loadLevels, loadUnassignedUsers, supabase.auth, supabase])
@@ -192,14 +188,7 @@ export default function SettingsPage() {
   }
 
   async function saveMyProfile() {
-    // Save workspace preference to localStorage
     localStorage.setItem(WORKSPACE_STORAGE_KEY, selectedWorkspaceId)
-    // Save level to DB if we have a member row
-    if (myMemberId) {
-      await supabase.from('workspace_members')
-        .update({ level_id: myLevelId || null })
-        .eq('id', myMemberId)
-    }
     setProfileSaved(true)
     setTimeout(() => setProfileSaved(false), 2000)
     reload()
@@ -249,21 +238,6 @@ export default function SettingsPage() {
                   ))}
                 </select>
               </div>
-              {levels.length > 0 && (
-                <div>
-                  <label className="label">My consultant level</label>
-                  <select
-                    className="input"
-                    value={myLevelId}
-                    onChange={e => setMyLevelId(e.target.value)}
-                  >
-                    <option value="">No level</option>
-                    {levels.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
             <button onClick={saveMyProfile} className="btn-primary mt-4">
               {profileSaved ? '✓ Saved' : 'Save'}

@@ -46,7 +46,7 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
     { href: '/dashboard',   label: t('dashboard'),    icon: LayoutDashboard, adminOnly: false },
     { href: '/timer',       label: t('timer'),         icon: Timer,           adminOnly: false },
     { href: '/projects',    label: t('projects'),      icon: FolderOpen,      adminOnly: false },
-    { href: '/clients',     label: t('clients'),       icon: Users,           adminOnly: false },
+    { href: '/clients',     label: t('clients'),       icon: Users,           adminOnly: true  },
     { href: '/timesheets',  label: t('timesheets'),    icon: ClipboardList,   adminOnly: false },
     { href: '/invoices',    label: t('invoices'),      icon: FileText,        adminOnly: true  },
     { href: '/analytics',   label: 'Analytics',        icon: LineChart,       adminOnly: true  },
