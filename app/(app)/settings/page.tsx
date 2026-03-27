@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace, WORKSPACE_STORAGE_KEY } from '@/lib/workspace-context'
+import { Eye } from 'lucide-react'
 import { useI18n, type Locale } from '@/lib/i18n'
 import { type ConsultantLevel } from '@/lib/types'
 import { useTheme } from 'next-themes'
@@ -13,7 +14,7 @@ import {
 
 export default function SettingsPage() {
   const supabase = createClient()
-  const { workspaceId, workspaceName, members, role, reload } = useWorkspace()
+  const { workspaceId, workspaceName, members, role, reload, startProxy } = useWorkspace()
   const { t, locale, setLocale } = useI18n()
   const { theme, setTheme } = useTheme()
 
@@ -414,6 +415,18 @@ export default function SettingsPage() {
                   {m.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-400" />}
                   {m.status === 'pending' && (
                     <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
+                  )}
+                  {m.user_id !== currentUserId && role === 'admin' && m.user_id && (
+                    <button
+                      onClick={() => {
+                        startProxy({ userId: m.user_id!, name: m.full_name || m.email })
+                        window.location.href = '/dashboard'
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-brand-600 transition-all"
+                      title="View as this user"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
                   )}
                   {m.user_id !== currentUserId && role === 'admin' && (
                     <button

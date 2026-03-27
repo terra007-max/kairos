@@ -21,7 +21,7 @@ const IDLE_THRESHOLD = 3 * 60 * 60
 
 export default function TimerPage() {
   const supabase = createClient()
-  const { workspaceId, members, role } = useWorkspace()
+  const { workspaceId, members, role, effectiveUserId, isProxying } = useWorkspace()
   const { t } = useI18n()
 
   const [projects, setProjects] = useState<Project[]>([])
@@ -51,9 +51,8 @@ export default function TimerPage() {
 
   const load = useCallback(async () => {
     if (!workspaceId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    setCurrentUserId(user.id)
+    const uid = effectiveUserId
+    setCurrentUserId(uid)
 
     let entriesQuery = supabase
       .from('time_entries')
@@ -63,23 +62,22 @@ export default function TimerPage() {
       .order('start_time', { ascending: false })
       .limit(50)
 
-    if (role === 'member') entriesQuery = entriesQuery.eq('user_id', user.id)
+    if (role === 'member') entriesQuery = entriesQuery.eq('user_id', uid)
 
     const [{ data: proj }, { data: ents }, { data: live }, , forgottenResult, { data: projectMembers }] = await Promise.all([
       supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').order('name'),
       entriesQuery,
-      supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', user.id).is('end_time', null).maybeSingle(),
+      supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', uid).is('end_time', null).maybeSingle(),
       Promise.resolve({ data: [] }),
-      role === 'admin'
-        ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', user.id).is('end_time', null)
+      role === 'admin' && !isProxying
+        ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', uid).is('end_time', null)
         : Promise.resolve({ data: [] }),
       supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
     ])
 
-    // For members: only show projects they're explicitly assigned to, or projects with no assignments (open to all)
     let visibleProjects = proj || []
     if (role === 'member') {
-      const assignedToMe = new Set((projectMembers || []).filter(pm => pm.user_id === user.id).map(pm => pm.project_id))
+      const assignedToMe = new Set((projectMembers || []).filter(pm => pm.user_id === uid).map(pm => pm.project_id))
       const projectsWithAssignments = new Set((projectMembers || []).map(pm => pm.project_id))
       visibleProjects = visibleProjects.filter(p => !projectsWithAssignments.has(p.id) || assignedToMe.has(p.id))
     }
@@ -339,7 +337,7 @@ export default function TimerPage() {
                 <Square className="w-4 h-4 fill-current" /> {t('stop')}
               </button>
             ) : (
-              <button onClick={startTimer} className="flex items-center gap-2 btn-primary px-5 py-2">
+              <button onClick={startTimer} disabled={isProxying} className="flex items-center gap-2 btn-primary px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 <Play className="w-4 h-4 fill-current" /> {t('start')}
               </button>
             )}

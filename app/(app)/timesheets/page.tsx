@@ -52,7 +52,7 @@ function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => st
 
 export default function TimesheetsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId, isProxying } = useWorkspace()
   const { t, locale } = useI18n()
   const dateFnsLocale = locale === 'de' ? de : enUS
 
@@ -81,14 +81,13 @@ export default function TimesheetsPage() {
 
   const loadData = useCallback(async () => {
     if (!workspaceId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    setUserId(user.id)
+    const uid = effectiveUserId
+    setUserId(uid)
 
     const { data: entries } = await supabase
       .from('time_entries')
       .select('duration_sec')
-      .eq('user_id', user.id)
+      .eq('user_id', uid)
       .not('end_time', 'is', null)
       .gte('start_time', currentWeekStart.toISOString())
       .lte('start_time', weekEnd.toISOString())
@@ -97,7 +96,7 @@ export default function TimesheetsPage() {
     const { data: myTs, error } = await supabase
       .from('timesheets')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', uid)
       .eq('workspace_id', workspaceId)
       .order('week_start', { ascending: false })
 
@@ -282,7 +281,7 @@ export default function TimesheetsPage() {
                   <label className="label">{t('weeklyNote')}</label>
                   <textarea className="input resize-none" rows={2} placeholder={t('weeklyNote')} value={note} onChange={e => setNote(e.target.value)} />
                 </div>
-                <button onClick={submitTimesheet} disabled={submitting || weekTotalSec === 0} className="btn-primary w-full">
+                <button onClick={submitTimesheet} disabled={submitting || weekTotalSec === 0 || isProxying} className="btn-primary w-full disabled:opacity-40">
                   {submitting ? t('submitting') : t('submitForReview')}
                 </button>
                 {weekTotalSec === 0 && (

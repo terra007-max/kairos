@@ -13,15 +13,24 @@ export type WorkspaceMember = {
   level_id?: string | null
 }
 
+type ProxyUser = { userId: string; name: string }
+
 type WorkspaceCtx = {
   workspaceId: string
   workspaceName: string
   role: 'admin' | 'member'
   members: WorkspaceMember[]
   reload: () => Promise<void>
+  // Proxy
+  effectiveUserId: string
+  isProxying: boolean
+  proxyUser: ProxyUser | null
+  startProxy: (u: ProxyUser) => void
+  stopProxy: () => void
 }
 
 const STORAGE_KEY = 'kairos-active-workspace'
+const PROXY_KEY   = 'kairos-proxy-user'
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 
@@ -29,6 +38,20 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const supabase = createClient()
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null)
   const [noWorkspace, setNoWorkspace] = useState(false)
+  const [proxyUser, setProxyUser] = useState<ProxyUser | null>(() => {
+    if (typeof window === 'undefined') return null
+    try { return JSON.parse(localStorage.getItem(PROXY_KEY) || 'null') } catch { return null }
+  })
+
+  const startProxy = useCallback((u: ProxyUser) => {
+    localStorage.setItem(PROXY_KEY, JSON.stringify(u))
+    setProxyUser(u)
+  }, [])
+
+  const stopProxy = useCallback(() => {
+    localStorage.removeItem(PROXY_KEY)
+    setProxyUser(null)
+  }, [])
 
   const load = useCallback(async () => {
     const { data: memberRows } = await supabase
@@ -39,7 +62,6 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     if (!memberRows?.length) { setNoWorkspace(true); return }
 
-    // Use the first active workspace (after trigger cleanup, users have exactly one)
     const memberRow = memberRows[0]
 
     const { data: members } = await supabase
@@ -48,11 +70,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       .eq('workspace_id', memberRow.workspace_id)
 
     const ws = memberRow.workspace as any
+    const realRole = memberRow.role as 'admin' | 'member'
 
-    setCtx({
+    setCtx(prev => ({
       workspaceId: memberRow.workspace_id,
       workspaceName: ws?.name || 'My Workspace',
-      role: memberRow.role as 'admin' | 'member',
+      role: realRole,
       members: (members || []).map((m: any) => ({
         id: m.id,
         user_id: m.user_id,
@@ -63,8 +86,28 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         level_id: m.level_id,
       })),
       reload: load,
-    })
-  }, [supabase, userId])
+      effectiveUserId: prev?.proxyUser?.userId ?? userId,
+      isProxying: !!(prev?.proxyUser),
+      proxyUser: prev?.proxyUser ?? null,
+      startProxy,
+      stopProxy,
+    }))
+  }, [supabase, userId, startProxy, stopProxy])
+
+  useEffect(() => { load() }, [load])
+
+  // Re-compute effectiveUserId / role when proxy changes
+  useEffect(() => {
+    if (!ctx) return
+    setCtx(prev => prev ? {
+      ...prev,
+      effectiveUserId: proxyUser?.userId ?? userId,
+      isProxying: !!proxyUser,
+      proxyUser,
+      // When proxying, appear as member
+      role: proxyUser ? 'member' : prev.role,
+    } : prev)
+  }, [proxyUser, userId])
 
   useEffect(() => { load() }, [load])
 

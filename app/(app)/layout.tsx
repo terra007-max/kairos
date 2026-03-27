@@ -7,6 +7,7 @@ import MobileNav from '@/components/MobileNav'
 import PresenceBar from '@/components/PresenceBar'
 import { WorkspaceProvider } from '@/lib/workspace-context'
 import { I18nProvider } from '@/lib/i18n'
+import ProxyBanner from '@/components/ProxyBanner'
 import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -103,6 +104,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
 
             {!isMobile && <PresenceBar />}
+            <ProxyBanner />
 
             <div style={{
               maxWidth: '900px',

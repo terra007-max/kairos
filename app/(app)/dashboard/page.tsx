@@ -54,7 +54,7 @@ function StatCard({ label, value, sub, icon: Icon, color, current, previous }: {
 
 export default function DashboardPage() {
   const supabase = createClient()
-  const { workspaceId, role, members } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId } = useWorkspace()
   const { t, locale } = useI18n()
   const [stats, setStats] = useState({ weekSecs: 0, monthSecs: 0, earnings: 0, projects: 0, clients: 0, prevWeekSecs: 0, prevMonthSecs: 0, prevEarnings: 0 })
   const [recent, setRecent] = useState<any[]>([])
@@ -64,9 +64,6 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     if (!workspaceId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
     const now = new Date()
     const weekStart = startOfWeek(now, { weekStartsOn: 1 })
     const monthStart = startOfMonth(now)
@@ -74,7 +71,7 @@ export default function DashboardPage() {
     const prevMonthStart = startOfMonth(subMonths(now, 1))
     const prevMonthEnd = new Date(monthStart.getTime() - 1)
     const prevWeekEnd = new Date(weekStart.getTime() - 1)
-    const userFilter = role === 'member' ? { user_id: user.id } : {}
+    const userFilter = role === 'member' ? { user_id: effectiveUserId } : {}
 
     const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }, { data: levelRates }] = await Promise.all([
       supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
