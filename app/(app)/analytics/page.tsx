@@ -93,7 +93,11 @@ export default function AnalyticsPage() {
   const revenueMTD = mtdEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const totalHours = mtdEntries.reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
   const billableHours = mtdEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-  const utilization = totalHours > 0 ? Math.round(billableHours / totalHours * 100) : 0
+  // Capacity-based utilization: billable hours / contracted capacity so far this month
+  const weeksElapsedMTD = Math.max((now.getTime() - monthStart.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7)
+  const activeMembers = members.filter(m => m.status === 'active')
+  const totalCapacityMTD = activeMembers.reduce((s, m) => s + (m.weekly_hours ?? 40) * weeksElapsedMTD, 0)
+  const utilization = totalCapacityMTD > 0 ? Math.round(billableHours / totalCapacityMTD * 100) : 0
   const avgRate = billableHours > 0 ? revenueMTD / billableHours : 0
   const pipeline = projects.reduce((s, p) => {
     const spent = withEarnings.filter(e => e.project_id === p.id && e.billable).reduce((a, e) => a + e.earnings, 0)
@@ -160,20 +164,21 @@ export default function AnalyticsPage() {
   }
 
   // ── Team utilization ────────────────────────────────────────────────────
-  const activeMembers = members.filter(m => m.status === 'active')
   const teamUtil = activeMembers.map(m => {
     const memberEntries = mtdEntries.filter(e => e.user_id === m.user_id)
     const billable = memberEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const nonBillable = memberEntries.filter(e => !e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const rev = memberEntries.filter(e => e.billable).reduce((s, e) => s + e.earnings, 0)
+    const capacity = (m.weekly_hours ?? 40) * weeksElapsedMTD
     return {
       name: (m.full_name || m.email || 'Unknown').split(' ')[0],
       billable: parseFloat(billable.toFixed(1)),
       nonBillable: parseFloat(nonBillable.toFixed(1)),
       revenue: rev,
-      pct: billable + nonBillable > 0 ? Math.round(billable / (billable + nonBillable) * 100) : 0,
+      capacity: parseFloat(capacity.toFixed(1)),
+      pct: capacity > 0 ? Math.round(billable / capacity * 100) : 0,
     }
-  }).filter(m => m.billable + m.nonBillable > 0).sort((a, b) => b.billable - a.billable)
+  }).filter(m => m.billable + m.nonBillable > 0 || m.capacity > 0).sort((a, b) => b.billable - a.billable)
 
   // ── Client revenue ───────────────────────────────────────────────────────
   const clientMap: Record<string, { name: string; color: string; revenue: number }> = {}
@@ -369,6 +374,7 @@ export default function AnalyticsPage() {
                       <p className="font-semibold text-foreground mb-1">{label}</p>
                       <p className="text-emerald-500">{t('billableLabel')}: {d.billable}h</p>
                       <p className="text-muted-foreground">{t('nonBillableLabel')}: {d.nonBillable}h</p>
+                      <p className="text-muted-foreground/60">Capacity: {d.capacity}h</p>
                       <p className="text-brand-600 font-medium mt-1">{d.pct}% {t('utilizationLabel')}</p>
                       <p className="text-emerald-600">{formatMoney(d.revenue)}</p>
                     </div>

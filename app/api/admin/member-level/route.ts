@@ -10,9 +10,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { memberId, levelId, workspaceId } = await req.json()
+  const { memberId, levelId, weeklyHours, workspaceId } = await req.json()
   if (!memberId || !workspaceId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  if (weeklyHours !== undefined && (typeof weeklyHours !== 'number' || weeklyHours < 0 || weeklyHours > 40)) {
+    return NextResponse.json({ error: 'weeklyHours must be 0–40' }, { status: 400 })
   }
 
   // Verify caller is admin of this workspace
@@ -39,9 +42,12 @@ export async function PATCH(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  const patch: Record<string, unknown> = { level_id: levelId || null }
+  if (weeklyHours !== undefined) patch.weekly_hours = weeklyHours
+
   const { error } = await adminSupabase
     .from('workspace_members')
-    .update({ level_id: levelId || null })
+    .update(patch)
     .eq('id', memberId)
     .eq('workspace_id', workspaceId)
 

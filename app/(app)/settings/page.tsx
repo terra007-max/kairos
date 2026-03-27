@@ -28,6 +28,8 @@ export default function SettingsPage() {
   const [currentUserId, setCurrentUserId] = useState('')
   const [memberLevels, setMemberLevels] = useState<Record<string, string>>({})
   const [pendingLevels, setPendingLevels] = useState<Record<string, string>>({})
+  const [memberHours, setMemberHours] = useState<Record<string, number>>({})
+  const [pendingHours, setPendingHours] = useState<Record<string, number>>({})
   const [savingLevel, setSavingLevel] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [unassignedUsers, setUnassignedUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([])
@@ -62,13 +64,16 @@ export default function SettingsPage() {
 
     const { data: memberData } = await supabase
       .from('workspace_members')
-      .select('id, level_id')
+      .select('id, level_id, weekly_hours')
       .eq('workspace_id', workspaceId)
-    const map: Record<string, string> = {}
+    const levelMap: Record<string, string> = {}
+    const hoursMap: Record<string, number> = {}
     for (const m of memberData || []) {
-      if (m.level_id) map[m.id] = m.level_id
+      if (m.level_id) levelMap[m.id] = m.level_id
+      hoursMap[m.id] = m.weekly_hours ?? 40
     }
-    setMemberLevels(map)
+    setMemberLevels(levelMap)
+    setMemberHours(hoursMap)
     setLoading(false)
   }, [supabase, workspaceId])
 
@@ -182,22 +187,25 @@ export default function SettingsPage() {
     reload()
   }
 
-  async function saveLevel(memberId: string) {
+  async function saveMember(memberId: string) {
     const levelId = pendingLevels[memberId] ?? memberLevels[memberId] ?? ''
+    const weeklyHours = pendingHours[memberId] ?? memberHours[memberId] ?? 40
     setSavingLevel(memberId)
     const res = await fetch('/api/admin/member-level', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId, levelId, workspaceId }),
+      body: JSON.stringify({ memberId, levelId, weeklyHours, workspaceId }),
     })
     if (!res.ok) {
       const err = await res.json()
-      alert(err.error || 'Failed to save level')
+      alert(err.error || 'Failed to save')
       setSavingLevel(null)
       return
     }
     setMemberLevels(prev => ({ ...prev, [memberId]: levelId }))
+    setMemberHours(prev => ({ ...prev, [memberId]: weeklyHours }))
     setPendingLevels(prev => { const n = { ...prev }; delete n[memberId]; return n })
+    setPendingHours(prev => { const n = { ...prev }; delete n[memberId]; return n })
     setSavingLevel(null)
     reload()
   }
@@ -412,25 +420,45 @@ export default function SettingsPage() {
                   {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
                 </div>
 
-                {role === 'admin' && levels.length > 0 && (() => {
-                  const current = pendingLevels[m.id] ?? memberLevels[m.id] ?? ''
-                  const saved = memberLevels[m.id] ?? ''
-                  const isDirty = m.id in pendingLevels && pendingLevels[m.id] !== saved
+                {role === 'admin' && (() => {
+                  const currentLevel = pendingLevels[m.id] ?? memberLevels[m.id] ?? ''
+                  const savedLevel = memberLevels[m.id] ?? ''
+                  const currentHours = pendingHours[m.id] ?? memberHours[m.id] ?? 40
+                  const savedHours = memberHours[m.id] ?? 40
+                  const isDirty = (m.id in pendingLevels && pendingLevels[m.id] !== savedLevel)
+                    || (m.id in pendingHours && pendingHours[m.id] !== savedHours)
                   return (
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <select
-                        className="input w-36 text-xs py-1"
-                        value={current}
-                        onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
-                      >
-                        <option value="">{t('noLevel')}</option>
-                        {levels.map(l => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </select>
+                      {levels.length > 0 && (
+                        <select
+                          className="input w-36 text-xs py-1"
+                          value={currentLevel}
+                          onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
+                        >
+                          <option value="">{t('noLevel')}</option>
+                          {levels.map(l => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          max={40}
+                          className="input w-16 text-xs py-1 text-center"
+                          value={currentHours}
+                          onChange={e => {
+                            const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
+                            setPendingHours(prev => ({ ...prev, [m.id]: v }))
+                          }}
+                          title="Weekly contracted hours"
+                        />
+                        <span className="text-xs text-muted-foreground">h/w</span>
+                      </div>
                       {isDirty && (
                         <button
-                          onClick={() => saveLevel(m.id)}
+                          onClick={() => saveMember(m.id)}
                           disabled={savingLevel === m.id}
                           className="btn-primary text-xs py-1 px-2.5"
                         >

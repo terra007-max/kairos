@@ -11,6 +11,7 @@ export type WorkspaceMember = {
   status: 'active' | 'pending'
   full_name?: string | null
   level_id?: string | null
+  weekly_hours: number
 }
 
 export type ProxyUser = { userId: string; name: string }
@@ -73,7 +74,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const { data: members } = await supabase
       .from('workspace_members')
-      .select('id, user_id, email, role, status, level_id, profile:profiles(full_name)')
+      .select('id, user_id, email, role, status, level_id, weekly_hours, profile:profiles(full_name)')
       .eq('workspace_id', memberRow.workspace_id)
 
     const ws = memberRow.workspace as any
@@ -90,6 +91,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         status: m.status,
         full_name: m.profile?.full_name,
         level_id: m.level_id,
+        weekly_hours: m.weekly_hours ?? 40,
       })),
     })
   }, [supabase, userId])
