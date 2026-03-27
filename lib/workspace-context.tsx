@@ -28,6 +28,8 @@ type WorkspaceCtx = {
   proxyUser: ProxyUser | null
   startProxy: (u: ProxyUser) => void
   stopProxy: () => void
+  managedProjectIds: string[]        // projects where current user is manager
+  isProjectManager: boolean
 }
 
 const STORAGE_KEY = 'kairos-active-workspace'
@@ -49,6 +51,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     workspaceName: string
     realRole: 'admin' | 'member'
     members: WorkspaceMember[]
+    managedProjectIds: string[]
   } | null>(null)
 
   const startProxy = useCallback((u: ProxyUser) => {
@@ -72,10 +75,18 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const memberRow = memberRows[0]
 
-    const { data: members } = await supabase
-      .from('workspace_members')
-      .select('id, user_id, email, role, status, level_id, weekly_hours, profile:profiles(full_name)')
-      .eq('workspace_id', memberRow.workspace_id)
+    const [{ data: members }, { data: managedProjects }] = await Promise.all([
+      supabase
+        .from('workspace_members')
+        .select('id, user_id, email, role, status, level_id, weekly_hours, profile:profiles(full_name)')
+        .eq('workspace_id', memberRow.workspace_id),
+      supabase
+        .from('projects')
+        .select('id')
+        .eq('workspace_id', memberRow.workspace_id)
+        .eq('manager_id', userId)
+        .is('deleted_at', null),
+    ])
 
     const ws = memberRow.workspace as any
 
@@ -83,6 +94,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       workspaceId: memberRow.workspace_id,
       workspaceName: ws?.name || 'My Workspace',
       realRole: memberRow.role as 'admin' | 'member',
+      managedProjectIds: (managedProjects || []).map((p: any) => p.id),
       members: (members || []).map((m: any) => ({
         id: m.id,
         user_id: m.user_id,
@@ -108,6 +120,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       // Stale/invalid proxy — clear it
       localStorage.removeItem('kairos-proxy-user')
     }
+    const managedProjectIds = effectiveProxy ? [] : base.managedProjectIds
     return {
       ...base,
       role: effectiveProxy ? 'member' : base.realRole,
@@ -117,6 +130,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       startProxy,
       stopProxy,
       reload: load,
+      managedProjectIds,
+      isProjectManager: managedProjectIds.length > 0,
     }
   }, [base, proxyUser, userId, startProxy, stopProxy, load])
 

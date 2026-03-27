@@ -5,16 +5,16 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { type Project, type Client, type ConsultantLevel, type ProjectLevelRate, formatMoney, formatDuration } from '@/lib/types'
-import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users } from 'lucide-react'
+import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users, Crown } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import Link from 'next/link'
 
 const COLORS = ['#f97316','#6366f1','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6']
-type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: number; level_rates?: ProjectLevelRate[]; memberIds?: string[] }
+type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: number; level_rates?: ProjectLevelRate[]; memberIds?: string[]; manager_id?: string | null }
 
 export default function ProjectsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members, effectiveUserId } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId, managedProjectIds } = useWorkspace()
   const { t } = useI18n()
   const isAdmin = role === 'admin'
 
@@ -29,7 +29,7 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }, { data: pm }] = await Promise.all([
-      supabase.from('projects').select('*, client:clients(*)').eq('workspace_id', workspaceId).is('deleted_at', null).order('created_at', { ascending: false }),
+      supabase.from('projects').select('*, client:clients(*), manager_id').eq('workspace_id', workspaceId).is('deleted_at', null).order('created_at', { ascending: false }),
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
       supabase.from('time_entries').select('project_id, duration_sec, level_id').eq('workspace_id', workspaceId).not('end_time', 'is', null),
       supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
@@ -57,10 +57,13 @@ export default function ProjectsPage() {
       return { ...p, totalSecs: entryMap[p.id] || 0, earnings, level_rates: ratesMap[p.id] || [], memberIds: membersMap[p.id] || [] }
     }) as ProjectRow[]
 
-    // Members only see projects they are explicitly assigned to
+    // Members only see projects they are explicitly assigned to, or manage
     const visible = role === 'admin'
       ? rows
-      : rows.filter(p => p.memberIds && p.memberIds.length > 0 && uid && p.memberIds.includes(uid))
+      : rows.filter(p =>
+          (p.memberIds && uid && p.memberIds.includes(uid)) ||
+          (uid && p.manager_id === uid)
+        )
 
     setProjects(visible); setClients(cl || []); setLevels(lvls || []); setLoading(false)
   }, [supabase, workspaceId, role, effectiveUserId])
@@ -102,8 +105,8 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {isAdmin && (showForm || editProject) && (
-        <ProjectForm project={editProject} clients={clients} levels={levels} workspaceId={workspaceId} members={members}
+      {(isAdmin || (editProject && managedProjectIds.includes(editProject.id))) && (showForm || editProject) && (
+        <ProjectForm project={editProject} clients={clients} levels={levels} workspaceId={workspaceId} members={members} isAdmin={isAdmin}
           onSave={() => { setShowForm(false); setEditProject(null); load() }}
           onCancel={() => { setShowForm(false); setEditProject(null) }} />
       )}
@@ -138,11 +141,11 @@ export default function ProjectsPage() {
                       {p.client && <p className="text-xs text-muted-foreground mt-0.5">{(p.client as Client).name}</p>}
                     </div>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || managedProjectIds.includes(p.id)) && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => { setEditProject(p); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>
-                      <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                      {isAdmin && <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>}
+                      {isAdmin && <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                   )}
                 </div>
@@ -178,6 +181,16 @@ export default function ProjectsPage() {
                     })}
                   </div>
                 )}
+                {p.manager_id && (() => {
+                  const pm = members.find(x => x.user_id === p.manager_id)
+                  const pmName = pm?.full_name || pm?.email
+                  return pmName ? (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{pmName}</span>
+                    </div>
+                  ) : null
+                })()}
 
                 <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
                   <div><p className="text-xs text-muted-foreground">{t('tracked')}</p><p className="text-xs font-mono font-semibold text-foreground mt-0.5">{formatDuration(p.totalSecs || 0)}</p></div>
@@ -220,8 +233,8 @@ export default function ProjectsPage() {
   )
 }
 
-function ProjectForm({ project, clients, levels, workspaceId, members, onSave, onCancel }: {
-  project: ProjectRow | null; clients: Client[]; levels: ConsultantLevel[]; workspaceId: string; members: any[]; onSave: () => void; onCancel: () => void
+function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, onSave, onCancel }: {
+  project: ProjectRow | null; clients: Client[]; levels: ConsultantLevel[]; workspaceId: string; members: any[]; isAdmin: boolean; onSave: () => void; onCancel: () => void
 }) {
   const supabase = createClient()
   const { t } = useI18n()
@@ -245,6 +258,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, onSave, o
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
     new Set(project?.memberIds || [])
   )
+  const [managerId, setManagerId] = useState(project?.manager_id || '')
   const [saving, setSaving] = useState(false)
 
   const activeMembers = members.filter(m => m.status === 'active')
@@ -270,6 +284,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, onSave, o
       rounding_minutes: parseInt(rounding) || 0,
       budget_hours: parseFloat(budgetHours) || null,
       budget_amount: parseFloat(budgetAmount) || null,
+      manager_id: managerId || null,
     }
     let projectId = project?.id
     if (project) {
@@ -318,6 +333,17 @@ function ProjectForm({ project, clients, levels, workspaceId, members, onSave, o
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+        {isAdmin && (
+          <div>
+            <label className="label flex items-center gap-1.5"><Crown className="w-3.5 h-3.5 text-amber-500" /> Project Manager</label>
+            <select className="input" value={managerId} onChange={e => setManagerId(e.target.value)}>
+              <option value="">— None —</option>
+              {activeMembers.map(m => (
+                <option key={m.user_id} value={m.user_id!}>{m.full_name || m.email}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div><label className="label">{t('startDate')}</label><input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
         <div><label className="label">{t('endDate')}</label><input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
         <div>

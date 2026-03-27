@@ -47,7 +47,7 @@ function TrendPill({ delta }: { delta: number }) {
 
 export default function AnalyticsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members } = useWorkspace()
+  const { workspaceId, role, members, managedProjectIds, isProjectManager } = useWorkspace()
   const { t } = useI18n()
   const [entries, setEntries] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load() }, [load])
 
-  if (role !== 'admin') return (
+  if (role !== 'admin' && !isProjectManager) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Lock className="w-8 h-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground">{t('analyticsAdminOnly')}</p>
@@ -92,8 +92,13 @@ export default function AnalyticsPage() {
     </div>
   )
 
+  // ── Scope: Partners see all; Project Managers see their projects only ─────
+  const isAdmin = role === 'admin'
+  const scopedEntries = isAdmin ? entries : entries.filter(e => managedProjectIds.includes(e.project_id))
+  const scopedProjects = isAdmin ? projects : projects.filter(p => managedProjectIds.includes(p.id))
+
   // ── Earnings ─────────────────────────────────────────────────────────────
-  const withEarnings = entries.map(e => ({
+  const withEarnings = scopedEntries.map(e => ({
     ...e,
     earnings: e.duration_sec
       ? (e.hourly_rate > 0 ? (e.duration_sec / 3600) * e.hourly_rate : calcEntryEarnings(e.duration_sec, e.project, e.level_id))
@@ -102,7 +107,9 @@ export default function AnalyticsPage() {
 
   const now = new Date()
   const monthStart = startOfMonth(now)
-  const activeMembers = members.filter(m => m.status === 'active')
+  // PMs only see members who have entries on their managed projects
+  const pmMemberUserIds = isAdmin ? null : Array.from(new Set(scopedEntries.map(e => e.user_id)))
+  const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIds || pmMemberUserIds.includes(m.user_id)))
   const mtdEntries = withEarnings.filter(e => new Date(e.start_time) >= monthStart)
   const revenueMTD = mtdEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const billableHours = mtdEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
@@ -110,7 +117,7 @@ export default function AnalyticsPage() {
   const totalCapacityMTD = activeMembers.reduce((s, m) => s + (m.weekly_hours ?? 40) * weeksElapsedMTD, 0)
   const utilization = totalCapacityMTD > 0 ? Math.round(billableHours / totalCapacityMTD * 100) : 0
   const avgRate = billableHours > 0 ? revenueMTD / billableHours : 0
-  const pipeline = projects.reduce((s, p) => {
+  const pipeline = scopedProjects.reduce((s, p) => {
     const spent = withEarnings.filter(e => e.project_id === p.id && e.billable).reduce((a, e) => a + e.earnings, 0)
     return s + Math.max(0, (p.budget_amount || 0) - spent)
   }, 0)
@@ -236,14 +243,14 @@ export default function AnalyticsPage() {
     else if (thisWeekBill === 0) anomalies.push({ message: `${m.full_name || m.email} — 0 billable hours this week`, severity: 'warning' })
   })
 
-  projects.forEach(p => {
+  scopedProjects.forEach(p => {
     const thisW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= thisWeekStart).reduce((s, e) => s + e.earnings, 0)
     const lastW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= lastWeekStart && new Date(e.start_time) <= lastWeekEnd).reduce((s, e) => s + e.earnings, 0)
     if (lastW > 200 && thisW > lastW * 2.5) anomalies.push({ message: `${p.name} — burn rate ${Math.round(thisW / lastW)}× vs last week (${formatMoney(thisW)} this week)`, severity: 'error' })
   })
 
   // ── Project burndown ─────────────────────────────────────────────────────
-  const burndownProject = selectedProject !== 'all' ? projects.find(p => p.id === selectedProject) : null
+  const burndownProject = selectedProject !== 'all' ? scopedProjects.find(p => p.id === selectedProject) : null
   const burndownEntries = burndownProject ? withEarnings.filter(e => e.project_id === burndownProject.id && e.billable) : []
   let cumulativeCost = 0
   const burndownData: { date: string; spent: number; budget: number | null; forecast?: number }[] = []
@@ -276,9 +283,9 @@ export default function AnalyticsPage() {
   const clientData = Object.values(clientMap).sort((a, b) => b.revenue - a.revenue).slice(0, 6)
 
   // ── Project health ────────────────────────────────────────────────────────
-  const projectHealth = projects.map(p => {
+  const projectHealth = scopedProjects.map(p => {
     const spent = withEarnings.filter(e => e.project_id === p.id && e.billable).reduce((s, e) => s + e.earnings, 0)
-    const hoursSpent = entries.filter(e => e.project_id === p.id).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
+    const hoursSpent = scopedEntries.filter(e => e.project_id === p.id).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const budgetPct = p.budget_amount ? Math.round(spent / p.budget_amount * 100) : null
     const hoursPct  = p.budget_hours  ? Math.round(hoursSpent / p.budget_hours * 100) : null
     const worstPct  = Math.max(budgetPct ?? 0, hoursPct ?? 0)
@@ -532,7 +539,7 @@ export default function AnalyticsPage() {
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('budgetBurndown')}</h2>
           <select className="input w-auto text-xs py-1" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="all">{t('selectProject')}</option>
-            {projects.filter(p => p.budget_amount).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {scopedProjects.filter(p => p.budget_amount).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
         {selectedProject === 'all' ? (

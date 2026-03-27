@@ -13,7 +13,7 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const { workspaceName, role } = useWorkspace()
+  const { workspaceName, role, isProjectManager } = useWorkspace()
   const { t, locale } = useI18n()
   const [runningEntry, setRunningEntry] = useState<{ start_time: string } | null>(null)
   const [elapsed, setElapsed] = useState(0)
@@ -43,16 +43,16 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
   }, [runningEntry])
 
   const NAV = [
-    { href: '/dashboard',   label: t('dashboard'),    icon: LayoutDashboard, adminOnly: false },
-    { href: '/timer',       label: t('timer'),         icon: Timer,           adminOnly: false },
-    { href: '/projects',    label: t('projects'),      icon: FolderOpen,      adminOnly: false },
-    { href: '/clients',     label: t('clients'),       icon: Users,           adminOnly: true  },
-    { href: '/timesheets',  label: t('timesheets'),    icon: ClipboardList,   adminOnly: false },
-    { href: '/invoices',    label: t('invoices'),      icon: FileText,        adminOnly: true  },
-    { href: '/analytics',   label: 'Analytics',        icon: LineChart,       adminOnly: true  },
-    { href: '/reports',     label: t('reports'),       icon: BarChart2,       adminOnly: false },
-    { href: '/settings',    label: t('settings'),      icon: Settings,        adminOnly: false },
-    { href: '/impressum',   label: t('legalNotice'),   icon: Scale,           adminOnly: false },
+    { href: '/dashboard',   label: t('dashboard'),    icon: LayoutDashboard, show: true },
+    { href: '/timer',       label: t('timer'),         icon: Timer,           show: true },
+    { href: '/projects',    label: t('projects'),      icon: FolderOpen,      show: true },
+    { href: '/clients',     label: t('clients'),       icon: Users,           show: role === 'admin' },
+    { href: '/timesheets',  label: t('timesheets'),    icon: ClipboardList,   show: true },
+    { href: '/invoices',    label: t('invoices'),      icon: FileText,        show: role === 'admin' },
+    { href: '/analytics',   label: 'Analytics',        icon: LineChart,       show: role === 'admin' || isProjectManager },
+    { href: '/reports',     label: t('reports'),       icon: BarChart2,       show: true },
+    { href: '/settings',    label: t('settings'),      icon: Settings,        show: true },
+    { href: '/impressum',   label: t('legalNotice'),   icon: Scale,           show: true },
   ]
 
   async function signOut() {
@@ -89,7 +89,7 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {NAV.filter(item => !item.adminOnly || role === 'admin').map(({ href, label, icon: Icon }) => {
+        {NAV.filter(item => item.show).map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
@@ -121,7 +121,9 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate leading-tight">{userName}</p>
-            <p className="text-xs text-muted-foreground capitalize leading-tight">{role}</p>
+            <p className="text-xs text-muted-foreground leading-tight">
+              {role === 'admin' ? 'Partner' : isProjectManager ? 'Project Manager' : 'Member'}
+            </p>
           </div>
           <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         </Link>

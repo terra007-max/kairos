@@ -470,7 +470,7 @@ export default function SettingsPage() {
                 })()}
 
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {m.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-400" />}
+                  {m.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Partner</span>}
                   {m.status === 'pending' && (
                     <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
                   )}

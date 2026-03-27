@@ -55,7 +55,7 @@ function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => st
 
 export default function TimesheetsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members, effectiveUserId, isProxying } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId, isProxying, managedProjectIds, isProjectManager } = useWorkspace()
   const { t, locale } = useI18n()
   const dateFnsLocale = locale === 'de' ? de : enUS
 
@@ -70,7 +70,8 @@ export default function TimesheetsPage() {
   const [reviewerNote, setReviewerNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'mine' | 'team'>(role === 'admin' ? 'team' : 'mine')
+  const canReview = role === 'admin' || isProjectManager
+  const [activeTab, setActiveTab] = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [dbError, setDbError] = useState(false)
 
@@ -110,50 +111,61 @@ export default function TimesheetsPage() {
     }
     setMyTimesheets(myTs || [])
 
-    if (role === 'admin') {
+    if (role === 'admin' || isProjectManager) {
       const { data: teamTs } = await supabase
         .from('timesheets')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('week_start', { ascending: false })
-        .limit(50)
+        .limit(100)
 
-      // Load time entries for all team timesheets to build project summaries
-      const { data: allEntries } = await supabase
+      // Load time entries to build project summaries
+      const entryQuery = supabase
         .from('time_entries')
         .select('user_id, project_id, duration_sec, start_time, project:projects(name)')
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
 
-      const enriched = (teamTs || []).map(ts => {
-        const member = members.find(m => m.user_id === ts.user_id)
-        const weekStart = new Date(ts.week_start)
-        const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 })
+      const { data: allEntries } = role === 'admin'
+        ? await entryQuery
+        : await entryQuery.in('project_id', managedProjectIds)
 
-        // Build project summary for this user's week
-        const tsEntries = (allEntries || []).filter(e => {
-          if (e.user_id !== ts.user_id) return false
-          const d = new Date(e.start_time)
-          return d >= weekStart && d <= weekEndDate
+      // For PMs: only include timesheets from members who worked on their projects
+      const pmUserIds = role !== 'admin' && isProjectManager
+        ? Array.from(new Set((allEntries || []).map((e: any) => e.user_id)))
+        : null
+
+      const enriched = (teamTs || [])
+        .filter(ts => ts.user_id !== uid) // exclude own timesheet from review list
+        .filter(ts => !pmUserIds || pmUserIds.includes(ts.user_id))
+        .map(ts => {
+          const member = members.find(m => m.user_id === ts.user_id)
+          const weekStart = new Date(ts.week_start)
+          const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 })
+
+          const tsEntries = (allEntries || []).filter((e: any) => {
+            if (e.user_id !== ts.user_id) return false
+            const d = new Date(e.start_time)
+            return d >= weekStart && d <= weekEndDate
+          })
+          const projectMap: Record<string, { name: string; secs: number }> = {}
+          for (const e of tsEntries) {
+            if (!e.project_id) continue
+            const name = (e.project as any)?.name || e.project_id
+            if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0 }
+            projectMap[e.project_id].secs += e.duration_sec || 0
+          }
+          const projectSummary: ProjectSummary[] = Object.values(projectMap)
+            .map(p => ({ name: p.name, hours: p.secs / 3600 }))
+            .sort((a, b) => b.hours - a.hours)
+
+          return { ...ts, user_email: member?.email, user_name: member?.full_name, projectSummary }
         })
-        const projectMap: Record<string, { name: string; secs: number }> = {}
-        for (const e of tsEntries) {
-          if (!e.project_id) continue
-          const name = (e.project as any)?.name || e.project_id
-          if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0 }
-          projectMap[e.project_id].secs += e.duration_sec || 0
-        }
-        const projectSummary: ProjectSummary[] = Object.values(projectMap)
-          .map(p => ({ name: p.name, hours: p.secs / 3600 }))
-          .sort((a, b) => b.hours - a.hours)
-
-        return { ...ts, user_email: member?.email, user_name: member?.full_name, projectSummary }
-      })
       setTeamTimesheets(enriched)
     }
 
     setLoading(false)
-  }, [supabase, workspaceId, role, members, currentWeekStart])
+  }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -184,17 +196,11 @@ export default function TimesheetsPage() {
   }
 
   async function reviewTimesheet(id: string, status: 'approved' | 'rejected') {
-    const { data: current } = await supabase.from('timesheets').select('review_history').eq('id', id).single()
-    const history = [...((current?.review_history as any[]) || []), {
-      status,
-      note: reviewerNote || null,
-      reviewed_at: new Date().toISOString(),
-    }]
-    await supabase.from('timesheets').update({
-      status, reviewer_note: reviewerNote || null,
-      reviewed_at: new Date().toISOString(),
-      review_history: history,
-    }).eq('id', id)
+    await fetch('/api/timesheets/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timesheetId: id, status, reviewerNote: reviewerNote || null, workspaceId }),
+    })
     setReviewingId(null); setReviewerNote(''); loadData()
   }
 
@@ -226,11 +232,11 @@ export default function TimesheetsPage() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-foreground">{t('timesheetsTitle')}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {role === 'admin' ? t('timesheetsAdminSubtitle') : t('timesheetsSubtitle')}
+          {canReview ? t('timesheetsAdminSubtitle') : t('timesheetsSubtitle')}
         </p>
       </div>
 
-      {role === 'admin' && (
+      {canReview && (
         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl mb-6 w-fit">
           {(['mine', 'team'] as const).map(tab => (
             <button
@@ -344,8 +350,8 @@ export default function TimesheetsPage() {
         </div>
       )}
 
-      {/* Admin review tab */}
-      {activeTab === 'team' && role === 'admin' && (
+      {/* Review tab — admins and project managers */}
+      {activeTab === 'team' && canReview && (
         <div className="space-y-3">
           {teamTimesheets.length === 0 ? (
             <div className="card p-8 text-center">
