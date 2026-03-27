@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+
 import { Clock } from 'lucide-react'
 
 export default function LoginPage() {
@@ -136,7 +137,8 @@ export default function LoginPage() {
                 </button>
               </form>
               <p className="mt-5 text-center text-xs text-muted-foreground">
-                Access by invitation only.
+                Have an invite code?{' '}
+                <Link href="/signup" className="text-brand-600 hover:text-brand-700 font-medium">Create account</Link>
               </p>
             </>
           )}
