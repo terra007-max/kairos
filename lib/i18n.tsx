@@ -72,7 +72,7 @@ const translations = {
     // Projects
     projectsTitle: 'Projects',
     manageProjects: 'Manage your consulting projects.',
-    viewProjects: 'View your workspace projects.',
+    viewProjects: 'Your assigned projects.',
     newProject: 'New project',
     noActiveProjects: 'No active projects.',
     noArchivedProjects: 'No archived projects.',
@@ -363,7 +363,7 @@ const translations = {
     // Projects
     projectsTitle: 'Projekte',
     manageProjects: 'Verwalten Sie Ihre Beratungsprojekte.',
-    viewProjects: 'Projekte Ihres Arbeitsbereichs anzeigen.',
+    viewProjects: 'Ihre zugewiesenen Projekte.',
     newProject: 'Neues Projekt',
     noActiveProjects: 'Keine aktiven Projekte.',
     noArchivedProjects: 'Keine archivierten Projekte.',
