@@ -9,7 +9,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, ReferenceLine, CartesianGrid
 } from 'recharts'
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, differenceInDays } from 'date-fns'
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, differenceInDays, startOfWeek, endOfWeek, subWeeks } from 'date-fns'
 import { TrendingUp, DollarSign, Users, Zap, AlertTriangle, CheckCircle, XCircle, Lock } from 'lucide-react'
 
 const WORK_HOURS_PER_DAY = 8
@@ -38,6 +38,8 @@ export default function AnalyticsPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProject, setSelectedProject] = useState<string>('all')
+  const [utilMemberId, setUtilMemberId] = useState<string>('all')
+  const [utilRange, setUtilRange] = useState<'this_week' | 'last_week' | 'this_month' | 'last_month'>('this_month')
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -180,6 +182,25 @@ export default function AnalyticsPage() {
     }
   }).filter(m => m.billable + m.nonBillable > 0 || m.capacity > 0).sort((a, b) => b.billable - a.billable)
 
+  // ── Per-member utilization lookup ───────────────────────────────────────
+  const utilRangeBounds = (() => {
+    const n = new Date()
+    switch (utilRange) {
+      case 'this_week':  { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      case 'last_week':  { const s = subWeeks(startOfWeek(n, { weekStartsOn: 1 }), 1); const e = endOfWeek(s, { weekStartsOn: 1 }); return { from: s, to: e, weeks: 1 } }
+      case 'this_month': { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000) } }
+    }
+  })()
+  const utilTargets = utilMemberId === 'all' ? activeMembers : activeMembers.filter(m => m.user_id === utilMemberId)
+  const utilRows = utilTargets.map(m => {
+    const mEntries = withEarnings.filter(e => e.user_id === m.user_id && new Date(e.start_time) >= utilRangeBounds.from && new Date(e.start_time) <= utilRangeBounds.to)
+    const billable = mEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
+    const capacity = (m.weekly_hours ?? 40) * utilRangeBounds.weeks
+    const pct = capacity > 0 ? Math.round(billable / capacity * 100) : 0
+    return { name: m.full_name || m.email || 'Unknown', billable: parseFloat(billable.toFixed(1)), capacity: parseFloat(capacity.toFixed(1)), pct }
+  }).sort((a, b) => b.pct - a.pct)
+
   // ── Client revenue ───────────────────────────────────────────────────────
   const clientMap: Record<string, { name: string; color: string; revenue: number }> = {}
   withEarnings.filter(e => e.billable).forEach(e => {
@@ -236,6 +257,40 @@ export default function AnalyticsPage() {
             <p className="text-xs text-muted-foreground/50 mt-0.5">{sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* Utilization lookup */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Utilization lookup</h2>
+          <select className="input w-auto text-xs py-1" value={utilMemberId} onChange={e => setUtilMemberId(e.target.value)}>
+            <option value="all">All members</option>
+            {activeMembers.map(m => <option key={m.user_id!} value={m.user_id!}>{m.full_name || m.email}</option>)}
+          </select>
+          <select className="input w-auto text-xs py-1" value={utilRange} onChange={e => setUtilRange(e.target.value as any)}>
+            <option value="this_week">This week</option>
+            <option value="last_week">Last week</option>
+            <option value="this_month">This month</option>
+            <option value="last_month">Last month</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          {utilRows.length === 0 ? (
+            <p className="text-xs text-muted-foreground/50 text-center py-4">No data for this period</p>
+          ) : utilRows.map(row => (
+            <div key={row.name} className="flex items-center gap-3">
+              <span className="text-xs text-foreground w-32 truncate flex-shrink-0">{row.name}</span>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${row.pct >= 90 ? 'bg-emerald-500' : row.pct >= 60 ? 'bg-amber-500' : 'bg-muted-foreground/40'}`}
+                  style={{ width: `${Math.min(row.pct, 100)}%` }}
+                />
+              </div>
+              <span className="text-xs font-semibold text-foreground w-10 text-right tabular-nums">{row.pct}%</span>
+              <span className="text-xs text-muted-foreground w-28 text-right tabular-nums">{row.billable}h / {row.capacity}h</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Revenue trend + Project health */}

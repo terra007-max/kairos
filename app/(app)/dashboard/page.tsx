@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney } from '@/lib/types'
-import { Clock, TrendingUp, Briefcase, Activity, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { Clock, TrendingUp, Briefcase, Activity, ArrowUpRight, ArrowDownRight, Minus, Target } from 'lucide-react'
 import { startOfWeek, startOfMonth, subWeeks, subMonths, formatDistanceToNow } from 'date-fns'
 import { de, enGB } from 'date-fns/locale'
 import Link from 'next/link'
@@ -56,7 +56,7 @@ export default function DashboardPage() {
   const supabase = createClient()
   const { workspaceId, role, members, effectiveUserId } = useWorkspace()
   const { t, locale } = useI18n()
-  const [stats, setStats] = useState({ weekSecs: 0, monthSecs: 0, earnings: 0, projects: 0, clients: 0, prevWeekSecs: 0, prevMonthSecs: 0, prevEarnings: 0 })
+  const [stats, setStats] = useState({ weekSecs: 0, monthSecs: 0, earnings: 0, projects: 0, clients: 0, prevWeekSecs: 0, prevMonthSecs: 0, prevEarnings: 0, weekBillableSecs: 0, monthBillableSecs: 0, prevWeekBillableSecs: 0 })
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -76,7 +76,7 @@ export default function DashboardPage() {
     const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }] = await Promise.all([
       supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', monthStart.toISOString()).not('end_time', 'is', null),
-      supabase.from('time_entries').select('duration_sec').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevWeekStart.toISOString()).lte('start_time', prevWeekEnd.toISOString()).not('end_time', 'is', null),
+      supabase.from('time_entries').select('duration_sec, billable').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevWeekStart.toISOString()).lte('start_time', prevWeekEnd.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevMonthStart.toISOString()).lte('start_time', prevMonthEnd.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('*, project:projects(*, client:clients(*))').eq('workspace_id', workspaceId).match(userFilter).order('start_time', { ascending: false }).limit(8),
       supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('status', 'active'),
@@ -96,6 +96,9 @@ export default function DashboardPage() {
       prevWeekSecs: (prevWeek || []).reduce((s, e) => s + (e.duration_sec || 0), 0),
       prevMonthSecs: (prevMonth || []).reduce((s, e) => s + (e.duration_sec || 0), 0),
       prevEarnings: calcEarnings(prevMonth || []),
+      weekBillableSecs: (week || []).filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0), 0),
+      monthBillableSecs: (month || []).filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0), 0),
+      prevWeekBillableSecs: (prevWeek || []).filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0), 0),
     })
     setRecent(recentData || [])
     setLoading(false)
@@ -117,7 +120,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {loading ? (
           <><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
         ) : (
@@ -129,6 +132,51 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* My utilization — visible to all users */}
+      {!loading && (() => {
+        const now = new Date()
+        const monthStart = startOfMonth(now)
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+        const myMember = members.find(m => m.user_id === effectiveUserId)
+        const weeklyH = myMember?.weekly_hours ?? 40
+        const weeksElapsedMonth = Math.max((now.getTime() - monthStart.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7)
+        const weekCapH = weeklyH
+        const monthCapH = weeklyH * weeksElapsedMonth
+        const weekBillH = stats.weekBillableSecs / 3600
+        const monthBillH = stats.monthBillableSecs / 3600
+        const prevWeekBillH = stats.prevWeekBillableSecs / 3600
+        const weekUtil = weekCapH > 0 ? Math.round(weekBillH / weekCapH * 100) : 0
+        const monthUtil = monthCapH > 0 ? Math.round(monthBillH / monthCapH * 100) : 0
+
+        function UtilCard({ label, pct, billH, capH, prevBillH, capHPrev }: { label: string; pct: number; billH: number; capH: number; prevBillH: number; capHPrev: number }) {
+          const color = pct >= 90 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-muted-foreground/40'
+          const prevPct = capHPrev > 0 ? Math.round(prevBillH / capHPrev * 100) : 0
+          return (
+            <div className="card p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2 rounded-lg bg-brand-600/10">
+                  <Target className="w-4 h-4 text-brand-600" />
+                </div>
+                <TrendBadge current={pct} previous={prevPct} />
+              </div>
+              <p className="text-2xl font-bold text-foreground tracking-tight">{pct}%</p>
+              <p className="text-xs text-muted-foreground mt-1">{label}</p>
+              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{billH.toFixed(1)}h billable / {capH.toFixed(1)}h capacity</p>
+            </div>
+          )
+        }
+
+        return (
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <UtilCard label="Utilization this week" pct={weekUtil} billH={weekBillH} capH={weekCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
+            <UtilCard label="Utilization this month" pct={monthUtil} billH={monthBillH} capH={monthCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
+          </div>
+        )
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="card overflow-hidden lg:col-span-2">
