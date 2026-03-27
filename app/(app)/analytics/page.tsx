@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
     const sixMonthsAgo = subMonths(new Date(), 6)
     const [{ data: entriesData }, { data: projectsData }] = await Promise.all([
       supabase.from('time_entries')
-        .select('*, hourly_rate, project:projects(*, client:clients(*), level_rates:project_level_rates(*))')
+        .select('id, user_id, project_id, start_time, duration_sec, billable, hourly_rate, level_id, project:projects(id, name, color, hourly_rate, client:clients(name, color))')
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
         .gte('start_time', sixMonthsAgo.toISOString())
@@ -98,18 +98,20 @@ export default function AnalyticsPage() {
   const scopedProjects = isAdmin ? projects : projects.filter(p => managedProjectIds.includes(p.id))
 
   // ── Earnings ─────────────────────────────────────────────────────────────
+  // Build a project lookup once so earnings calculation doesn't search arrays per entry
+  const projectById = Object.fromEntries(projects.map(p => [p.id, p]))
   const withEarnings = scopedEntries.map(e => ({
     ...e,
     earnings: e.duration_sec
-      ? (e.hourly_rate > 0 ? (e.duration_sec / 3600) * e.hourly_rate : calcEntryEarnings(e.duration_sec, e.project, e.level_id))
+      ? (e.hourly_rate > 0 ? (e.duration_sec / 3600) * e.hourly_rate : calcEntryEarnings(e.duration_sec, projectById[e.project_id], e.level_id))
       : 0,
   }))
 
   const now = new Date()
   const monthStart = startOfMonth(now)
   // PMs only see members who have entries on their managed projects
-  const pmMemberUserIds = isAdmin ? null : Array.from(new Set(scopedEntries.map(e => e.user_id)))
-  const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIds || pmMemberUserIds.includes(m.user_id)))
+  const pmMemberUserIdSet = isAdmin ? null : new Set(scopedEntries.map(e => e.user_id))
+  const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIdSet || pmMemberUserIdSet.has(m.user_id)))
   const mtdEntries = withEarnings.filter(e => new Date(e.start_time) >= monthStart)
   const revenueMTD = mtdEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const billableHours = mtdEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)

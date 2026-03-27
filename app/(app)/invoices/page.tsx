@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useRouter } from 'next/navigation'
@@ -100,6 +100,9 @@ export default function InvoicesPage() {
   const [lines, setLines] = useState<InvoiceLine[]>([])
   const [hoursSummary, setHoursSummary] = useState<HoursSummary[]>([])
   const [summaryLoading, setSummaryLoading] = useState(false)
+  // Cache fetched data so generate() reuses it without a second round-trip
+  const cachedEntriesRef = useRef<any[]>([])
+  const cachedApprovedSet = useRef<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<InvoiceStatus>('draft')
@@ -228,6 +231,14 @@ export default function InvoicesPage() {
       approvedRevenue: Math.round(s.approvedRevenue * 100) / 100,
     }))
 
+    // Cache for generate() to reuse — avoids a second identical round-trip
+    cachedEntriesRef.current = entries || []
+    const approvedSet = new Set<string>()
+    for (const ts of timesheets || []) {
+      if (ts.status === 'approved') approvedSet.add(`${ts.user_id}:${ts.week_start}`)
+    }
+    cachedApprovedSet.current = approvedSet
+
     setHoursSummary(summary)
     setSummaryLoading(false)
   }, [clientId, projectId, fromDate, toDate, workspaceId, supabase])
@@ -242,35 +253,12 @@ export default function InvoicesPage() {
     if (totalApproved === 0) return
     setLoading(true)
 
-    const toEnd = new Date(toDate); toEnd.setHours(23, 59, 59)
-
-    // Fetch entries again (or derive from summary — fetch for accuracy)
-    let query = supabase
-      .from('time_entries')
-      .select('*, project:projects!inner(*, client:clients(*))')
-      .eq('workspace_id', workspaceId)
-      .eq('billable', true)
-      .not('end_time', 'is', null)
-      .gte('start_time', new Date(fromDate).toISOString())
-      .lte('start_time', toEnd.toISOString())
-      .eq('project.client_id', clientId)
-
-    if (projectId !== 'all') {
-      query = query.eq('project_id', projectId)
-    }
-
-    const { data: entries } = await query
-
-    const { data: timesheets } = await supabase
-      .from('timesheets')
-      .select('user_id, week_start, status')
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'approved')
-
-    const approvedSet = new Set((timesheets || []).map((ts: any) => `${ts.user_id}:${ts.week_start}`))
+    // Reuse cached data from loadHoursSummary — no second round-trip needed
+    const entries = cachedEntriesRef.current
+    const approvedSet = cachedApprovedSet.current
 
     // Filter to approved entries only
-    const approvedEntries = ((entries || []) as any[]).filter(e => {
+    const approvedEntries = entries.filter((e: any) => {
       const weekStart = format(startOfWeek(new Date(e.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
       return approvedSet.has(`${e.user_id}:${weekStart}`)
     })
