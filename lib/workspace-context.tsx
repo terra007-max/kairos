@@ -21,6 +21,8 @@ type WorkspaceCtx = {
   reload: () => Promise<void>
 }
 
+const STORAGE_KEY = 'kairos-active-workspace'
+
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
@@ -37,9 +39,13 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     if (!memberRows?.length) { setNoWorkspace(true); return }
 
-    // Prefer workspaces where the user is a member (admin-assigned),
-    // fall back to admin role (their own auto-created workspace)
-    const memberRow = memberRows.find(r => r.role === 'member') || memberRows[0]
+    // Respect saved workspace preference, fall back to member-role workspace,
+    // then first available
+    const savedId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    const memberRow =
+      (savedId ? memberRows.find(r => r.workspace_id === savedId) : null) ||
+      memberRows.find(r => r.role === 'member') ||
+      memberRows[0]
 
     const { data: members } = await supabase
       .from('workspace_members')
@@ -91,3 +97,5 @@ export function useWorkspace() {
   if (!ctx) throw new Error('useWorkspace must be used within WorkspaceProvider')
   return ctx
 }
+
+export { STORAGE_KEY as WORKSPACE_STORAGE_KEY }

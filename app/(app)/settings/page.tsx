@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useWorkspace } from '@/lib/workspace-context'
+import { useWorkspace, WORKSPACE_STORAGE_KEY } from '@/lib/workspace-context'
 import { useI18n, type Locale } from '@/lib/i18n'
 import { type ConsultantLevel } from '@/lib/types'
 import { useTheme } from 'next-themes'
 import {
   Plus, Trash2, GripVertical, Settings, Users,
-  Mail, Crown, Globe, Sun, Moon, Monitor, Receipt, UserPlus
+  Mail, Crown, Globe, Sun, Moon, Monitor, Receipt, UserPlus, User
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -29,6 +29,13 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [unassignedUsers, setUnassignedUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([])
   const [addingUserId, setAddingUserId] = useState<string | null>(null)
+
+  // My profile
+  const [myWorkspaces, setMyWorkspaces] = useState<{ workspace_id: string; name: string }[]>([])
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('')
+  const [myLevelId, setMyLevelId] = useState('')
+  const [myMemberId, setMyMemberId] = useState('')
+  const [profileSaved, setProfileSaved] = useState(false)
 
   // BMD NTCS settings
   const [taxCode, setTaxCode] = useState('U20')
@@ -93,10 +100,26 @@ export default function SettingsPage() {
   useEffect(() => {
     loadLevels()
     loadUnassignedUsers()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setCurrentUserId(user.id)
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      setCurrentUserId(user.id)
+
+      // Load all workspaces this user belongs to
+      const { data: wRows } = await supabase
+        .from('workspace_members')
+        .select('workspace_id, level_id, id, workspace:workspaces(name)')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+      if (wRows?.length) {
+        setMyWorkspaces(wRows.map((r: any) => ({ workspace_id: r.workspace_id, name: r.workspace?.name || r.workspace_id })))
+        const saved = localStorage.getItem(WORKSPACE_STORAGE_KEY)
+        const active = (saved ? wRows.find((r: any) => r.workspace_id === saved) : null) || wRows.find((r: any) => r.role === 'member') || wRows[0]
+        setSelectedWorkspaceId(active.workspace_id)
+        setMyLevelId(active.level_id || '')
+        setMyMemberId(active.id)
+      }
     })
-  }, [loadLevels, loadUnassignedUsers, supabase.auth])
+  }, [loadLevels, loadUnassignedUsers, supabase.auth, supabase])
 
   async function addLevel() {
     if (!newLevelName.trim()) return
@@ -166,6 +189,20 @@ export default function SettingsPage() {
     reload()
   }
 
+  async function saveMyProfile() {
+    // Save workspace preference to localStorage
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, selectedWorkspaceId)
+    // Save level to DB if we have a member row
+    if (myMemberId) {
+      await supabase.from('workspace_members')
+        .update({ level_id: myLevelId || null })
+        .eq('id', myMemberId)
+    }
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2000)
+    reload()
+  }
+
   function saveBMDSettings() {
     localStorage.setItem('kairos-bmd-taxcode', taxCode)
     localStorage.setItem('kairos-bmd-revenue', revenueAccount)
@@ -188,6 +225,49 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-xl space-y-6">
+
+        {/* My profile */}
+        {myWorkspaces.length > 0 && (
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground text-sm">My profile</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Select your active workspace and consultant level.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Active workspace</label>
+                <select
+                  className="input"
+                  value={selectedWorkspaceId}
+                  onChange={e => setSelectedWorkspaceId(e.target.value)}
+                >
+                  {myWorkspaces.map(w => (
+                    <option key={w.workspace_id} value={w.workspace_id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+              {levels.length > 0 && (
+                <div>
+                  <label className="label">My consultant level</label>
+                  <select
+                    className="input"
+                    value={myLevelId}
+                    onChange={e => setMyLevelId(e.target.value)}
+                  >
+                    <option value="">No level</option>
+                    {levels.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <button onClick={saveMyProfile} className="btn-primary mt-4">
+              {profileSaved ? '✓ Saved' : 'Save'}
+            </button>
+          </div>
+        )}
 
         {/* Appearance */}
         <div className="card p-6">
