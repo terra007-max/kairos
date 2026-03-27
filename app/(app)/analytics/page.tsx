@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
   const utilRangeBounds = (() => {
     const n = new Date()
     switch (utilRange) {
-      case 'this_week':  { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7), label: 'This week' } }
+      case 'this_week':  { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: 1, label: 'This week' } }
       case 'last_week':  { const s = subWeeks(startOfWeek(n, { weekStartsOn: 1 }), 1); const e = endOfWeek(s, { weekStartsOn: 1 }); return { from: s, to: e, weeks: 1, label: 'Last week' } }
       case 'this_month': { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7), label: 'This month' } }
       case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), label: 'Last month' } }
