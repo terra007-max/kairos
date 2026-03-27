@@ -39,7 +39,9 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [utilMemberId, setUtilMemberId] = useState<string>('all')
-  const [utilRange, setUtilRange] = useState<'this_week' | 'last_week' | 'this_month' | 'last_month'>('this_month')
+  const [utilRange, setUtilRange] = useState<'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom'>('this_month')
+  const [utilCustomFrom, setUtilCustomFrom] = useState('')
+  const [utilCustomTo, setUtilCustomTo] = useState('')
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -190,6 +192,11 @@ export default function AnalyticsPage() {
       case 'last_week':  { const s = subWeeks(startOfWeek(n, { weekStartsOn: 1 }), 1); const e = endOfWeek(s, { weekStartsOn: 1 }); return { from: s, to: e, weeks: 1 } }
       case 'this_month': { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
       case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000) } }
+      case 'custom': {
+        const s = utilCustomFrom ? new Date(utilCustomFrom) : startOfMonth(n)
+        const e = utilCustomTo ? new Date(utilCustomTo + 'T23:59:59') : n
+        return { from: s, to: e, weeks: Math.max((e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) }
+      }
     }
   })()
   const utilTargets = utilMemberId === 'all' ? activeMembers : activeMembers.filter(m => m.user_id === utilMemberId)
@@ -272,7 +279,15 @@ export default function AnalyticsPage() {
             <option value="last_week">Last week</option>
             <option value="this_month">This month</option>
             <option value="last_month">Last month</option>
+            <option value="custom">Custom range</option>
           </select>
+          {utilRange === 'custom' && (
+            <>
+              <input type="date" className="input w-auto text-xs py-1" value={utilCustomFrom} onChange={e => setUtilCustomFrom(e.target.value)} />
+              <span className="text-xs text-muted-foreground">–</span>
+              <input type="date" className="input w-auto text-xs py-1" value={utilCustomTo} onChange={e => setUtilCustomTo(e.target.value)} />
+            </>
+          )}
         </div>
         <div className="space-y-2">
           {utilRows.length === 0 ? (
