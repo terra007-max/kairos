@@ -27,6 +27,8 @@ export default function SettingsPage() {
   const [inviting, setInviting] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
   const [memberLevels, setMemberLevels] = useState<Record<string, string>>({})
+  const [pendingLevels, setPendingLevels] = useState<Record<string, string>>({})
+  const [savingLevel, setSavingLevel] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [unassignedUsers, setUnassignedUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([])
   const [addingUserId, setAddingUserId] = useState<string | null>(null)
@@ -180,11 +182,15 @@ export default function SettingsPage() {
     reload()
   }
 
-  async function assignLevel(memberId: string, levelId: string) {
-    setMemberLevels(prev => ({ ...prev, [memberId]: levelId }))
+  async function saveLevel(memberId: string) {
+    const levelId = pendingLevels[memberId] ?? memberLevels[memberId] ?? ''
+    setSavingLevel(memberId)
     await supabase.from('workspace_members')
       .update({ level_id: levelId || null })
       .eq('id', memberId)
+    setMemberLevels(prev => ({ ...prev, [memberId]: levelId }))
+    setPendingLevels(prev => { const n = { ...prev }; delete n[memberId]; return n })
+    setSavingLevel(null)
     reload()
   }
 
@@ -398,18 +404,34 @@ export default function SettingsPage() {
                   {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
                 </div>
 
-                {role === 'admin' && levels.length > 0 && (
-                  <select
-                    className="input w-36 text-xs py-1 flex-shrink-0"
-                    value={memberLevels[m.id] || ''}
-                    onChange={e => assignLevel(m.id, e.target.value)}
-                  >
-                    <option value="">{t('noLevel')}</option>
-                    {levels.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                )}
+                {role === 'admin' && levels.length > 0 && (() => {
+                  const current = pendingLevels[m.id] ?? memberLevels[m.id] ?? ''
+                  const saved = memberLevels[m.id] ?? ''
+                  const isDirty = m.id in pendingLevels && pendingLevels[m.id] !== saved
+                  return (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <select
+                        className="input w-36 text-xs py-1"
+                        value={current}
+                        onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
+                      >
+                        <option value="">{t('noLevel')}</option>
+                        {levels.map(l => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                      {isDirty && (
+                        <button
+                          onClick={() => saveLevel(m.id)}
+                          disabled={savingLevel === m.id}
+                          className="btn-primary text-xs py-1 px-2.5"
+                        >
+                          {savingLevel === m.id ? '…' : 'Save'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {m.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-400" />}
