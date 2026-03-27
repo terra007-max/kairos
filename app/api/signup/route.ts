@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null)
-  const { email, password, inviteCode } = body || {}
+  const { email, password, inviteCode, fullName } = body || {}
 
   // Validate invite code server-side (kept out of client bundle)
   const validCode = process.env.INVITE_CODE
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid invite code.' }, { status: 403 })
   }
 
+  if (!fullName || !fullName.trim()) {
+    return NextResponse.json({ error: 'Full name is required.' }, { status: 400 })
+  }
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
   }
@@ -61,6 +64,7 @@ export async function POST(req: NextRequest) {
     email: email.toLowerCase().trim(),
     password,
     email_confirm: true,
+    user_metadata: { full_name: fullName.trim() },
   })
 
   if (createError) {

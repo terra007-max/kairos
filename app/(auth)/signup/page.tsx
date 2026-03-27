@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Clock } from 'lucide-react'
 
 export default function SignupPage() {
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -19,7 +20,7 @@ export default function SignupPage() {
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, inviteCode }),
+      body: JSON.stringify({ email, password, inviteCode, fullName }),
     })
     const json = await res.json()
     setLoading(false)
@@ -61,6 +62,19 @@ export default function SignupPage() {
               )}
               <form onSubmit={handleSignup} className="space-y-3.5">
                 <div>
+                  <label className="label">Full name</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Jane Doe"
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="name"
+                  />
+                </div>
+                <div>
                   <label className="label">Invite code</label>
                   <input
                     type="text"
@@ -69,7 +83,6 @@ export default function SignupPage() {
                     value={inviteCode}
                     onChange={e => setInviteCode(e.target.value.toUpperCase())}
                     required
-                    autoFocus
                     autoComplete="off"
                   />
                 </div>

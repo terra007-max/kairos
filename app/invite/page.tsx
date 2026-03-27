@@ -10,6 +10,7 @@ function InviteForm() {
   const searchParams = useSearchParams()
   const workspaceId = searchParams.get('workspace')
 
+  const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(true)
@@ -38,6 +39,7 @@ function InviteForm() {
   }, [])
 
   async function activate() {
+    if (!fullName.trim()) { setError('Please enter your full name.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setSaving(true)
@@ -46,10 +48,13 @@ function InviteForm() {
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) { setError(updateError.message); setSaving(false); return }
 
-    // Link the user to the workspace
-    if (workspaceId) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      // Save display name to profile
+      await supabase.from('profiles').upsert({ id: user.id, full_name: fullName.trim(), email: user.email })
+
+      // Link the user to the workspace
+      if (workspaceId) {
         await supabase
           .from('workspace_members')
           .update({ user_id: user.id, status: 'active' })
@@ -78,7 +83,7 @@ function InviteForm() {
             <span className="text-white font-bold text-xl">K</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome to Kairos</h1>
-          <p className="text-sm text-muted-foreground mt-2">Set your password to finish creating your account</p>
+          <p className="text-sm text-muted-foreground mt-2">Enter your name and set a password to finish creating your account</p>
         </div>
 
         {!sessionReady ? (
@@ -89,6 +94,18 @@ function InviteForm() {
         ) : (
           <div className="card p-6 space-y-4">
             <div>
+              <label className="label">Your full name</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Jane Doe"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                autoFocus
+                autoComplete="name"
+              />
+            </div>
+            <div>
               <label className="label">New Password</label>
               <input
                 type="password"
@@ -96,7 +113,6 @@ function InviteForm() {
                 placeholder="Minimum 8 characters"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                autoFocus
               />
             </div>
             <div>
