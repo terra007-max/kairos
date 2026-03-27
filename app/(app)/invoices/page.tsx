@@ -6,12 +6,25 @@ import { useWorkspace } from '@/lib/workspace-context'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { type Client, type Project, formatMoney } from '@/lib/types'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { FileText, Download, Send, CheckCircle, Clock, Package, Search, X, Pencil, Trash2, Check } from 'lucide-react'
+import { format, startOfMonth, endOfMonth, startOfWeek } from 'date-fns'
+import {
+  FileText, Download, Send, CheckCircle, Clock, Package,
+  Search, X, Pencil, Trash2, Check, AlertTriangle, ShieldCheck, FolderOpen,
+} from 'lucide-react'
 
 type InvoiceLine = { description: string; hours: number; rate: number; amount: number }
-
 type InvoiceStatus = 'draft' | 'sent' | 'paid'
+
+type HoursSummary = {
+  projectId: string
+  projectName: string
+  color: string
+  approvedHours: number
+  pendingHours: number
+  draftHours: number
+  approvedRevenue: number
+  rate: number
+}
 
 type SavedInvoice = {
   id: string
@@ -52,33 +65,19 @@ function statusBadge(status: InvoiceStatus, t: (k: any) => string) {
 function exportBMDNTCS(invoice: SavedInvoice, taxCode: string, revenueAccount: string, debitorAccount: string) {
   const formatGermanDate = (d: string) => format(new Date(d), 'dd.MM.yyyy')
   const formatGermanAmount = (n: number) => n.toFixed(2).replace('.', ',')
-
-  // BMD NTCS Buchungszeilen-Import format (semicolon separated)
-  // Buchungskreis;Datum;Belegnummer;Buchungstext;Betrag;Steuercode;Debitorenkonto;Erlöskonto
   const header = 'Buchungskreis;Datum;Belegnummer;Buchungstext;Betrag;Steuercode;Debitorenkonto;Erlöskonto'
   const rows = invoice.lines.map(line =>
-    [
-      '1',
-      formatGermanDate(invoice.issue_date),
-      invoice.invoice_number,
+    ['1', formatGermanDate(invoice.issue_date), invoice.invoice_number,
       `"${invoice.client_name} - ${line.description}"`,
-      formatGermanAmount(line.amount),
-      taxCode || 'U20',
-      debitorAccount || '10000',
-      revenueAccount || '4000',
+      formatGermanAmount(line.amount), taxCode || 'U20', debitorAccount || '10000', revenueAccount || '4000',
     ].join(';')
   )
-
   const content = [header, ...rows].join('\r\n')
-  // BMD expects Windows-1252 encoding — use UTF-8 with BOM as modern NTCS supports it
-  const bom = '\uFEFF'
-  const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
+  const a = document.createElement('a'); a.href = url
   a.download = `BMD_${invoice.invoice_number.replace(/[^a-zA-Z0-9]/g, '_')}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  a.click(); URL.revokeObjectURL(url)
 }
 
 export default function InvoicesPage() {
@@ -88,8 +87,10 @@ export default function InvoicesPage() {
   const { t } = useI18n()
 
   const [clients, setClients] = useState<Client[]>([])
+  const [clientProjects, setClientProjects] = useState<Project[]>([])
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null)
   const [clientId, setClientId] = useState('')
+  const [projectId, setProjectId] = useState('all')
   const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [toDate, setToDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${format(new Date(), 'yyyyMM')}-001`)
@@ -97,6 +98,8 @@ export default function InvoicesPage() {
   const [dueDate, setDueDate] = useState(format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd'))
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<InvoiceLine[]>([])
+  const [hoursSummary, setHoursSummary] = useState<HoursSummary[]>([])
+  const [summaryLoading, setSummaryLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<InvoiceStatus>('draft')
@@ -107,7 +110,6 @@ export default function InvoicesPage() {
   const [editingInvoice, setEditingInvoice] = useState<SavedInvoice | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-  // BMD NTCS settings from localStorage
   const [taxCode, setTaxCode] = useState('')
   const [revenueAccount, setRevenueAccount] = useState('')
   const [debitorAccount, setDebitorAccount] = useState('')
@@ -118,7 +120,6 @@ export default function InvoicesPage() {
     setDebitorAccount(localStorage.getItem('kairos-bmd-debitor') || '10000')
   }, [])
 
-  // Redirect members
   useEffect(() => {
     if (role === 'member') router.push('/dashboard')
   }, [role, router])
@@ -133,25 +134,35 @@ export default function InvoicesPage() {
     ])
     setClients(cl || [])
     setProfile(prof)
-
-    // Load saved invoices
-    const { data: inv } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false })
+    const { data: inv } = await supabase.from('invoices').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false })
     setSavedInvoices((inv as SavedInvoice[]) || [])
   }, [supabase, workspaceId, role])
 
   useEffect(() => { load() }, [load])
 
-  async function generate() {
-    if (!clientId) { alert(t('selectClient')); return }
-    setLoading(true)
+  // Load projects when client changes
+  useEffect(() => {
+    setProjectId('all')
+    setClientProjects([])
+    setHoursSummary([])
+    setGenerated(false)
+    if (!clientId || !workspaceId) return
+    supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('client_id', clientId).eq('status', 'active').is('deleted_at', null).order('name')
+      .then(({ data }) => setClientProjects(data || []))
+  }, [clientId, workspaceId])
+
+  // Build hours summary whenever client/project/dates change
+  const loadHoursSummary = useCallback(async () => {
+    if (!clientId || !workspaceId) { setHoursSummary([]); return }
+    setSummaryLoading(true)
+    setGenerated(false)
+
     const toEnd = new Date(toDate); toEnd.setHours(23, 59, 59)
-    const { data: entries } = await supabase
+
+    // Fetch all billable entries for this client in range
+    let query = supabase
       .from('time_entries')
-      .select('*, project:projects!inner(*)')
+      .select('*, project:projects!inner(*, client:clients(*))')
       .eq('workspace_id', workspaceId)
       .eq('billable', true)
       .not('end_time', 'is', null)
@@ -159,16 +170,116 @@ export default function InvoicesPage() {
       .lte('start_time', toEnd.toISOString())
       .eq('project.client_id', clientId)
 
-    if (!entries || entries.length === 0) {
-      alert(t('noBillableEntries'))
-      setLoading(false); return
+    if (projectId !== 'all') {
+      query = query.eq('project_id', projectId)
     }
 
-    const projectGroups: Record<string, { project: Project; entries: any[] }> = {}
-    for (const e of entries as any[]) {
+    const { data: entries } = await query
+
+    // Fetch all timesheets in workspace to know approval status per user/week
+    const { data: timesheets } = await supabase
+      .from('timesheets')
+      .select('user_id, week_start, status')
+      .eq('workspace_id', workspaceId)
+      .in('status', ['approved', 'submitted', 'draft', 'rejected'])
+
+    // Build lookup: userId:weekStart -> status
+    const tsStatusMap: Record<string, string> = {}
+    for (const ts of timesheets || []) {
+      tsStatusMap[`${ts.user_id}:${ts.week_start}`] = ts.status
+    }
+
+    // Group entries by project, classify by approval status
+    const projectMap: Record<string, HoursSummary> = {}
+    for (const e of (entries || []) as any[]) {
       const pid = e.project_id
-      if (!projectGroups[pid]) projectGroups[pid] = { project: e.project, entries: [] }
-      projectGroups[pid].entries.push(e)
+      if (!projectMap[pid]) {
+        projectMap[pid] = {
+          projectId: pid,
+          projectName: e.project?.name || 'Unknown',
+          color: e.project?.color || '#6366f1',
+          approvedHours: 0,
+          pendingHours: 0,
+          draftHours: 0,
+          approvedRevenue: 0,
+          rate: e.project?.hourly_rate || 0,
+        }
+      }
+      const weekStart = format(startOfWeek(new Date(e.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const tsStatus = tsStatusMap[`${e.user_id}:${weekStart}`] || 'draft'
+      const hours = (e.duration_sec || 0) / 3600
+
+      if (tsStatus === 'approved') {
+        projectMap[pid].approvedHours += hours
+        projectMap[pid].approvedRevenue += hours * projectMap[pid].rate
+      } else if (tsStatus === 'submitted') {
+        projectMap[pid].pendingHours += hours
+      } else {
+        projectMap[pid].draftHours += hours
+      }
+    }
+
+    // Round
+    const summary = Object.values(projectMap).map(s => ({
+      ...s,
+      approvedHours: Math.round(s.approvedHours * 100) / 100,
+      pendingHours: Math.round(s.pendingHours * 100) / 100,
+      draftHours: Math.round(s.draftHours * 100) / 100,
+      approvedRevenue: Math.round(s.approvedRevenue * 100) / 100,
+    }))
+
+    setHoursSummary(summary)
+    setSummaryLoading(false)
+  }, [clientId, projectId, fromDate, toDate, workspaceId, supabase])
+
+  useEffect(() => { loadHoursSummary() }, [loadHoursSummary])
+
+  const totalApproved = hoursSummary.reduce((s, p) => s + p.approvedHours, 0)
+  const totalPending  = hoursSummary.reduce((s, p) => s + p.pendingHours, 0)
+  const totalDraft    = hoursSummary.reduce((s, p) => s + p.draftHours, 0)
+
+  async function generate() {
+    if (totalApproved === 0) return
+    setLoading(true)
+
+    const toEnd = new Date(toDate); toEnd.setHours(23, 59, 59)
+
+    // Fetch entries again (or derive from summary — fetch for accuracy)
+    let query = supabase
+      .from('time_entries')
+      .select('*, project:projects!inner(*, client:clients(*))')
+      .eq('workspace_id', workspaceId)
+      .eq('billable', true)
+      .not('end_time', 'is', null)
+      .gte('start_time', new Date(fromDate).toISOString())
+      .lte('start_time', toEnd.toISOString())
+      .eq('project.client_id', clientId)
+
+    if (projectId !== 'all') {
+      query = query.eq('project_id', projectId)
+    }
+
+    const { data: entries } = await query
+
+    const { data: timesheets } = await supabase
+      .from('timesheets')
+      .select('user_id, week_start, status')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'approved')
+
+    const approvedSet = new Set((timesheets || []).map((ts: any) => `${ts.user_id}:${ts.week_start}`))
+
+    // Filter to approved entries only
+    const approvedEntries = ((entries || []) as any[]).filter(e => {
+      const weekStart = format(startOfWeek(new Date(e.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      return approvedSet.has(`${e.user_id}:${weekStart}`)
+    })
+
+    // Group by project
+    const projectGroups: Record<string, { project: any; entries: any[] }> = {}
+    for (const e of approvedEntries) {
+      if (!projectGroups[e.project_id]) projectGroups[e.project_id] = { project: e.project, entries: [] }
+      projectGroups[e.project_id].entries.push(e)
     }
 
     const newLines: InvoiceLine[] = Object.values(projectGroups).map(({ project, entries }) => {
@@ -207,8 +318,7 @@ export default function InvoicesPage() {
     const { data } = await supabase.from('invoices').insert(payload).select().single()
     if (data) {
       setSavedInvoices(prev => [data as SavedInvoice, ...prev])
-      setGenerated(false)
-      setLines([])
+      setGenerated(false); setLines([])
       setActiveTab('history')
     }
     setSaving(false)
@@ -240,28 +350,14 @@ export default function InvoicesPage() {
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const W = 210, ml = 20, mr = 190
-
-    // Header
-    doc.setFontSize(28).setFont('helvetica', 'bold')
-    doc.text('INVOICE', ml, 28)
-    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(150)
-    doc.text(`#${inv.invoice_number}`, ml, 36)
-
-    // Sender
-    doc.setTextColor(30).setFontSize(11).setFont('helvetica', 'bold')
-    doc.text(profile?.full_name || profile?.email || 'Consulting', mr, 24, { align: 'right' })
+    doc.setFontSize(28).setFont('helvetica', 'bold').text('INVOICE', ml, 28)
+    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(150).text(`#${inv.invoice_number}`, ml, 36)
+    doc.setTextColor(30).setFontSize(11).setFont('helvetica', 'bold').text(profile?.full_name || profile?.email || 'Consulting', mr, 24, { align: 'right' })
     doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(120)
     if (profile?.email) doc.text(profile.email, mr, 30, { align: 'right' })
-
-    // Divider
     doc.setDrawColor(220).setLineWidth(0.4).line(ml, 44, mr, 44)
-
-    // Bill To + Dates
-    doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold')
-    doc.text('BILL TO', ml, 53)
-    doc.setFontSize(11).setTextColor(30).setFont('helvetica', 'normal')
-    doc.text(inv.client_name, ml, 60)
-
+    doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('BILL TO', ml, 53)
+    doc.setFontSize(11).setTextColor(30).setFont('helvetica', 'normal').text(inv.client_name, ml, 60)
     const labelX = 130, valX = mr
     const row = (label: string, val: string, y: number) => {
       doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text(label, labelX, y)
@@ -270,62 +366,30 @@ export default function InvoicesPage() {
     row('ISSUE DATE', format(new Date(inv.issue_date), 'MMM d, yyyy'), 53)
     row('DUE DATE', format(new Date(inv.due_date), 'MMM d, yyyy'), 60)
     row('PERIOD', `${format(new Date(inv.period_from), 'MMM d')} – ${format(new Date(inv.period_to), 'MMM d, yyyy')}`, 67)
-
-    // Table header
     let y = 82
     doc.setFillColor(245, 246, 248).rect(ml, y - 5, mr - ml, 8, 'F')
     doc.setFontSize(8).setTextColor(100).setFont('helvetica', 'bold')
-    doc.text('DESCRIPTION', ml + 2, y)
-    doc.text('HOURS', 130, y, { align: 'right' })
-    doc.text('RATE', 155, y, { align: 'right' })
-    doc.text('AMOUNT', mr, y, { align: 'right' })
-
-    y += 6
-    doc.setDrawColor(210).setLineWidth(0.3)
-
+    doc.text('DESCRIPTION', ml + 2, y); doc.text('HOURS', 130, y, { align: 'right' })
+    doc.text('RATE', 155, y, { align: 'right' }); doc.text('AMOUNT', mr, y, { align: 'right' })
+    y += 6; doc.setDrawColor(210).setLineWidth(0.3)
     for (const line of inv.lines) {
-      doc.line(ml, y, mr, y)          // separator above row
-      y += 5                           // gap: line → text baseline
-      doc.setFontSize(10).setTextColor(30).setFont('helvetica', 'normal')
-      doc.text(line.description, ml + 2, y)
-      doc.setTextColor(90)
-      doc.text(`${line.hours.toFixed(2)}h`, 130, y, { align: 'right' })
-      doc.text(`€${line.rate.toFixed(2)}/h`, 155, y, { align: 'right' })
-      doc.setTextColor(30).setFont('helvetica', 'bold')
-      doc.text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
-      doc.setFont('helvetica', 'normal')
-      y += 7                           // gap: text baseline → next separator
+      doc.line(ml, y, mr, y); y += 5
+      doc.setFontSize(10).setTextColor(30).setFont('helvetica', 'normal').text(line.description, ml + 2, y)
+      doc.setTextColor(90).text(`${line.hours.toFixed(2)}h`, 130, y, { align: 'right' }).text(`€${line.rate.toFixed(2)}/h`, 155, y, { align: 'right' })
+      doc.setTextColor(30).setFont('helvetica', 'bold').text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
+      doc.setFont('helvetica', 'normal'); y += 7
     }
-
-    // Total box
-    y += 4
-    doc.line(ml, y, mr, y)
-    y += 6
+    y += 4; doc.line(ml, y, mr, y); y += 6
     doc.setFontSize(9).setTextColor(100).text('Subtotal', 145, y)
     doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
-    y += 8
-    doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y)
-    y += 7
-    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(30)
-    doc.text('Total', 145, y)
-    doc.text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
-
-    // Notes
+    y += 8; doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y); y += 7
+    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(30).text('Total', 145, y).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
     if (inv.notes) {
-      y += 16
-      doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y)
-      y += 8
-      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('NOTES', ml, y)
-      y += 5
-      doc.setFontSize(9).setTextColor(80).setFont('helvetica', 'normal')
-      const noteLines = doc.splitTextToSize(inv.notes, mr - ml)
-      doc.text(noteLines, ml, y)
+      y += 16; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 8
+      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('NOTES', ml, y); y += 5
+      doc.setFontSize(9).setTextColor(80).setFont('helvetica', 'normal').text(doc.splitTextToSize(inv.notes, mr - ml), ml, y)
     }
-
-    // Footer
-    doc.setFontSize(8).setTextColor(180).setFont('helvetica', 'normal')
-    doc.text('Generated by Kairos', W / 2, 285, { align: 'center' })
-
+    doc.setFontSize(8).setTextColor(180).setFont('helvetica', 'normal').text('Generated by Kairos', W / 2, 285, { align: 'center' })
     doc.save(`${inv.invoice_number}.pdf`)
   }
 
@@ -346,11 +410,8 @@ export default function InvoicesPage() {
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-muted/50 rounded-xl mb-6 w-fit print:hidden">
         {(['generate', 'history'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}
-          >
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
             {tab === 'generate' ? t('generateInvoice') : t('savedInvoices')}
             {tab === 'history' && savedInvoices.length > 0 && (
               <span className="ml-2 bg-brand-600/10 text-brand-600 text-xs px-1.5 py-0.5 rounded-full">{savedInvoices.length}</span>
@@ -362,7 +423,7 @@ export default function InvoicesPage() {
       {activeTab === 'generate' && (
         <>
           {/* Settings form */}
-          <div className="card p-6 mb-6 print:hidden">
+          <div className="card p-6 mb-5 print:hidden">
             <h2 className="font-semibold text-foreground text-sm mb-4">{t('invoiceSettings')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
@@ -372,6 +433,15 @@ export default function InvoicesPage() {
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              {clientId && (
+                <div>
+                  <label className="label flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> Project</label>
+                  <select className="input" value={projectId} onChange={e => { setProjectId(e.target.value); setGenerated(false) }}>
+                    <option value="all">All projects</option>
+                    {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div><label className="label">{t('fromDate')}</label><input type="date" className="input" value={fromDate} onChange={e => { setFromDate(e.target.value); setGenerated(false) }} /></div>
               <div><label className="label">{t('toDate')}</label><input type="date" className="input" value={toDate} onChange={e => { setToDate(e.target.value); setGenerated(false) }} /></div>
               <div><label className="label">{t('invoiceNumber')}</label><input className="input" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
@@ -382,35 +452,132 @@ export default function InvoicesPage() {
                 <textarea className="input resize-none" rows={2} placeholder="e.g. IBAN AT12 3456 7890 · Payment within 30 days" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-4">
-              <button onClick={generate} disabled={loading || !clientId} className="btn-primary flex items-center gap-2">
-                <FileText className="w-4 h-4" /> {loading ? t('generating') : t('generateInvoice')}
-              </button>
-              {generated && (
+          </div>
+
+          {/* Hours summary — only when client is selected */}
+          {clientId && (
+            <div className="card p-5 mb-5 print:hidden">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hours available to bill</h2>
+                {summaryLoading && <div className="w-4 h-4 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />}
+              </div>
+
+              {!summaryLoading && hoursSummary.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 text-center py-4">No billable time entries found for this period.</p>
+              )}
+
+              {!summaryLoading && hoursSummary.length > 0 && (
                 <>
-                  <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
-                    <Download className="w-4 h-4" /> {t('printPDF')}
-                  </button>
-                  <button
-                    onClick={saveInvoice}
-                    disabled={saving}
-                    className="btn-primary flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" /> {saving ? t('saving2') : t('saveInvoice')}
-                  </button>
-                  <button
-                    onClick={() => exportBMDNTCS(
-                      { id: '', invoice_number: invoiceNumber, client_name: selectedClient?.name || '', client_id: clientId, issue_date: issueDate, due_date: dueDate, period_from: fromDate, period_to: toDate, subtotal, notes, status: currentStatus, lines, sent_at: null, paid_at: null, created_at: new Date().toISOString() },
-                      taxCode, revenueAccount, debitorAccount
-                    )}
-                    className="btn-secondary flex items-center gap-2"
-                  >
-                    <Package className="w-4 h-4" /> {t('exportBMD')}
-                  </button>
+                  {/* Per-project breakdown */}
+                  <div className="space-y-0 rounded-lg border border-border overflow-hidden mb-4">
+                    <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted/40 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <span className="col-span-2">Project</span>
+                      <span className="text-right text-emerald-600">Approved ✓</span>
+                      <span className="text-right text-amber-500">Pending ⏳</span>
+                      <span className="text-right text-muted-foreground">Not submitted</span>
+                    </div>
+                    {hoursSummary.map(p => (
+                      <div key={p.projectId} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border items-center">
+                        <div className="col-span-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="text-xs font-medium text-foreground truncate">{p.projectName}</span>
+                        </div>
+                        <div className="text-right">
+                          {p.approvedHours > 0 ? (
+                            <div>
+                              <span className="text-xs font-semibold text-emerald-600">{p.approvedHours.toFixed(1)}h</span>
+                              <p className="text-[10px] text-emerald-600/70">{formatMoney(p.approvedRevenue)}</p>
+                            </div>
+                          ) : <span className="text-xs text-muted-foreground/40">—</span>}
+                        </div>
+                        <div className="text-right">
+                          {p.pendingHours > 0
+                            ? <span className="text-xs font-medium text-amber-500">{p.pendingHours.toFixed(1)}h</span>
+                            : <span className="text-xs text-muted-foreground/40">—</span>}
+                        </div>
+                        <div className="text-right">
+                          {p.draftHours > 0
+                            ? <span className="text-xs text-muted-foreground">{p.draftHours.toFixed(1)}h</span>
+                            : <span className="text-xs text-muted-foreground/40">—</span>}
+                        </div>
+                      </div>
+                    ))}
+                    {/* Totals row */}
+                    <div className="grid grid-cols-5 gap-2 px-4 py-3 border-t-2 border-border bg-muted/20 items-center">
+                      <span className="col-span-2 text-xs font-semibold text-foreground">Total</span>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-emerald-600">{totalApproved.toFixed(1)}h</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-amber-500">{totalPending.toFixed(1)}h</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-muted-foreground">{totalDraft.toFixed(1)}h</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status callouts */}
+                  {totalApproved > 0 && (
+                    <div className="flex items-start gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-3">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                        <span className="font-semibold">{totalApproved.toFixed(1)}h approved</span> — ready to invoice.
+                        {totalPending > 0 && <span className="text-emerald-600/70"> {totalPending.toFixed(1)}h still awaiting approval and will not be included.</span>}
+                      </p>
+                    </div>
+                  )}
+                  {totalApproved === 0 && totalPending > 0 && (
+                    <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        <span className="font-semibold">No approved hours yet.</span> {totalPending.toFixed(1)}h are submitted and awaiting project manager approval before they can be invoiced.
+                      </p>
+                    </div>
+                  )}
+                  {totalApproved === 0 && totalPending === 0 && hoursSummary.length > 0 && (
+                    <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        <span className="font-semibold">No approved hours.</span> Hours must be submitted and approved by the project manager before invoicing.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <button
+                  onClick={generate}
+                  disabled={loading || !clientId || totalApproved === 0 || summaryLoading}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-40"
+                  title={totalApproved === 0 ? 'No approved hours to invoice' : ''}
+                >
+                  <FileText className="w-4 h-4" /> {loading ? t('generating') : 'Generate invoice (approved hours only)'}
+                </button>
+                {generated && (
+                  <>
+                    <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
+                      <Download className="w-4 h-4" /> {t('printPDF')}
+                    </button>
+                    <button onClick={saveInvoice} disabled={saving} className="btn-primary flex items-center gap-2">
+                      <Send className="w-4 h-4" /> {saving ? t('saving2') : t('saveInvoice')}
+                    </button>
+                    <button
+                      onClick={() => exportBMDNTCS(
+                        { id: '', invoice_number: invoiceNumber, client_name: selectedClient?.name || '', client_id: clientId, issue_date: issueDate, due_date: dueDate, period_from: fromDate, period_to: toDate, subtotal, notes, status: currentStatus, lines, sent_at: null, paid_at: null, created_at: new Date().toISOString() },
+                        taxCode, revenueAccount, debitorAccount
+                      )}
+                      className="btn-secondary flex items-center gap-2"
+                    >
+                      <Package className="w-4 h-4" /> {t('exportBMD')}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Invoice preview */}
           {generated && (
@@ -485,20 +652,10 @@ export default function InvoicesPage() {
           {savedInvoices.length > 0 && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
-              <input
-                className="input pl-9 pr-8 text-sm"
-                placeholder="Search by client, invoice number, status…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <input className="input pl-9 pr-8 text-sm" placeholder="Search by client, invoice number, status…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"><X className="w-3.5 h-3.5" /></button>}
             </div>
           )}
-
           {savedInvoices.length === 0 ? (
             <div className="card p-12 text-center">
               <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
@@ -523,6 +680,15 @@ export default function InvoicesPage() {
                     {format(new Date(inv.issue_date), 'MMM d, yyyy')} · Due {format(new Date(inv.due_date), 'MMM d, yyyy')} · {t('period')}: {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
                   </p>
                   {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{inv.notes}</p>}
+                  {inv.lines && inv.lines.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {inv.lines.map((l, i) => (
+                        <span key={i} className="text-[10px] bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-md">
+                          {l.description} · {l.hours.toFixed(1)}h · {formatMoney(l.amount)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-foreground">{formatMoney(inv.subtotal)}</p>
@@ -543,12 +709,8 @@ export default function InvoicesPage() {
                     </button>
                     {deleteConfirmId === inv.id ? (
                       <>
-                        <button onClick={() => deleteInvoice(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-red-500 border-red-500/30 hover:bg-red-500/10">
-                          <Check className="w-3 h-3" /> Confirm
-                        </button>
-                        <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary text-xs py-1 px-2.5">
-                          <X className="w-3 h-3" />
-                        </button>
+                        <button onClick={() => deleteInvoice(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-red-500 border-red-500/30 hover:bg-red-500/10"><Check className="w-3 h-3" /> Confirm</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary text-xs py-1 px-2.5"><X className="w-3 h-3" /></button>
                       </>
                     ) : (
                       <button onClick={() => setDeleteConfirmId(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/10">
@@ -569,18 +731,9 @@ export default function InvoicesPage() {
           <div className="card p-6 w-full max-w-md">
             <h3 className="font-semibold text-foreground mb-5 text-sm">Edit Invoice</h3>
             <div className="space-y-4">
-              <div>
-                <label className="label">Invoice Number</label>
-                <input className="input" value={editingInvoice.invoice_number} onChange={e => setEditingInvoice({ ...editingInvoice, invoice_number: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">{t('dueDate')}</label>
-                <input type="date" className="input" value={editingInvoice.due_date} onChange={e => setEditingInvoice({ ...editingInvoice, due_date: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">{t('notesPayment')}</label>
-                <textarea className="input resize-none" rows={3} value={editingInvoice.notes || ''} onChange={e => setEditingInvoice({ ...editingInvoice, notes: e.target.value })} />
-              </div>
+              <div><label className="label">Invoice Number</label><input className="input" value={editingInvoice.invoice_number} onChange={e => setEditingInvoice({ ...editingInvoice, invoice_number: e.target.value })} /></div>
+              <div><label className="label">{t('dueDate')}</label><input type="date" className="input" value={editingInvoice.due_date} onChange={e => setEditingInvoice({ ...editingInvoice, due_date: e.target.value })} /></div>
+              <div><label className="label">{t('notesPayment')}</label><textarea className="input resize-none" rows={3} value={editingInvoice.notes || ''} onChange={e => setEditingInvoice({ ...editingInvoice, notes: e.target.value })} /></div>
               <div>
                 <p className="label mb-2">Line items (read-only)</p>
                 <div className="rounded-lg border border-border divide-y divide-border text-xs">
