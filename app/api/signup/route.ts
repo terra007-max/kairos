@@ -51,20 +51,29 @@ export async function POST(req: NextRequest) {
   const userId = newUser.user.id
 
   // Auto-join the first workspace (single-tenant setup)
-  const { data: workspace } = await adminSupabase
+  const { data: workspaces, error: wsError } = await adminSupabase
     .from('workspaces')
     .select('id')
     .limit(1)
-    .single()
 
-  if (workspace) {
-    await adminSupabase.from('workspace_members').upsert({
-      workspace_id: workspace.id,
-      user_id: userId,
-      email: email.toLowerCase().trim(),
-      role: 'member',
-      status: 'active',
-    }, { onConflict: 'workspace_id,user_id' })
+  if (wsError || !workspaces?.length) {
+    console.error('[signup] workspace lookup failed:', wsError)
+    return NextResponse.json({ success: true, warning: 'Account created but workspace join failed: no workspace found.' })
+  }
+
+  const workspaceId = workspaces[0].id
+
+  const { error: memberError } = await adminSupabase.from('workspace_members').insert({
+    workspace_id: workspaceId,
+    user_id: userId,
+    email: email.toLowerCase().trim(),
+    role: 'member',
+    status: 'active',
+  })
+
+  if (memberError) {
+    console.error('[signup] workspace_members insert failed:', memberError)
+    return NextResponse.json({ success: true, warning: `Account created but workspace join failed: ${memberError.message}` })
   }
 
   return NextResponse.json({ success: true })

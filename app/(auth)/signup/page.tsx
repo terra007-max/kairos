@@ -27,6 +27,7 @@ export default function SignupPage() {
     if (!res.ok) {
       setError(json.error || 'Something went wrong.')
     } else {
+      if (json.warning) console.warn('[signup]', json.warning)
       setDone(true)
     }
   }
