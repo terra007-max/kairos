@@ -378,8 +378,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Team members */}
-        <div className="card p-6">
+        {/* Team members — admin only */}
+        {role === 'admin' && <div className="card p-6">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-muted-foreground" />
             <h2 className="font-semibold text-foreground text-sm">{t('teamMembers')}</h2>
@@ -428,8 +428,7 @@ export default function SettingsPage() {
             ))}
           </div>
 
-          {role === 'admin' && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -449,11 +448,10 @@ export default function SettingsPage() {
                 <Plus className="w-4 h-4" /> {inviting ? t('inviting') : t('invite')}
               </button>
             </div>
-          )}
-        </div>
+        </div>}
 
-        {/* Consultant levels */}
-        <div className="card p-6">
+        {/* Consultant levels — admin only */}
+        {role === 'admin' && <div className="card p-6">
           <div className="flex items-center gap-2 mb-1">
             <Settings className="w-4 h-4 text-muted-foreground" />
             <h2 className="font-semibold text-foreground text-sm">{t('consultantLevels')}</h2>
@@ -480,8 +478,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {role === 'admin' && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
               <input
                 className="input flex-1"
                 placeholder={t('levelPlaceholder')}
@@ -497,8 +494,7 @@ export default function SettingsPage() {
                 <Plus className="w-4 h-4" /> {t('add')}
               </button>
             </div>
-          )}
-        </div>
+        </div>}
 
       </div>
     </div>
