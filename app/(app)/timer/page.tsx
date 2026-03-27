@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project } from '@/lib/types'
-import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X } from 'lucide-react'
-import { format } from 'date-fns'
+import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X, Lock } from 'lucide-react'
+import { format, startOfWeek } from 'date-fns'
 
 type EntryMode = 'timer' | 'fromto' | 'duration'
 
@@ -43,6 +43,8 @@ export default function TimerPage() {
   const [editingEntry, setEditingEntry] = useState<any | null>(null)
   const [currentUserId, setCurrentUserId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [approvedWeeks, setApprovedWeeks] = useState<Set<string>>(new Set())
+  const [levelRates, setLevelRates] = useState<Record<string, Record<string, number>>>({}) // projectId -> levelId -> rate
 
   const getMemberName = (userId: string) => {
     const m = members.find(m => m.user_id === userId)
@@ -64,8 +66,8 @@ export default function TimerPage() {
 
     if (role === 'member') entriesQuery = entriesQuery.eq('user_id', uid)
 
-    const [{ data: proj }, { data: ents }, { data: live }, , forgottenResult, { data: projectMembers }] = await Promise.all([
-      supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').order('name'),
+    const [{ data: proj }, { data: ents }, { data: live }, , forgottenResult, { data: projectMembers }, { data: allRates }, { data: approvedSheets }] = await Promise.all([
+      supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').is('deleted_at', null).order('name'),
       entriesQuery,
       supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', uid).is('end_time', null).maybeSingle(),
       Promise.resolve({ data: [] }),
@@ -73,7 +75,17 @@ export default function TimerPage() {
         ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', uid).is('end_time', null)
         : Promise.resolve({ data: [] }),
       supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
+      supabase.from('project_level_rates').select('project_id, level_id, hourly_rate'),
+      supabase.from('timesheets').select('week_start').eq('user_id', uid).eq('workspace_id', workspaceId).eq('status', 'approved'),
     ])
+
+    const rateMap: Record<string, Record<string, number>> = {}
+    for (const r of allRates || []) {
+      if (!rateMap[r.project_id]) rateMap[r.project_id] = {}
+      rateMap[r.project_id][r.level_id] = r.hourly_rate
+    }
+    setLevelRates(rateMap)
+    setApprovedWeeks(new Set((approvedSheets || []).map((ts: any) => ts.week_start)))
 
     let visibleProjects = proj || []
     if (role === 'member') {
@@ -109,11 +121,13 @@ export default function TimerPage() {
   async function startTimer() {
     const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = (myMember as any)?.level_id || null
+    const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
     const { data } = await supabase.from('time_entries').insert({
       user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: new Date().toISOString(),
+      hourly_rate: snapshotRate,
     }).select('*, project:projects(*)').single()
     if (data) { setRunning(data); setElapsed(0); setShowIdleAlert(false) }
   }
@@ -164,11 +178,13 @@ export default function TimerPage() {
     }
     endTime = applyRounding(endTime, startTime, proj?.rounding_minutes || 0)
 
+    const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
     await supabase.from('time_entries').insert({
       user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: startTime.toISOString(), end_time: endTime.toISOString(),
+      hourly_rate: snapshotRate,
     })
     setSaving(false); setDescription(''); setManualHours('')
     load()
@@ -177,11 +193,13 @@ export default function TimerPage() {
   async function restartEntry(entry: any) {
     const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = entry.level_id || (myMember as any)?.level_id || null
+    const snapshotRate = (entry.project_id && autoLevelId) ? (levelRates[entry.project_id]?.[autoLevelId] || 0) : 0
     const { data } = await supabase.from('time_entries').insert({
       user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: entry.project_id || null, level_id: autoLevelId,
       description: entry.description || null, billable: entry.billable,
       start_time: new Date().toISOString(),
+      hourly_rate: snapshotRate,
     }).select('*, project:projects(*)').single()
     if (data) {
       setRunning(data); setElapsed(0)
@@ -427,7 +445,10 @@ export default function TimerPage() {
               <span className="text-xs font-mono font-semibold text-muted-foreground">{formatDuration(dayTotal)}</span>
             </div>
             <div className="card divide-y divide-border">
-              {dayEntries.map((entry: any) => (
+              {dayEntries.map((entry: any) => {
+                const entryWeek = format(startOfWeek(new Date(entry.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+                const isLocked = approvedWeeks.has(entryWeek)
+                return (
                 <div key={entry.id} className="px-4 py-3.5 flex items-center gap-3 group hover:bg-muted/30 transition-colors">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.project?.color || '#6b7280' }} />
                   <div className="flex-1 min-w-0">
@@ -442,16 +463,17 @@ export default function TimerPage() {
                         {role === 'admin' && entry.user_id !== currentUserId && <span className="ml-1 text-muted-foreground/50">· {getMemberName(entry.user_id)}</span>}
                       </p>
                       {entry.billable && <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">{t('billable')}</span>}
+                      {isLocked && <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Approved</span>}
                     </div>
                   </div>
                   <span className="font-mono text-xs font-semibold text-muted-foreground tabular-nums">{entry.duration_sec ? formatDuration(entry.duration_sec) : '—'}</span>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    {!running && (
+                    {!running && !isLocked && (
                       <button onClick={() => restartEntry(entry)} className="p-1.5 text-muted-foreground/50 hover:text-emerald-500 rounded-lg hover:bg-emerald-500/10" title={t('start')}>
                         <Play className="w-3 h-3 fill-current" />
                       </button>
                     )}
-                    {entry.user_id === currentUserId && (
+                    {entry.user_id === currentUserId && !isLocked && (
                       <>
                         <button onClick={() => openEdit(entry)} className="p-1.5 text-muted-foreground/50 hover:text-foreground rounded-lg hover:bg-muted"><Pencil className="w-3 h-3" /></button>
                         <button onClick={() => deleteEntry(entry.id)} className="p-1.5 text-muted-foreground/50 hover:text-red-500 rounded-lg hover:bg-red-500/10"><Trash2 className="w-3 h-3" /></button>
@@ -459,7 +481,8 @@ export default function TimerPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )

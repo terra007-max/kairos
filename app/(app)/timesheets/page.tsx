@@ -13,6 +13,8 @@ type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
 type ProjectSummary = { name: string; hours: number }
 
+type ReviewEvent = { status: 'approved' | 'rejected'; note: string | null; reviewed_at: string }
+
 type Timesheet = {
   id: string
   user_id: string
@@ -23,6 +25,7 @@ type Timesheet = {
   reviewer_note: string | null
   submitted_at: string | null
   reviewed_at: string | null
+  review_history?: ReviewEvent[]
   total_seconds?: number
   projectSummary?: ProjectSummary[]
 }
@@ -181,8 +184,16 @@ export default function TimesheetsPage() {
   }
 
   async function reviewTimesheet(id: string, status: 'approved' | 'rejected') {
+    const { data: current } = await supabase.from('timesheets').select('review_history').eq('id', id).single()
+    const history = [...((current?.review_history as any[]) || []), {
+      status,
+      note: reviewerNote || null,
+      reviewed_at: new Date().toISOString(),
+    }]
     await supabase.from('timesheets').update({
-      status, reviewer_note: reviewerNote || null, reviewed_at: new Date().toISOString(),
+      status, reviewer_note: reviewerNote || null,
+      reviewed_at: new Date().toISOString(),
+      review_history: history,
     }).eq('id', id)
     setReviewingId(null); setReviewerNote(''); loadData()
   }
@@ -398,10 +409,18 @@ export default function TimesheetsPage() {
                   </div>
                 )}
 
-                {ts.reviewer_note && !isReviewing && (
-                  <p className="text-xs text-muted-foreground mt-1 italic border-t border-border pt-2">
-                    Reviewer: "{ts.reviewer_note}"
-                  </p>
+                {ts.review_history && ts.review_history.length > 0 && !isReviewing && (
+                  <div className="border-t border-border pt-2 mt-1 space-y-1">
+                    {ts.review_history.map((ev, i) => (
+                      <p key={i} className="text-xs text-muted-foreground italic">
+                        <span className={ev.status === 'approved' ? 'text-emerald-500' : 'text-red-500'}>
+                          {ev.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                        </span>
+                        {ev.note && ` — "${ev.note}"`}
+                        <span className="text-muted-foreground/50 ml-1">{new Date(ev.reviewed_at).toLocaleDateString()}</span>
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             )

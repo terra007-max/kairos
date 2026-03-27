@@ -73,25 +73,18 @@ export default function DashboardPage() {
     const prevWeekEnd = new Date(weekStart.getTime() - 1)
     const userFilter = role === 'member' ? { user_id: effectiveUserId } : {}
 
-    const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }, { data: levelRates }] = await Promise.all([
-      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
-      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', monthStart.toISOString()).not('end_time', 'is', null),
+    const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }] = await Promise.all([
+      supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
+      supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', monthStart.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevWeekStart.toISOString()).lte('start_time', prevWeekEnd.toISOString()).not('end_time', 'is', null),
-      supabase.from('time_entries').select('duration_sec, billable, project_id, level_id').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevMonthStart.toISOString()).lte('start_time', prevMonthEnd.toISOString()).not('end_time', 'is', null),
+      supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', prevMonthStart.toISOString()).lte('start_time', prevMonthEnd.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('*, project:projects(*, client:clients(*))').eq('workspace_id', workspaceId).match(userFilter).order('start_time', { ascending: false }).limit(8),
       supabase.from('projects').select('id').eq('workspace_id', workspaceId).eq('status', 'active'),
       supabase.from('clients').select('id').eq('workspace_id', workspaceId),
-      supabase.from('project_level_rates').select('project_id, level_id, hourly_rate'),
     ])
 
-    const rateMap: Record<string, Record<string, number>> = {}
-    for (const r of levelRates || []) {
-      if (!rateMap[r.project_id]) rateMap[r.project_id] = {}
-      rateMap[r.project_id][r.level_id] = r.hourly_rate
-    }
     const calcEarnings = (entries: any[]) => entries.filter(e => e.billable).reduce((s, e) => {
-      const rate = rateMap[e.project_id]?.[e.level_id] || 0
-      return s + (e.duration_sec || 0) / 3600 * rate
+      return s + (e.duration_sec || 0) / 3600 * (e.hourly_rate || 0)
     }, 0)
 
     setStats({
@@ -204,21 +197,30 @@ export default function DashboardPage() {
 function TeamStatus({ workspaceId, members, supabase }: { workspaceId: string; members: any[]; supabase: any }) {
   const [statuses, setStatuses] = useState<Record<string, any>>({})
 
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from('time_entries')
+      .select('user_id, start_time, project:projects(name, color)')
+      .eq('workspace_id', workspaceId)
+      .is('end_time', null)
+    const map: Record<string, any> = {}
+    for (const d of data || []) map[d.user_id] = d
+    setStatuses(map)
+  }, [supabase, workspaceId])
+
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('time_entries')
-        .select('user_id, start_time, project:projects(name, color)')
-        .eq('workspace_id', workspaceId)
-        .is('end_time', null)
-      const map: Record<string, any> = {}
-      for (const d of data || []) map[d.user_id] = d
-      setStatuses(map)
-    }
     load()
-    const interval = setInterval(load, 30000)
-    return () => clearInterval(interval)
-  }, [workspaceId])
+    const channel = supabase
+      .channel(`team-status-${workspaceId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'time_entries',
+        filter: `workspace_id=eq.${workspaceId}`,
+      }, () => { load() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workspaceId, load, supabase])
 
   const activeMembers = members.filter(m => m.status === 'active')
 

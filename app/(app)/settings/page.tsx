@@ -185,9 +185,17 @@ export default function SettingsPage() {
   async function saveLevel(memberId: string) {
     const levelId = pendingLevels[memberId] ?? memberLevels[memberId] ?? ''
     setSavingLevel(memberId)
-    await supabase.from('workspace_members')
-      .update({ level_id: levelId || null })
-      .eq('id', memberId)
+    const res = await fetch('/api/admin/member-level', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, levelId, workspaceId }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.error || 'Failed to save level')
+      setSavingLevel(null)
+      return
+    }
     setMemberLevels(prev => ({ ...prev, [memberId]: levelId }))
     setPendingLevels(prev => { const n = { ...prev }; delete n[memberId]; return n })
     setSavingLevel(null)

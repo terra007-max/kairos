@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
 
     const [{ data: entriesData }, { data: projectsData }] = await Promise.all([
       supabase.from('time_entries')
-        .select('*, project:projects(*, client:clients(*), level_rates:project_level_rates(*))')
+        .select('*, hourly_rate, project:projects(*, client:clients(*), level_rates:project_level_rates(*))')
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
         .gte('start_time', sixMonthsAgo.toISOString())
@@ -76,10 +76,14 @@ export default function AnalyticsPage() {
     </div>
   )
 
-  // ── Compute earnings per entry ──────────────────────────────────────────
+  // ── Compute earnings per entry (use snapshotted hourly_rate if available) ──
   const withEarnings = entries.map(e => ({
     ...e,
-    earnings: calcEntryEarnings(e.duration_sec || 0, e.project, e.level_id),
+    earnings: e.duration_sec
+      ? (e.hourly_rate > 0
+          ? (e.duration_sec / 3600) * e.hourly_rate
+          : calcEntryEarnings(e.duration_sec, e.project, e.level_id))
+      : 0,
   }))
 
   // ── KPIs ────────────────────────────────────────────────────────────────

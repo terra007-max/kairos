@@ -42,21 +42,16 @@ export default function ReportsPage() {
       .gte('start_time', from.toISOString()).lte('start_time', toEnd.toISOString())
       .order('start_time', { ascending: true })
     if (role === 'member') query = query.eq('user_id', effectiveUserId)
-    const [{ data }, { data: plRates }] = await Promise.all([query, supabase.from('project_level_rates').select('project_id, level_id, hourly_rate')])
-    const rateMap: Record<string, Record<string, number>> = {}
-    for (const r of plRates || []) {
-      if (!rateMap[r.project_id]) rateMap[r.project_id] = {}
-      rateMap[r.project_id][r.level_id] = r.hourly_rate
-    }
-    setEntries((data || []).map(e => ({ ...e, _rate: rateMap[e.project_id]?.[e.level_id] || 0 })))
+    const { data } = await query
+    setEntries(data || [])
     setLoading(false)
-  }, [supabase, workspaceId, role, effectiveUserId, range, custom])
+  }, [supabase, workspaceId, role, effectiveUserId, range, custom])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
   const totalSecs = entries.reduce((s, e) => s + (e.duration_sec || 0), 0)
   const billableSecs = entries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0), 0)
-  const totalEarnings = entries.filter(e => e.billable).reduce((s, e) => s + ((e.duration_sec || 0) / 3600) * (e._rate || 0), 0)
+  const totalEarnings = entries.filter(e => e.billable).reduce((s, e) => s + ((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0), 0)
 
   const { from: fromDate, to: toDate } = getRange(range, custom)
   const days = eachDayOfInterval({ start: fromDate, end: toDate })
@@ -79,7 +74,7 @@ export default function ReportsPage() {
     teamMap[e.user_id].projects.add(e.project_id || 'none')
     const projName = e.project?.name || t('noProject')
     teamMap[e.user_id].byProject[projName] = (teamMap[e.user_id].byProject[projName] || 0) + (e.duration_sec || 0)
-    if (e.billable) { teamMap[e.user_id].billableSecs += e.duration_sec || 0; teamMap[e.user_id].earnings += ((e.duration_sec || 0) / 3600) * (e._rate || 0) }
+    if (e.billable) { teamMap[e.user_id].billableSecs += e.duration_sec || 0; teamMap[e.user_id].earnings += ((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0) }
   })
   const teamRows = Object.entries(teamMap).sort((a, b) => b[1].secs - a[1].secs).map(([userId, data]) => ({ userId, member: members.find(m => m.user_id === userId), ...data }))
 
@@ -88,7 +83,7 @@ export default function ReportsPage() {
       ['Date', 'Description', 'Project', 'Client', 'Member', 'Duration (h)', 'Billable', 'Earnings (EUR)'],
       ...entries.map(e => {
         const member = members.find(m => m.user_id === e.user_id)
-        return [format(parseISO(e.start_time), 'yyyy-MM-dd'), e.description || '', e.project?.name || '', e.project?.client?.name || '', member?.full_name || member?.email || e.user_id, ((e.duration_sec || 0) / 3600).toFixed(2), e.billable ? 'Yes' : 'No', e.billable ? (((e.duration_sec || 0) / 3600) * (e._rate || 0)).toFixed(2) : '0']
+        return [format(parseISO(e.start_time), 'yyyy-MM-dd'), e.description || '', e.project?.name || '', e.project?.client?.name || '', member?.full_name || member?.email || e.user_id, ((e.duration_sec || 0) / 3600).toFixed(2), e.billable ? 'Yes' : 'No', e.billable ? (((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0)).toFixed(2) : '0']
       })
     ]
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -272,7 +267,7 @@ export default function ReportsPage() {
                     {entries.length === 0 ? (
                       <tr><td colSpan={6} className="px-5 py-10 text-center text-xs text-muted-foreground">{t('noEntriesPeriod')}</td></tr>
                     ) : entries.map(e => {
-                      const earnings = e.billable ? (((e.duration_sec || 0) / 3600) * (e._rate || 0)) : 0
+                      const earnings = e.billable ? (((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0)) : 0
                       const member = members.find(m => m.user_id === e.user_id)
                       return (
                         <tr key={e.id} className="hover:bg-muted/30 transition-colors">

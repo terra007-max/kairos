@@ -388,11 +388,11 @@ BEGIN
   -- Mix of paid (Jan), sent (Feb), draft (Mar) across all clients
   -- ══════════════════════════════════════════════════════════════
   INSERT INTO public.invoices
-    (id, workspace_id, user_id, client_id, invoice_number,
+    (id, workspace_id, user_id, client_id, client_name, invoice_number,
      issue_date, due_date, period_from, period_to, subtotal, notes, status, lines, sent_at, paid_at)
   VALUES
   -- ── Acme Corp — Cloud Migration — January (PAID) ─────────────
-  (gen_random_uuid(), v_ws, v_admin, c1, 'INV-2025-001',
+  (gen_random_uuid(), v_ws, v_admin, c1, 'Acme Corp', 'INV-2025-001',
    '2026-02-01', '2026-02-15', '2026-01-06', '2026-01-31',
    12000.00,
    'Cloud Migration Phase 1 — AWS infrastructure setup and Terraform IaC',
@@ -404,7 +404,7 @@ BEGIN
    '2026-02-01 09:00:00+00', '2026-02-12 14:00:00+00'),
 
   -- ── Acme Corp — CRM Redesign — January (PAID) ────────────────
-  (gen_random_uuid(), v_ws, v_admin, c1, 'INV-2025-002',
+  (gen_random_uuid(), v_ws, v_admin, c1, 'Acme Corp', 'INV-2025-002',
    '2026-02-01', '2026-02-28', '2026-01-06', '2026-01-31',
    22000.00,
    'CRM Redesign Sprint 1 & 2 — architecture, backend API, frontend components',
@@ -417,7 +417,7 @@ BEGIN
    '2026-02-01 09:00:00+00', '2026-02-25 11:00:00+00'),
 
   -- ── Nova Solutions — Client Portal v2 — January (PAID) ───────
-  (gen_random_uuid(), v_ws, v_admin, c2, 'INV-2025-003',
+  (gen_random_uuid(), v_ws, v_admin, c2, 'Nova Solutions', 'INV-2025-003',
    '2026-02-01', '2026-02-28', '2026-01-07', '2026-01-31',
    9040.00,
    'Client Portal v2 — UX, authentication, Stripe integration and UAT',
@@ -430,7 +430,7 @@ BEGIN
    '2026-02-01 09:00:00+00', '2026-02-20 15:00:00+00'),
 
   -- ── Pexco Industries — Mobile App — Jan+Feb (PAID) ───────────
-  (gen_random_uuid(), v_ws, v_admin, c3, 'INV-2025-004',
+  (gen_random_uuid(), v_ws, v_admin, c3, 'Pexco Industries', 'INV-2025-004',
    '2026-03-01', '2026-03-31', '2026-01-06', '2026-02-28',
    7200.00,
    'Mobile App development — React Native build, App Store submission',
@@ -442,7 +442,7 @@ BEGIN
    '2026-03-01 09:00:00+00', '2026-03-18 10:00:00+00'),
 
   -- ── Acme Corp — CRM Redesign — February (SENT) ───────────────
-  (gen_random_uuid(), v_ws, v_admin, c1, 'INV-2025-005',
+  (gen_random_uuid(), v_ws, v_admin, c1, 'Acme Corp', 'INV-2025-005',
    '2026-03-01', '2026-03-31', '2026-02-03', '2026-02-28',
    20800.00,
    'CRM Redesign Sprint 3 & 4 — automation, integrations, security assessment',
@@ -455,7 +455,7 @@ BEGIN
    '2026-03-01 09:00:00+00', NULL),
 
   -- ── Nova Solutions — Support & Maintenance — Q1 (SENT) ───────
-  (gen_random_uuid(), v_ws, v_admin, c2, 'INV-2025-006',
+  (gen_random_uuid(), v_ws, v_admin, c2, 'Nova Solutions', 'INV-2025-006',
    '2026-03-01', '2026-03-31', '2026-01-01', '2026-03-25',
    2700.00,
    'Support & Maintenance retainer — Q1 2025 (Jan–Mar)',
@@ -468,7 +468,7 @@ BEGIN
    '2026-03-01 09:00:00+00', NULL),
 
   -- ── Acme Corp — CRM Redesign — March (DRAFT) ─────────────────
-  (gen_random_uuid(), v_ws, v_admin, c1, 'INV-2025-007',
+  (gen_random_uuid(), v_ws, v_admin, c1, 'Acme Corp', 'INV-2025-007',
    '2026-04-01', '2026-04-30', '2026-03-03', '2026-03-25',
    11600.00,
    'CRM Redesign Sprint 5 — AI features, integrations, advanced search',

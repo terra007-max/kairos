@@ -58,7 +58,9 @@ export async function POST(req: NextRequest) {
 
   if (wsError || !workspaces?.length) {
     console.error('[signup] workspace lookup failed:', wsError)
-    return NextResponse.json({ success: true, warning: 'Account created but workspace join failed: no workspace found.' })
+    // Clean up the created user so they can retry once workspace is set up
+    await adminSupabase.auth.admin.deleteUser(userId)
+    return NextResponse.json({ error: 'No workspace is configured yet. Please contact the administrator.' }, { status: 500 })
   }
 
   const workspaceId = workspaces[0].id

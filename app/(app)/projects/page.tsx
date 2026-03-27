@@ -29,7 +29,7 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }, { data: pm }] = await Promise.all([
-      supabase.from('projects').select('*, client:clients(*)').eq('workspace_id', workspaceId).order('created_at', { ascending: false }),
+      supabase.from('projects').select('*, client:clients(*)').eq('workspace_id', workspaceId).is('deleted_at', null).order('created_at', { ascending: false }),
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
       supabase.from('time_entries').select('project_id, duration_sec, level_id').eq('workspace_id', workspaceId).not('end_time', 'is', null),
       supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
@@ -75,8 +75,12 @@ export default function ProjectsPage() {
 
   async function remove(id: string) {
     if (!isAdmin) return
-    if (!confirm('Delete this project?')) return
-    await supabase.from('projects').delete().eq('id', id)
+    const { count } = await supabase.from('time_entries').select('id', { count: 'exact', head: true }).eq('project_id', id)
+    const msg = count && count > 0
+      ? `This project has ${count} time ${count === 1 ? 'entry' : 'entries'}. They will be kept but the project will be hidden. Continue?`
+      : 'Delete this project?'
+    if (!confirm(msg)) return
+    await supabase.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     load()
   }
 
