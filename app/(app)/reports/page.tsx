@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney } from '@/lib/types'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseISO } from 'date-fns'
 import { Download, Clock, TrendingUp, DollarSign } from 'lucide-react'
 
@@ -93,6 +93,18 @@ export default function ReportsPage() {
     a.click(); URL.revokeObjectURL(url)
   }
 
+  const ChartTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="bg-card border border-border rounded-lg p-2.5 text-xs shadow-lg">
+        <p className="font-semibold text-foreground mb-1">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.name} className="text-foreground">{p.value}h</p>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -157,9 +169,9 @@ export default function ReportsPage() {
                 <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('dailyHours')}</h2>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={dailyData} barSize={days.length > 14 ? 6 : 16}>
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(v: number) => [`${v}h`, t('hours')]} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="hours" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -169,15 +181,25 @@ export default function ReportsPage() {
                 {pieData.length === 0 ? (
                   <div className="flex items-center justify-center h-48 text-muted-foreground/50 text-xs">{t('noData')}</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2} dataKey="value">
-                        {pieData.map((p, i) => <Cell key={i} fill={p.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
-                      <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <>
+                    <ResponsiveContainer width="100%" height={150}>
+                      <PieChart>
+                        <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value">
+                          {pieData.map((p, i) => <Cell key={i} fill={p.color} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-3 space-y-1.5">
+                      {pieData.map((p, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="text-xs text-foreground truncate flex-1">{p.name}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">{p.value}h</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
