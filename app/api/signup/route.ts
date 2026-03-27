@@ -50,11 +50,11 @@ export async function POST(req: NextRequest) {
 
   const userId = newUser.user.id
 
-  // Auto-join the default workspace (first workspace named 'Kairos Consulting')
+  // Auto-join the first workspace (single-tenant setup)
   const { data: workspace } = await adminSupabase
     .from('workspaces')
     .select('id')
-    .eq('name', 'Kairos Consulting')
+    .limit(1)
     .single()
 
   if (workspace) {
