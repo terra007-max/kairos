@@ -97,14 +97,21 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   useEffect(() => { load() }, [load])
 
   // Derive full context from base + proxy state
+  // Validate proxy: only allow proxying as someone who is actually in this workspace
   const ctx = useMemo<WorkspaceCtx | null>(() => {
     if (!base) return null
+    const validProxy = proxyUser && base.members.some(m => m.user_id === proxyUser.userId)
+    const effectiveProxy = validProxy ? proxyUser : null
+    if (proxyUser && !validProxy) {
+      // Stale/invalid proxy — clear it
+      localStorage.removeItem('kairos-proxy-user')
+    }
     return {
       ...base,
-      role: proxyUser ? 'member' : base.realRole,
-      effectiveUserId: proxyUser?.userId ?? userId,
-      isProxying: !!proxyUser,
-      proxyUser,
+      role: effectiveProxy ? 'member' : base.realRole,
+      effectiveUserId: effectiveProxy?.userId ?? userId,
+      isProxying: !!effectiveProxy,
+      proxyUser: effectiveProxy,
       startProxy,
       stopProxy,
       reload: load,

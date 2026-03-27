@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest) {
     .select('role')
     .eq('workspace_id', workspaceId)
     .eq('user_id', user.id)
+    .eq('status', 'active')
     .single()
 
   if (callerRow?.role !== 'admin') {

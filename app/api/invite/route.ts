@@ -44,7 +44,10 @@ export async function POST(req: NextRequest) {
   )
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  if (!appUrl) {
+    return NextResponse.json({ error: 'Server misconfiguration: NEXT_PUBLIC_APP_URL is not set' }, { status: 500 })
+  }
 
   const { error } = await adminSupabase.auth.admin.inviteUserByEmail(email.toLowerCase(), {
     redirectTo: `${appUrl}/invite?workspace=${workspaceId}`,

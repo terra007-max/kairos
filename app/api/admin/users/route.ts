@@ -39,13 +39,14 @@ export async function GET(req: NextRequest) {
     .eq('workspace_id', workspaceId)
     .not('user_id', 'is', null)
 
-  const existingIds = (existingMembers || []).map((m: any) => m.user_id)
+  const existingIds = (existingMembers || []).map((m: any) => m.user_id).filter(Boolean)
 
   // Get all profiles not in this workspace
-  const { data: profiles } = await adminSupabase
-    .from('profiles')
-    .select('id, email, full_name')
-    .not('id', 'in', existingIds.length ? `(${existingIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
+  let profilesQuery = adminSupabase.from('profiles').select('id, email, full_name')
+  if (existingIds.length > 0) {
+    profilesQuery = profilesQuery.not('id', 'in', `(${existingIds.join(',')})`)
+  }
+  const { data: profiles } = await profilesQuery
 
   return NextResponse.json({ users: profiles || [] })
 }
