@@ -67,9 +67,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   if (noWorkspace) return (
     <div className="flex items-center justify-center h-screen bg-background">
       <div className="card p-8 max-w-sm w-full text-center space-y-4">
-        <p className="text-sm font-semibold text-foreground">No workspace found</p>
-        <p className="text-xs text-muted-foreground">Your account is not linked to a workspace. Please contact your admin or create a new workspace in Settings.</p>
-        <a href="/settings" className="btn-primary w-full block">Go to Settings</a>
+        <p className="text-sm font-semibold text-foreground">Waiting for workspace access</p>
+        <p className="text-xs text-muted-foreground">Your account has been created but hasn't been assigned to a workspace yet. Please ask your admin to add you in Settings → Team members.</p>
         <button onClick={async () => { const s = createClient(); await s.auth.signOut(); window.location.href = '/login' }} className="btn-secondary w-full">Sign out</button>
       </div>
     </div>

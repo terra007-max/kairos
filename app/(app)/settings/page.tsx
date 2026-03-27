@@ -243,17 +243,19 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Workspace name */}
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <h2 className="font-semibold text-foreground text-sm">{t('workspace')}</h2>
+        {/* Workspace name — admin only */}
+        {role === 'admin' && (
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground text-sm">{t('workspace')}</h2>
+            </div>
+            <div className="flex gap-2">
+              <input className="input flex-1" value={wsName} onChange={e => setWsName(e.target.value)} />
+              <button onClick={saveWorkspaceName} className="btn-primary">{t('save')}</button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <input className="input flex-1" value={wsName} onChange={e => setWsName(e.target.value)} />
-            <button onClick={saveWorkspaceName} className="btn-primary">{t('save')}</button>
-          </div>
-        </div>
+        )}
 
         {/* BMD NTCS Settings (admin only) */}
         {role === 'admin' && (
