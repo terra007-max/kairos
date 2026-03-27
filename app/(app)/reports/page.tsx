@@ -24,7 +24,7 @@ function getRange(range: Range, custom: { from: string; to: string }) {
 
 export default function ReportsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId } = useWorkspace()
   const { t } = useI18n()
   const [range, setRange] = useState<Range>('this_month')
   const [custom, setCustom] = useState({ from: '', to: '' })
@@ -35,15 +35,13 @@ export default function ReportsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     if (!workspaceId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
     const { from, to } = getRange(range, custom)
     const toEnd = new Date(to); toEnd.setHours(23, 59, 59)
     let query = supabase.from('time_entries').select('*, project:projects(*, client:clients(*))')
       .eq('workspace_id', workspaceId).not('end_time', 'is', null)
       .gte('start_time', from.toISOString()).lte('start_time', toEnd.toISOString())
       .order('start_time', { ascending: true })
-    if (role === 'member') query = query.eq('user_id', user.id)
+    if (role === 'member') query = query.eq('user_id', effectiveUserId)
     const [{ data }, { data: plRates }] = await Promise.all([query, supabase.from('project_level_rates').select('project_id, level_id, hourly_rate')])
     const rateMap: Record<string, Record<string, number>> = {}
     for (const r of plRates || []) {
@@ -52,7 +50,7 @@ export default function ReportsPage() {
     }
     setEntries((data || []).map(e => ({ ...e, _rate: rateMap[e.project_id]?.[e.level_id] || 0 })))
     setLoading(false)
-  }, [supabase, workspaceId, role, range, custom])
+  }, [supabase, workspaceId, role, effectiveUserId, range, custom])
 
   useEffect(() => { load() }, [load])
 

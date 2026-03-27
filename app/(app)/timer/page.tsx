@@ -108,12 +108,10 @@ export default function TimerPage() {
   }, [running])
 
   async function startTimer() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const myMember = members.find(m => m.user_id === user.id)
+    const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = (myMember as any)?.level_id || null
     const { data } = await supabase.from('time_entries').insert({
-      user_id: user.id, workspace_id: workspaceId,
+      user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: new Date().toISOString(),
@@ -150,10 +148,8 @@ export default function TimerPage() {
 
   async function saveManual() {
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
     const proj = projects.find(p => p.id === projectId) as any
-    const myMember = members.find(m => m.user_id === user.id)
+    const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = (myMember as any)?.level_id || null
     let startTime: Date, endTime: Date
 
@@ -170,7 +166,7 @@ export default function TimerPage() {
     endTime = applyRounding(endTime, startTime, proj?.rounding_minutes || 0)
 
     await supabase.from('time_entries').insert({
-      user_id: user.id, workspace_id: workspaceId,
+      user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: startTime.toISOString(), end_time: endTime.toISOString(),
@@ -180,12 +176,10 @@ export default function TimerPage() {
   }
 
   async function restartEntry(entry: any) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const myMember = members.find(m => m.user_id === user.id)
+    const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = entry.level_id || (myMember as any)?.level_id || null
     const { data } = await supabase.from('time_entries').insert({
-      user_id: user.id, workspace_id: workspaceId,
+      user_id: effectiveUserId, workspace_id: workspaceId,
       project_id: entry.project_id || null, level_id: autoLevelId,
       description: entry.description || null, billable: entry.billable,
       start_time: new Date().toISOString(),

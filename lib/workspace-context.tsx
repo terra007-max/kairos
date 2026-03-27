@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export type WorkspaceMember = {
@@ -13,16 +13,16 @@ export type WorkspaceMember = {
   level_id?: string | null
 }
 
-type ProxyUser = { userId: string; name: string }
+export type ProxyUser = { userId: string; name: string }
 
 type WorkspaceCtx = {
   workspaceId: string
   workspaceName: string
-  role: 'admin' | 'member'
+  role: 'admin' | 'member'           // 'member' when proxying
+  realRole: 'admin' | 'member'       // always the actual admin role
   members: WorkspaceMember[]
   reload: () => Promise<void>
-  // Proxy
-  effectiveUserId: string
+  effectiveUserId: string            // proxy userId when proxying, else own userId
   isProxying: boolean
   proxyUser: ProxyUser | null
   startProxy: (u: ProxyUser) => void
@@ -34,14 +34,21 @@ const PROXY_KEY   = 'kairos-proxy-user'
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 
+function getStoredProxy(): ProxyUser | null {
+  if (typeof window === 'undefined') return null
+  try { return JSON.parse(localStorage.getItem(PROXY_KEY) || 'null') } catch { return null }
+}
+
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const supabase = createClient()
-  const [ctx, setCtx] = useState<WorkspaceCtx | null>(null)
   const [noWorkspace, setNoWorkspace] = useState(false)
-  const [proxyUser, setProxyUser] = useState<ProxyUser | null>(() => {
-    if (typeof window === 'undefined') return null
-    try { return JSON.parse(localStorage.getItem(PROXY_KEY) || 'null') } catch { return null }
-  })
+  const [proxyUser, setProxyUser] = useState<ProxyUser | null>(getStoredProxy)
+  const [base, setBase] = useState<{
+    workspaceId: string
+    workspaceName: string
+    realRole: 'admin' | 'member'
+    members: WorkspaceMember[]
+  } | null>(null)
 
   const startProxy = useCallback((u: ProxyUser) => {
     localStorage.setItem(PROXY_KEY, JSON.stringify(u))
@@ -70,12 +77,11 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       .eq('workspace_id', memberRow.workspace_id)
 
     const ws = memberRow.workspace as any
-    const realRole = memberRow.role as 'admin' | 'member'
 
-    setCtx(prev => ({
+    setBase({
       workspaceId: memberRow.workspace_id,
       workspaceName: ws?.name || 'My Workspace',
-      role: realRole,
+      realRole: memberRow.role as 'admin' | 'member',
       members: (members || []).map((m: any) => ({
         id: m.id,
         user_id: m.user_id,
@@ -85,31 +91,25 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         full_name: m.profile?.full_name,
         level_id: m.level_id,
       })),
-      reload: load,
-      effectiveUserId: prev?.proxyUser?.userId ?? userId,
-      isProxying: !!(prev?.proxyUser),
-      proxyUser: prev?.proxyUser ?? null,
-      startProxy,
-      stopProxy,
-    }))
-  }, [supabase, userId, startProxy, stopProxy])
+    })
+  }, [supabase, userId])
 
   useEffect(() => { load() }, [load])
 
-  // Re-compute effectiveUserId / role when proxy changes
-  useEffect(() => {
-    if (!ctx) return
-    setCtx(prev => prev ? {
-      ...prev,
+  // Derive full context from base + proxy state
+  const ctx = useMemo<WorkspaceCtx | null>(() => {
+    if (!base) return null
+    return {
+      ...base,
+      role: proxyUser ? 'member' : base.realRole,
       effectiveUserId: proxyUser?.userId ?? userId,
       isProxying: !!proxyUser,
       proxyUser,
-      // When proxying, appear as member
-      role: proxyUser ? 'member' : prev.role,
-    } : prev)
-  }, [proxyUser, userId])
-
-  useEffect(() => { load() }, [load])
+      startProxy,
+      stopProxy,
+      reload: load,
+    }
+  }, [base, proxyUser, userId, startProxy, stopProxy, load])
 
   if (noWorkspace) return (
     <div className="flex items-center justify-center h-screen bg-background">
