@@ -5,10 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration } from '@/lib/types'
-import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from 'date-fns'
+import { format, startOfWeek, endOfWeek, subWeeks, addWeeks, getISOWeek } from 'date-fns'
+import { de, enUS } from 'date-fns/locale'
 import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, ClipboardList, AlertCircle } from 'lucide-react'
 
 type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+
+type ProjectSummary = { name: string; hours: number }
 
 type Timesheet = {
   id: string
@@ -21,6 +24,7 @@ type Timesheet = {
   submitted_at: string | null
   reviewed_at: string | null
   total_seconds?: number
+  projectSummary?: ProjectSummary[]
 }
 
 function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => string }) {
@@ -49,7 +53,8 @@ function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => st
 export default function TimesheetsPage() {
   const supabase = createClient()
   const { workspaceId, role, members } = useWorkspace()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? de : enUS
 
   const [userId, setUserId] = useState('')
   const [currentWeekStart, setCurrentWeekStart] = useState(
@@ -68,13 +73,18 @@ export default function TimesheetsPage() {
 
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
 
+  function fmtRange(start: Date) {
+    const end = endOfWeek(start, { weekStartsOn: 1 })
+    const kw = getISOWeek(start)
+    return `KW ${kw} · ${format(start, 'd. MMM', { locale: dateFnsLocale })} – ${format(end, 'd. MMM yyyy', { locale: dateFnsLocale })}`
+  }
+
   const loadData = useCallback(async () => {
     if (!workspaceId) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
 
-    // Load week's time entries for total
     const { data: entries } = await supabase
       .from('time_entries')
       .select('duration_sec')
@@ -84,7 +94,6 @@ export default function TimesheetsPage() {
       .lte('start_time', weekEnd.toISOString())
     setWeekTotalSec((entries || []).reduce((s: number, e: any) => s + (e.duration_sec || 0), 0))
 
-    // Load timesheets
     const { data: myTs, error } = await supabase
       .from('timesheets')
       .select('*')
@@ -92,14 +101,13 @@ export default function TimesheetsPage() {
       .eq('workspace_id', workspaceId)
       .order('week_start', { ascending: false })
 
-    if (error?.code === '42P01') { // table does not exist
+    if (error?.code === '42P01') {
       setDbError(true)
       setLoading(false)
       return
     }
     setMyTimesheets(myTs || [])
 
-    // Admin: load all team timesheets
     if (role === 'admin') {
       const { data: teamTs } = await supabase
         .from('timesheets')
@@ -108,9 +116,36 @@ export default function TimesheetsPage() {
         .order('week_start', { ascending: false })
         .limit(50)
 
+      // Load time entries for all team timesheets to build project summaries
+      const { data: allEntries } = await supabase
+        .from('time_entries')
+        .select('user_id, project_id, duration_sec, start_time, project:projects(name)')
+        .eq('workspace_id', workspaceId)
+        .not('end_time', 'is', null)
+
       const enriched = (teamTs || []).map(ts => {
         const member = members.find(m => m.user_id === ts.user_id)
-        return { ...ts, user_email: member?.email, user_name: member?.full_name }
+        const weekStart = new Date(ts.week_start)
+        const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 })
+
+        // Build project summary for this user's week
+        const tsEntries = (allEntries || []).filter(e => {
+          if (e.user_id !== ts.user_id) return false
+          const d = new Date(e.start_time)
+          return d >= weekStart && d <= weekEndDate
+        })
+        const projectMap: Record<string, { name: string; secs: number }> = {}
+        for (const e of tsEntries) {
+          if (!e.project_id) continue
+          const name = (e.project as any)?.name || e.project_id
+          if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0 }
+          projectMap[e.project_id].secs += e.duration_sec || 0
+        }
+        const projectSummary: ProjectSummary[] = Object.values(projectMap)
+          .map(p => ({ name: p.name, hours: p.secs / 3600 }))
+          .sort((a, b) => b.hours - a.hours)
+
+        return { ...ts, user_email: member?.email, user_name: member?.full_name, projectSummary }
       })
       setTeamTimesheets(enriched)
     }
@@ -127,26 +162,17 @@ export default function TimesheetsPage() {
   async function submitTimesheet() {
     setSubmitting(true)
     const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd')
-
     if (currentWeekTs) {
       await supabase.from('timesheets').update({
-        status: 'submitted',
-        note: note || null,
-        submitted_at: new Date().toISOString(),
+        status: 'submitted', note: note || null, submitted_at: new Date().toISOString(),
       }).eq('id', currentWeekTs.id)
     } else {
       await supabase.from('timesheets').insert({
-        user_id: userId,
-        workspace_id: workspaceId,
-        week_start: weekStartStr,
-        status: 'submitted',
-        note: note || null,
-        submitted_at: new Date().toISOString(),
+        user_id: userId, workspace_id: workspaceId, week_start: weekStartStr,
+        status: 'submitted', note: note || null, submitted_at: new Date().toISOString(),
       })
     }
-    setNote('')
-    setSubmitting(false)
-    loadData()
+    setNote(''); setSubmitting(false); loadData()
   }
 
   async function withdrawTimesheet() {
@@ -157,13 +183,9 @@ export default function TimesheetsPage() {
 
   async function reviewTimesheet(id: string, status: 'approved' | 'rejected') {
     await supabase.from('timesheets').update({
-      status,
-      reviewer_note: reviewerNote || null,
-      reviewed_at: new Date().toISOString(),
+      status, reviewer_note: reviewerNote || null, reviewed_at: new Date().toISOString(),
     }).eq('id', id)
-    setReviewingId(null)
-    setReviewerNote('')
-    loadData()
+    setReviewingId(null); setReviewerNote(''); loadData()
   }
 
   if (loading) return (
@@ -182,9 +204,8 @@ export default function TimesheetsPage() {
         <div>
           <p className="text-sm font-medium text-foreground mb-1">Database migration required</p>
           <p className="text-xs text-muted-foreground mb-3">
-            The <code className="bg-muted px-1 rounded">timesheets</code> table does not exist yet. Run the migration SQL in your Supabase dashboard to enable this feature.
+            The <code className="bg-muted px-1 rounded">timesheets</code> table does not exist yet.
           </p>
-          <p className="text-xs text-muted-foreground">Go to: <strong>Supabase Dashboard → SQL Editor</strong> and run the migration from <code className="bg-muted px-1 rounded">supabase/schema.sql</code></p>
         </div>
       </div>
     </div>
@@ -199,7 +220,6 @@ export default function TimesheetsPage() {
         </p>
       </div>
 
-      {/* Tabs (admin only) */}
       {role === 'admin' && (
         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl mb-6 w-fit">
           {(['mine', 'team'] as const).map(tab => (
@@ -222,7 +242,6 @@ export default function TimesheetsPage() {
       {/* My timesheets tab */}
       {activeTab === 'mine' && (
         <div className="max-w-xl space-y-4">
-          {/* Current week */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -230,10 +249,7 @@ export default function TimesheetsPage() {
                   <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {format(currentWeekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{t('weekOf')} {format(currentWeekStart, 'MMMM d')}</p>
+                  <p className="text-sm font-semibold text-foreground">{fmtRange(currentWeekStart)}</p>
                 </div>
                 <button
                   onClick={() => setCurrentWeekStart(w => addWeeks(w, 1))}
@@ -246,7 +262,6 @@ export default function TimesheetsPage() {
               {currentWeekTs && <StatusBadge status={currentWeekTs.status} t={t} />}
             </div>
 
-            {/* Hours tracked */}
             <div className="bg-muted/30 rounded-lg px-4 py-3 mb-4 flex items-center gap-3">
               <ClipboardList className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-foreground font-medium">
@@ -254,7 +269,6 @@ export default function TimesheetsPage() {
               </span>
             </div>
 
-            {/* Reviewer note (if rejected) */}
             {currentWeekTs?.status === 'rejected' && currentWeekTs.reviewer_note && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
                 <p className="text-xs font-medium text-red-500 mb-1">{t('reviewerNote')}:</p>
@@ -262,24 +276,13 @@ export default function TimesheetsPage() {
               </div>
             )}
 
-            {/* Submit form */}
             {(!currentWeekTs || currentWeekTs.status === 'draft' || currentWeekTs.status === 'rejected') && (
               <div className="space-y-3">
                 <div>
                   <label className="label">{t('weeklyNote')}</label>
-                  <textarea
-                    className="input resize-none"
-                    rows={2}
-                    placeholder={t('weeklyNote')}
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                  />
+                  <textarea className="input resize-none" rows={2} placeholder={t('weeklyNote')} value={note} onChange={e => setNote(e.target.value)} />
                 </div>
-                <button
-                  onClick={submitTimesheet}
-                  disabled={submitting || weekTotalSec === 0}
-                  className="btn-primary w-full"
-                >
+                <button onClick={submitTimesheet} disabled={submitting || weekTotalSec === 0} className="btn-primary w-full">
                   {submitting ? t('submitting') : t('submitForReview')}
                 </button>
                 {weekTotalSec === 0 && (
@@ -290,12 +293,8 @@ export default function TimesheetsPage() {
 
             {currentWeekTs?.status === 'submitted' && (
               <div className="space-y-3">
-                {currentWeekTs.note && (
-                  <p className="text-xs text-muted-foreground italic">"{currentWeekTs.note}"</p>
-                )}
-                <button onClick={withdrawTimesheet} className="btn-secondary w-full text-sm">
-                  {t('withdrawSubmission')}
-                </button>
+                {currentWeekTs.note && <p className="text-xs text-muted-foreground italic">"{currentWeekTs.note}"</p>}
+                <button onClick={withdrawTimesheet} className="btn-secondary w-full text-sm">{t('withdrawSubmission')}</button>
               </div>
             )}
 
@@ -307,27 +306,21 @@ export default function TimesheetsPage() {
             )}
           </div>
 
-          {/* History */}
           {myTimesheets.filter(ts => ts.week_start !== format(currentWeekStart, 'yyyy-MM-dd')).length > 0 && (
             <div className="card p-6">
               <h2 className="text-sm font-semibold text-foreground mb-4">{t('previousWeeks')}</h2>
               <div className="space-y-2">
                 {myTimesheets
                   .filter(ts => ts.week_start !== format(currentWeekStart, 'yyyy-MM-dd'))
-                  .map(ts => {
-                    const wsDate = new Date(ts.week_start)
-                    return (
-                      <div key={ts.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="text-xs font-medium text-foreground">
-                            {format(wsDate, 'MMM d')} – {format(endOfWeek(wsDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
-                          </p>
-                          {ts.note && <p className="text-xs text-muted-foreground italic mt-0.5">"{ts.note}"</p>}
-                        </div>
-                        <StatusBadge status={ts.status} t={t} />
+                  .map(ts => (
+                    <div key={ts.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">{fmtRange(new Date(ts.week_start))}</p>
+                        {ts.note && <p className="text-xs text-muted-foreground italic mt-0.5">"{ts.note}"</p>}
                       </div>
-                    )
-                  })}
+                      <StatusBadge status={ts.status} t={t} />
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -350,28 +343,39 @@ export default function TimesheetsPage() {
               <p className="text-sm text-muted-foreground">{t('noTimesheets')}</p>
             </div>
           ) : teamTimesheets.map(ts => {
-            const wsDate = new Date(ts.week_start)
             const isReviewing = reviewingId === ts.id
+            const totalHours = (ts.projectSummary || []).reduce((s, p) => s + p.hours, 0)
             return (
               <div key={ts.id} className="card p-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-semibold text-foreground">
                         {ts.user_name || ts.user_email || 'Unknown'}
                       </span>
                       <StatusBadge status={ts.status} t={t} />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {format(wsDate, 'MMM d')} – {format(endOfWeek(wsDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
-                    </p>
-                    {ts.note && <p className="text-xs text-muted-foreground italic mt-1">"{ts.note}"</p>}
+                    <p className="text-xs text-muted-foreground">{fmtRange(new Date(ts.week_start))}</p>
+
+                    {/* Project summary */}
+                    {ts.projectSummary && ts.projectSummary.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {ts.projectSummary.map(p => (
+                          <span key={p.name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted/60 rounded-md text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{p.name}</span>
+                            <span>{p.hours.toFixed(1)}h</span>
+                          </span>
+                        ))}
+                        <span className="inline-flex items-center px-2 py-0.5 bg-brand-600/10 rounded-md text-xs font-semibold text-brand-600">
+                          {totalHours.toFixed(1)}h {locale === 'de' ? 'gesamt' : 'total'}
+                        </span>
+                      </div>
+                    )}
+
+                    {ts.note && <p className="text-xs text-muted-foreground italic mt-1.5">"{ts.note}"</p>}
                   </div>
                   {ts.status === 'submitted' && !isReviewing && (
-                    <button
-                      onClick={() => setReviewingId(ts.id)}
-                      className="btn-secondary text-xs py-1 px-2.5 flex-shrink-0"
-                    >
+                    <button onClick={() => setReviewingId(ts.id)} className="btn-secondary text-xs py-1 px-2.5 flex-shrink-0">
                       Review
                     </button>
                   )}
@@ -381,25 +385,13 @@ export default function TimesheetsPage() {
                   <div className="border-t border-border pt-3 space-y-3">
                     <div>
                       <label className="label">{t('reviewerNote')}</label>
-                      <textarea
-                        className="input resize-none"
-                        rows={2}
-                        value={reviewerNote}
-                        onChange={e => setReviewerNote(e.target.value)}
-                        placeholder="Optional feedback…"
-                      />
+                      <textarea className="input resize-none" rows={2} value={reviewerNote} onChange={e => setReviewerNote(e.target.value)} placeholder="Optional feedback…" />
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => reviewTimesheet(ts.id, 'approved')}
-                        className="btn-primary flex items-center gap-1.5 flex-1"
-                      >
+                      <button onClick={() => reviewTimesheet(ts.id, 'approved')} className="btn-primary flex items-center gap-1.5 flex-1">
                         <CheckCircle className="w-3.5 h-3.5" /> {t('approveTimesheet')}
                       </button>
-                      <button
-                        onClick={() => reviewTimesheet(ts.id, 'rejected')}
-                        className="btn-secondary flex items-center gap-1.5 flex-1 text-red-500 border-red-500/20 hover:bg-red-500/10"
-                      >
+                      <button onClick={() => reviewTimesheet(ts.id, 'rejected')} className="btn-secondary flex items-center gap-1.5 flex-1 text-red-500 border-red-500/20 hover:bg-red-500/10">
                         <XCircle className="w-3.5 h-3.5" /> {t('rejectTimesheet')}
                       </button>
                       <button onClick={() => setReviewingId(null)} className="btn-secondary px-3">{t('cancel')}</button>
