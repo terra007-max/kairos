@@ -66,19 +66,27 @@ export default function TimerPage() {
       .order('start_time', { ascending: false })
       .limit(50)
 
+    // Admin sees all entries but never records personally
     if (role === 'member') entriesQuery = entriesQuery.eq('user_id', uid)
+    else if (role !== 'admin') entriesQuery = entriesQuery.eq('user_id', uid)
 
     const [{ data: proj }, { data: ents }, { data: live }, , forgottenResult, { data: projectMembers }, { data: allRates }, { data: approvedSheets }] = await Promise.all([
       supabase.from('projects').select('*').eq('workspace_id', workspaceId).eq('status', 'active').is('deleted_at', null).order('name'),
       entriesQuery,
-      supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', uid).is('end_time', null).maybeSingle(),
+      // Admin has no live timer
+      role !== 'admin'
+        ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).eq('user_id', uid).is('end_time', null).maybeSingle()
+        : Promise.resolve({ data: null }),
       Promise.resolve({ data: [] }),
       (role === 'admin' || isProjectManager) && !isProxying
         ? supabase.from('time_entries').select('*, project:projects(*)').eq('workspace_id', workspaceId).neq('user_id', uid).is('end_time', null)
         : Promise.resolve({ data: [] }),
       supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
       supabase.from('project_level_rates').select('project_id, level_id, hourly_rate'),
-      supabase.from('timesheets').select('week_start, status, locked').eq('user_id', uid).eq('workspace_id', workspaceId),
+      // Admin has no timesheet weeks
+      role !== 'admin'
+        ? supabase.from('timesheets').select('week_start, status, locked').eq('user_id', uid).eq('workspace_id', workspaceId)
+        : Promise.resolve({ data: [] }),
     ])
 
     const rateMap: Record<string, Record<string, number>> = {}
@@ -298,8 +306,8 @@ export default function TimerPage() {
         <p className="text-sm text-muted-foreground mt-0.5">{t('timerSubtitle')}</p>
       </div>
 
-      {/* Friday / weekend reminder */}
-      {showFridayReminder && (
+      {/* Friday / weekend reminder — not for admin */}
+      {role !== 'admin' && showFridayReminder && (
         <div className="mb-5 flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
           <CalendarClock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
@@ -361,7 +369,8 @@ export default function TimerPage() {
         </div>
       )}
 
-      {/* Mode tabs */}
+      {/* Mode tabs + timer card — admin is read-only observer */}
+      {role !== 'admin' && <>
       <div className="flex gap-0.5 mb-4 bg-muted p-0.5 rounded-lg w-fit">
         {([['timer', t('liveTimer')], ['fromto', t('fromTo')], ['duration', t('enterHours')]] as [EntryMode, string][]).map(([m, label]) => (
           <button key={m} onClick={() => setEntryMode(m)} disabled={!!running && m !== 'timer'}
@@ -424,6 +433,7 @@ export default function TimerPage() {
           </div>
         )}
       </div>
+      </>}
 
       {/* Edit modal */}
       {editingEntry && (

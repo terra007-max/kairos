@@ -152,36 +152,39 @@ export default function TimesheetsPage() {
     const uid = effectiveUserId
     setUserId(uid)
 
-    const { data: entries } = await supabase
-      .from('time_entries')
-      .select('duration_sec')
-      .eq('user_id', uid)
-      .not('end_time', 'is', null)
-      .gte('start_time', currentWeekStart.toISOString())
-      .lte('start_time', weekEnd.toISOString())
-    setWeekTotalSec((entries || []).reduce((s: number, e: any) => s + (e.duration_sec || 0), 0))
+    // Admin does not participate in time recording — skip all personal time fetches
+    if (role !== 'admin') {
+      const { data: entries } = await supabase
+        .from('time_entries')
+        .select('duration_sec')
+        .eq('user_id', uid)
+        .not('end_time', 'is', null)
+        .gte('start_time', currentWeekStart.toISOString())
+        .lte('start_time', weekEnd.toISOString())
+      setWeekTotalSec((entries || []).reduce((s: number, e: any) => s + (e.duration_sec || 0), 0))
 
-    const { data: myTs, error } = await supabase
-      .from('timesheets')
-      .select('*')
-      .eq('user_id', uid)
-      .eq('workspace_id', workspaceId)
-      .order('week_start', { ascending: false })
+      const { data: myTs, error } = await supabase
+        .from('timesheets')
+        .select('*')
+        .eq('user_id', uid)
+        .eq('workspace_id', workspaceId)
+        .order('week_start', { ascending: false })
 
-    if (error?.code === '42P01') { setDbError(true); setLoading(false); return }
+      if (error?.code === '42P01') { setDbError(true); setLoading(false); return }
 
-    const lockedTs = await autoLockPastWeeks(myTs || [])
-    setMyTimesheets(lockedTs)
+      const lockedTs = await autoLockPastWeeks(myTs || [])
+      setMyTimesheets(lockedTs)
 
-    // Fetch time-off for the viewed week
-    const { data: toEntries } = await supabase
-      .from('time_off_entries')
-      .select('*')
-      .eq('user_id', uid)
-      .eq('workspace_id', workspaceId)
-      .gte('date', format(currentWeekStart, 'yyyy-MM-dd'))
-      .lte('date', format(weekEnd, 'yyyy-MM-dd'))
-    setTimeOffEntries((toEntries as TimeOffEntry[]) || [])
+      // Fetch time-off for the viewed week
+      const { data: toEntries } = await supabase
+        .from('time_off_entries')
+        .select('*')
+        .eq('user_id', uid)
+        .eq('workspace_id', workspaceId)
+        .gte('date', format(currentWeekStart, 'yyyy-MM-dd'))
+        .lte('date', format(weekEnd, 'yyyy-MM-dd'))
+      setTimeOffEntries((toEntries as TimeOffEntry[]) || [])
+    }
 
     if (role === 'admin' || role === 'partner' || isProjectManager) {
       const { data: teamTs } = await supabase
@@ -361,7 +364,7 @@ export default function TimesheetsPage() {
 
       {canReview && (
         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl mb-6 w-fit">
-          {(['mine', 'team'] as const).map(tab => (
+          {(['mine', 'team'] as const).filter(tab => !(tab === 'mine' && role === 'admin')).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
