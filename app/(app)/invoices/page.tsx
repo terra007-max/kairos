@@ -162,10 +162,10 @@ export default function InvoicesPage() {
 
     const toEnd = new Date(toDate); toEnd.setHours(23, 59, 59)
 
-    // Fetch all billable entries for this client in range
+    // Fetch all billable entries for this client in range (include level_rates for rate fallback)
     let query = supabase
       .from('time_entries')
-      .select('*, project:projects!inner(*, client:clients(*))')
+      .select('*, project:projects!inner(*, client:clients(*), level_rates:project_level_rates(level_id, hourly_rate))')
       .eq('workspace_id', workspaceId)
       .eq('billable', true)
       .not('end_time', 'is', null)
@@ -214,7 +214,9 @@ export default function InvoicesPage() {
 
       if (tsStatus === 'approved') {
         projectMap[pid].approvedHours += hours
-        projectMap[pid].approvedRevenue += hours * (e.hourly_rate || 0)
+        const levelRate = e.level_id ? (e.project?.level_rates?.find((r: any) => r.level_id === e.level_id)?.hourly_rate || 0) : 0
+        const effectiveRate = e.hourly_rate || levelRate || e.project?.hourly_rate || 0
+        projectMap[pid].approvedRevenue += hours * effectiveRate
       } else if (tsStatus === 'submitted') {
         projectMap[pid].pendingHours += hours
       } else {
@@ -272,7 +274,11 @@ export default function InvoicesPage() {
 
     const newLines: InvoiceLine[] = Object.values(projectGroups).map(({ project, entries }) => {
       const totalSecs = entries.reduce((s: number, e: any) => s + (e.duration_sec || 0), 0)
-      const totalAmount = entries.reduce((s: number, e: any) => s + ((e.duration_sec || 0) / 3600) * (e.hourly_rate || 0), 0)
+      const totalAmount = entries.reduce((s: number, e: any) => {
+        const levelRate = e.level_id ? (e.project?.level_rates?.find((r: any) => r.level_id === e.level_id)?.hourly_rate || 0) : 0
+        const effectiveRate = e.hourly_rate || levelRate || project?.hourly_rate || 0
+        return s + ((e.duration_sec || 0) / 3600) * effectiveRate
+      }, 0)
       const hours = totalSecs / 3600
       const blendedRate = hours > 0 ? totalAmount / hours : (project?.hourly_rate || 0)
       return { description: project.name, hours: Math.round(hours * 100) / 100, rate: Math.round(blendedRate * 100) / 100, amount: Math.round(totalAmount * 100) / 100 }

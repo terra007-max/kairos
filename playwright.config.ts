@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
+import { config } from 'dotenv'
+import path from 'path'
+
+// Load .env.local so TEST_USER_EMAIL / TEST_USER_PASSWORD are available
+config({ path: path.resolve(__dirname, '.env.local') })
 
 /**
  * UAT (User Acceptance Tests) — Playwright E2E config
@@ -41,11 +46,4 @@ export default defineConfig({
     },
   ],
 
-  // Auto-start dev server when not already running
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
 })
