@@ -445,17 +445,28 @@ export default function TimesheetsPage() {
 
             {/* Locked state */}
             {viewedWeekIsLocked && (
-              <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-4 mb-4 flex items-start gap-3">
-                <Lock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Week locked</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {currentWeekTs?.locked_at
-                      ? `Locked ${format(new Date(currentWeekTs.locked_at), 'd. MMM yyyy, HH:mm')}.`
-                      : 'The Sunday 23:00 submission deadline has passed.'}
-                    {' '}Contact your Project Manager or Partner to unlock.
-                  </p>
+              <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-4 mb-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <Lock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Week locked</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {currentWeekTs?.locked_at
+                        ? `Locked ${format(new Date(currentWeekTs.locked_at), 'd. MMM yyyy, HH:mm')}.`
+                        : 'The Sunday 23:00 submission deadline has passed.'}
+                      {!canReview && ' Contact your Project Manager or Partner to unlock.'}
+                    </p>
+                  </div>
                 </div>
+                {/* PM and Partner can unlock directly from their own tab */}
+                {canReview && currentWeekTs && (
+                  <button
+                    onClick={() => unlockTimesheet(currentWeekTs.id)}
+                    className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10 flex-shrink-0"
+                  >
+                    <Unlock className="w-3 h-3" /> Unlock
+                  </button>
+                )}
               </div>
             )}
 
