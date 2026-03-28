@@ -79,6 +79,19 @@ BEGIN
   DELETE FROM public.clients           WHERE workspace_id = ws_id;
   DELETE FROM public.consultant_levels WHERE workspace_id = ws_id;
 
+  -- ── Delete non-admin users ────────────────────────────────────────────────
+  DELETE FROM public.workspace_members
+    WHERE workspace_id = ws_id AND user_id != admin_id;
+  DELETE FROM public.profiles
+    WHERE id != admin_id;
+  DELETE FROM auth.users
+    WHERE id != admin_id;
+
+  -- Reset members array — all non-admin users are gone
+  members := NULL;
+  m_count := 0;
+  all_users := ARRAY[admin_id];
+
   -- ── 1. Consultant Levels ───────────────────────────────────────────────────
   INSERT INTO public.consultant_levels (id, workspace_id, user_id, name, sort_order) VALUES
     (lv_jun, ws_id, admin_id, 'Junior Consultant', 1),
