@@ -97,7 +97,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       workspaceName: ws?.name || 'My Workspace',
       realRole: memberRow.role as WorkspaceRole,
       managedProjectIds: (managedProjects || []).map((p: any) => p.id),
-      members: (members || []).map((m: any) => ({
+      members: (members || []).filter((m: any) => m.role !== 'admin').map((m: any) => ({
         id: m.id,
         user_id: m.user_id,
         email: m.email,
