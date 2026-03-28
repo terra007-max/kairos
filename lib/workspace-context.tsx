@@ -16,7 +16,8 @@ export type WorkspaceMember = {
   full_name?: string | null
   level_id?: string | null
   weekly_hours: number
-  isProjectManager?: boolean  // true if manager_id on any project
+  isProjectManager?: boolean      // true if manager_id on any project
+  managedProjectIds?: string[]    // project IDs this member manages
 }
 
 export type ProxyUser = { userId: string; name: string }
@@ -93,13 +94,21 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         .is('deleted_at', null),
       supabase
         .from('projects')
-        .select('manager_id')
+        .select('id, manager_id')
         .eq('workspace_id', memberRow.workspace_id)
         .not('manager_id', 'is', null)
         .is('deleted_at', null),
     ])
 
     const projectManagerUserIds = new Set((allProjects || []).map((p: any) => p.manager_id))
+    // Build per-user managed project ID lists (needed for proxy PM view)
+    const managedProjectsByUserId: Record<string, string[]> = {}
+    for (const p of allProjects || []) {
+      if (p.manager_id) {
+        if (!managedProjectsByUserId[p.manager_id]) managedProjectsByUserId[p.manager_id] = []
+        managedProjectsByUserId[p.manager_id].push(p.id)
+      }
+    }
     const role = memberRow.role as WorkspaceRole
 
     const ws = memberRow.workspace as any
@@ -119,6 +128,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         level_id: m.level_id,
         weekly_hours: m.weekly_hours ?? 40,
         isProjectManager: m.user_id ? projectManagerUserIds.has(m.user_id) : false,
+        managedProjectIds: m.user_id ? (managedProjectsByUserId[m.user_id] || []) : [],
       })),
     })
   }, [supabase, userId])
@@ -136,7 +146,10 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     }
     const proxiedMember = effectiveProxy ? base.members.find(m => m.user_id === effectiveProxy.userId) : null
     const proxiedRole = proxiedMember?.role ?? 'member'
-    const managedProjectIds = effectiveProxy ? [] : base.managedProjectIds
+    // When proxying, use the proxied user's managed projects so PM views work correctly
+    const managedProjectIds = effectiveProxy
+      ? (proxiedMember?.managedProjectIds ?? [])
+      : base.managedProjectIds
     return {
       ...base,
       role: effectiveProxy ? proxiedRole : base.realRole,
@@ -147,7 +160,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       stopProxy,
       reload: load,
       managedProjectIds,
-      isProjectManager: managedProjectIds.length > 0 || base.realRole === 'project_manager',
+      isProjectManager: managedProjectIds.length > 0 || (!effectiveProxy && base.realRole === 'project_manager'),
     }
   }, [base, proxyUser, userId, startProxy, stopProxy, load])
 
