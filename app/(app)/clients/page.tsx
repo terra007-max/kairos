@@ -17,13 +17,6 @@ export default function ClientsPage() {
   const { t } = useI18n()
   const canManageClients = can(role, 'manage:clients')
 
-  if (role === 'member') {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-sm text-muted-foreground">Access restricted to admins.</p>
-      </div>
-    )
-  }
   const [clients, setClients] = useState<(Client & { projectCount: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -53,6 +46,12 @@ export default function ClientsPage() {
     await supabase.from('clients').delete().eq('id', id)
     load()
   }
+
+  if (role === 'member') return (
+    <div className="flex items-center justify-center h-64">
+      <p className="text-sm text-muted-foreground">Access restricted to admins.</p>
+    </div>
+  )
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /></div>
 
@@ -167,12 +166,15 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
       address_country: addressCountry || 'AT',
       vat_id: vatId || null,
     }
+    let error: any
     if (client) {
-      await supabase.from('clients').update(payload).eq('id', client.id)
+      ({ error } = await supabase.from('clients').update(payload).eq('id', client.id))
     } else {
-      await supabase.from('clients').insert({ ...payload, user_id: user.id, workspace_id: workspaceId })
+      ({ error } = await supabase.from('clients').insert({ ...payload, user_id: user.id, workspace_id: workspaceId }))
     }
-    setSaving(false); onSave()
+    setSaving(false)
+    if (error) { alert(`Error saving client: ${error.message}`); return }
+    onSave()
   }
 
   return (
