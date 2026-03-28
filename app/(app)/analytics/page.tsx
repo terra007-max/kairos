@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load() }, [load])
 
-  if (role !== 'admin' && !isProjectManager) return (
+  if (role !== 'admin' && role !== 'partner' && !isProjectManager) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Lock className="w-8 h-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground">{t('analyticsAdminOnly')}</p>
