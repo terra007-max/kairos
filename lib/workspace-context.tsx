@@ -134,10 +134,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     if (proxyUser && !validProxy) {
       localStorage.removeItem('kairos-proxy-user')
     }
+    const proxiedMember = effectiveProxy ? base.members.find(m => m.user_id === effectiveProxy.userId) : null
+    const proxiedRole = proxiedMember?.role ?? 'member'
     const managedProjectIds = effectiveProxy ? [] : base.managedProjectIds
     return {
       ...base,
-      role: effectiveProxy ? 'member' : base.realRole,
+      role: effectiveProxy ? proxiedRole : base.realRole,
       effectiveUserId: effectiveProxy?.userId ?? userId,
       isProxying: !!effectiveProxy,
       proxyUser: effectiveProxy,
