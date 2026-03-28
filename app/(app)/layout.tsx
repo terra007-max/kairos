@@ -8,6 +8,7 @@ import PresenceBar from '@/components/PresenceBar'
 import { WorkspaceProvider } from '@/lib/workspace-context'
 import { I18nProvider } from '@/lib/i18n'
 import ProxyBanner from '@/components/ProxyBanner'
+import KairosLoader from '@/components/KairosLoader'
 import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -44,14 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [router])
 
-  if (!user) return (
-    <div className="flex items-center justify-center h-screen bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-muted-foreground">Loading…</p>
-      </div>
-    </div>
-  )
+  if (!user) return <KairosLoader />
 
   return (
     <I18nProvider>

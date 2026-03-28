@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type WorkspaceRole } from '@/lib/permissions'
+import KairosLoader from '@/components/KairosLoader'
 
 export type { WorkspaceRole } from '@/lib/permissions'
 
@@ -158,11 +159,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     </div>
   )
 
-  if (!ctx) return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  if (!ctx) return <KairosLoader />
 
   return <WorkspaceContext.Provider value={ctx}>{children}</WorkspaceContext.Provider>
 }
