@@ -1,13 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration } from '@/lib/types'
-import { format, startOfWeek, endOfWeek, subWeeks, addWeeks, getISOWeek } from 'date-fns'
+import {
+  format, startOfWeek, endOfWeek, subWeeks, addWeeks, getISOWeek,
+  isFriday, isSaturday, isSunday, isAfter,
+} from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
-import { CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, ClipboardList, AlertCircle } from 'lucide-react'
+import {
+  CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, ClipboardList,
+  AlertCircle, Lock, Unlock, Umbrella, Sun, Plane,
+} from 'lucide-react'
 
 type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
@@ -28,17 +34,46 @@ type Timesheet = {
   review_history?: ReviewEvent[]
   total_seconds?: number
   projectSummary?: ProjectSummary[]
+  locked?: boolean
+  locked_at?: string | null
 }
 
-function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => string }) {
+type TimeOffEntry = {
+  id: string
+  user_id: string
+  workspace_id: string
+  date: string
+  type: 'vacation' | 'holiday' | 'sick'
+  hours: number
+  notes: string | null
+}
+
+const TIME_OFF_LABELS: Record<string, string> = {
+  vacation: 'Vacation',
+  holiday:  'Public Holiday',
+  sick:     'Sick Day',
+}
+
+const TIME_OFF_ICONS: Record<string, typeof Umbrella> = {
+  vacation: Plane,
+  holiday:  Sun,
+  sick:     Umbrella,
+}
+
+function StatusBadge({ status, locked, t }: { status: TimesheetStatus; locked?: boolean; t: (k: any) => string }) {
+  if (locked) return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-500">
+      <Lock className="w-3 h-3" /> Locked
+    </span>
+  )
   if (status === 'approved') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
       <CheckCircle className="w-3 h-3" /> {t('approved')}
     </span>
   )
   if (status === 'rejected') return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
-      <XCircle className="w-3 h-3" /> {t('rejected')}
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
+      <XCircle className="w-3 h-3" /> Returned
     </span>
   )
   if (status === 'submitted') return (
@@ -53,6 +88,13 @@ function StatusBadge({ status, t }: { status: TimesheetStatus; t: (k: any) => st
   )
 }
 
+/** Returns true if the Sunday 23:00 deadline for the given week has passed */
+function isDeadlinePassed(weekStart: Date): boolean {
+  const deadline = new Date(endOfWeek(weekStart, { weekStartsOn: 1 }))
+  deadline.setHours(23, 0, 0, 0)
+  return isAfter(new Date(), deadline)
+}
+
 export default function TimesheetsPage() {
   const supabase = createClient()
   const { workspaceId, role, members, effectiveUserId, isProxying, managedProjectIds, isProjectManager } = useWorkspace()
@@ -63,25 +105,47 @@ export default function TimesheetsPage() {
   const [currentWeekStart, setCurrentWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   )
-  const [myTimesheets, setMyTimesheets] = useState<Timesheet[]>([])
+  const [myTimesheets, setMyTimesheets]     = useState<Timesheet[]>([])
   const [teamTimesheets, setTeamTimesheets] = useState<(Timesheet & { user_email?: string; user_name?: string })[]>([])
-  const [weekTotalSec, setWeekTotalSec] = useState(0)
-  const [note, setNote] = useState('')
+  const [weekTotalSec, setWeekTotalSec]     = useState(0)
+  const [timeOffEntries, setTimeOffEntries] = useState<TimeOffEntry[]>([])
+  const [note, setNote]             = useState('')
   const [reviewerNote, setReviewerNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]       = useState(true)
   const canReview = role === 'admin' || isProjectManager
-  const [activeTab, setActiveTab] = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
+  const [activeTab, setActiveTab]   = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
-  const [dbError, setDbError] = useState(false)
+  const [dbError, setDbError]       = useState(false)
+
+  // Time-off add form
+  const [addingTimeOff, setAddingTimeOff]     = useState(false)
+  const [newToDate, setNewToDate]             = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [newToType, setNewToType]             = useState<'vacation' | 'holiday' | 'sick'>('vacation')
+  const [newToHours, setNewToHours]           = useState('8')
 
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
 
   function fmtRange(start: Date) {
     const end = endOfWeek(start, { weekStartsOn: 1 })
-    const kw = getISOWeek(start)
+    const kw  = getISOWeek(start)
     return `KW ${kw} · ${format(start, 'd. MMM', { locale: dateFnsLocale })} – ${format(end, 'd. MMM yyyy', { locale: dateFnsLocale })}`
   }
+
+  // ── Auto-lock: mark past-deadline draft timesheets as locked ──────────────
+  const autoLockPastWeeks = useCallback(async (sheets: Timesheet[]) => {
+    const toUpdate = sheets
+      .filter(ts => ts.status === 'draft' && !ts.locked && isDeadlinePassed(new Date(ts.week_start)))
+      .map(ts => ts.id)
+
+    if (toUpdate.length === 0) return sheets
+
+    await supabase.from('timesheets')
+      .update({ locked: true, locked_at: new Date().toISOString() })
+      .in('id', toUpdate)
+
+    return sheets.map(ts => toUpdate.includes(ts.id) ? { ...ts, locked: true } : ts)
+  }, [supabase])
 
   const loadData = useCallback(async () => {
     if (!workspaceId) return
@@ -104,12 +168,20 @@ export default function TimesheetsPage() {
       .eq('workspace_id', workspaceId)
       .order('week_start', { ascending: false })
 
-    if (error?.code === '42P01') {
-      setDbError(true)
-      setLoading(false)
-      return
-    }
-    setMyTimesheets(myTs || [])
+    if (error?.code === '42P01') { setDbError(true); setLoading(false); return }
+
+    const lockedTs = await autoLockPastWeeks(myTs || [])
+    setMyTimesheets(lockedTs)
+
+    // Fetch time-off for the viewed week
+    const { data: toEntries } = await supabase
+      .from('time_off_entries')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('workspace_id', workspaceId)
+      .gte('date', format(currentWeekStart, 'yyyy-MM-dd'))
+      .lte('date', format(weekEnd, 'yyyy-MM-dd'))
+    setTimeOffEntries((toEntries as TimeOffEntry[]) || [])
 
     if (role === 'admin' || isProjectManager) {
       const { data: teamTs } = await supabase
@@ -119,18 +191,13 @@ export default function TimesheetsPage() {
         .order('week_start', { ascending: false })
         .limit(100)
 
-      // For PMs: derive team user IDs from project_members (not time entries)
-      // so members who haven't logged time yet are still included
       let pmUserIds: string[] | null = null
       if (role !== 'admin' && isProjectManager && managedProjectIds.length > 0) {
         const { data: pmRows } = await supabase
-          .from('project_members')
-          .select('user_id')
-          .in('project_id', managedProjectIds)
+          .from('project_members').select('user_id').in('project_id', managedProjectIds)
         pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
       }
 
-      // Load time entries to build project summaries
       const entryQuery = supabase
         .from('time_entries')
         .select('user_id, project_id, duration_sec, start_time, project:projects(name)')
@@ -144,11 +211,11 @@ export default function TimesheetsPage() {
           : { data: [] }
 
       const enriched = (teamTs || [])
-        .filter(ts => ts.user_id !== uid) // exclude own timesheet from review list
+        .filter(ts => ts.user_id !== uid)
         .filter(ts => !pmUserIds || pmUserIds.includes(ts.user_id))
         .map(ts => {
-          const member = members.find(m => m.user_id === ts.user_id)
-          const weekStart = new Date(ts.week_start)
+          const member      = members.find(m => m.user_id === ts.user_id)
+          const weekStart   = new Date(ts.week_start)
           const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 })
 
           const tsEntries = (allEntries || []).filter((e: any) => {
@@ -163,7 +230,7 @@ export default function TimesheetsPage() {
             if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0 }
             projectMap[e.project_id].secs += e.duration_sec || 0
           }
-          const projectSummary: ProjectSummary[] = Object.values(projectMap)
+          const projectSummary = Object.values(projectMap)
             .map(p => ({ name: p.name, hours: p.secs / 3600 }))
             .sort((a, b) => b.hours - a.hours)
 
@@ -171,14 +238,32 @@ export default function TimesheetsPage() {
         })
       setTeamTimesheets(enriched)
     }
-
     setLoading(false)
-  }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds])
+  }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds, autoLockPastWeeks])
 
   useEffect(() => { loadData() }, [loadData])
 
   const currentWeekTs = myTimesheets.find(
     ts => ts.week_start === format(currentWeekStart, 'yyyy-MM-dd')
+  )
+
+  // Is the currently viewed week locked (by flag OR past deadline)?
+  const viewedWeekIsLocked = useMemo(() => {
+    if (currentWeekTs?.locked) return true
+    if (!currentWeekTs && isDeadlinePassed(currentWeekStart)) return true
+    return false
+  }, [currentWeekTs, currentWeekStart])
+
+  // Friday / weekend reminder for the current calendar week
+  const today = new Date()
+  const thisCalendarWeek = startOfWeek(today, { weekStartsOn: 1 })
+  const isViewingCurrentWeek = format(currentWeekStart, 'yyyy-MM-dd') === format(thisCalendarWeek, 'yyyy-MM-dd')
+  const isDeadlinePeriod = isFriday(today) || isSaturday(today) || isSunday(today)
+  const showDeadlineReminder = (
+    isViewingCurrentWeek &&
+    isDeadlinePeriod &&
+    !isDeadlinePassed(currentWeekStart) &&
+    (!currentWeekTs || currentWeekTs.status === 'draft' || currentWeekTs.status === 'rejected')
   )
 
   async function submitTimesheet() {
@@ -212,6 +297,33 @@ export default function TimesheetsPage() {
     setReviewingId(null); setReviewerNote(''); loadData()
   }
 
+  async function unlockTimesheet(id: string) {
+    await supabase.from('timesheets').update({
+      locked: false, locked_at: null, locked_by: null,
+    }).eq('id', id)
+    loadData()
+  }
+
+  async function addTimeOff() {
+    const hours = parseFloat(newToHours)
+    if (!hours || hours <= 0) return
+    await supabase.from('time_off_entries').upsert({
+      workspace_id: workspaceId,
+      user_id: userId || effectiveUserId,
+      date: newToDate,
+      type: newToType,
+      hours,
+    }, { onConflict: 'workspace_id,user_id,date' })
+    setAddingTimeOff(false)
+    setNewToDate(format(currentWeekStart, 'yyyy-MM-dd'))
+    loadData()
+  }
+
+  async function removeTimeOff(id: string) {
+    await supabase.from('time_off_entries').delete().eq('id', id)
+    loadData()
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
@@ -229,11 +341,14 @@ export default function TimesheetsPage() {
           <p className="text-sm font-medium text-foreground mb-1">Database migration required</p>
           <p className="text-xs text-muted-foreground mb-3">
             The <code className="bg-muted px-1 rounded">timesheets</code> table does not exist yet.
+            Run the migration in your Supabase SQL editor.
           </p>
         </div>
       </div>
     </div>
   )
+
+  const timeOffThisWeek = timeOffEntries.reduce((s, e) => s + e.hours, 0)
 
   return (
     <div>
@@ -263,50 +378,113 @@ export default function TimesheetsPage() {
         </div>
       )}
 
-      {/* My timesheets tab */}
+      {/* ── My Timesheets ────────────────────────────────────────────────────── */}
       {activeTab === 'mine' && (
         <div className="max-w-xl space-y-4">
+
+          {/* Friday / weekend deadline reminder */}
+          {showDeadlineReminder && (
+            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+              <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                  {isFriday(today)
+                    ? 'Submit your hours today — it\'s Friday!'
+                    : 'Deadline approaching — submit by Sunday 23:00'}
+                </p>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
+                  Hours for this week must be submitted for review before Sunday at 23:00.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="card p-6">
+            {/* Week navigation */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <button onClick={() => setCurrentWeekStart(w => subWeeks(w, 1))} className="p-1 hover:bg-muted rounded-lg transition-colors">
+                <button
+                  onClick={() => setCurrentWeekStart(w => subWeeks(w, 1))}
+                  className="p-1 hover:bg-muted rounded-lg transition-colors"
+                >
                   <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{fmtRange(currentWeekStart)}</p>
                 </div>
+                {/* Future weeks allowed — no disabled state */}
                 <button
                   onClick={() => setCurrentWeekStart(w => addWeeks(w, 1))}
-                  disabled={currentWeekStart >= startOfWeek(new Date(), { weekStartsOn: 1 })}
-                  className="p-1 hover:bg-muted rounded-lg transition-colors disabled:opacity-30"
+                  className="p-1 hover:bg-muted rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
-              {currentWeekTs && <StatusBadge status={currentWeekTs.status} t={t} />}
+              <StatusBadge
+                status={currentWeekTs?.status || 'draft'}
+                locked={viewedWeekIsLocked}
+                t={t}
+              />
             </div>
 
-            <div className="bg-muted/30 rounded-lg px-4 py-3 mb-4 flex items-center gap-3">
-              <ClipboardList className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-foreground font-medium">
-                {(weekTotalSec / 3600).toFixed(1)}h {t('weekHours')}
-              </span>
+            {/* Hours tracked */}
+            <div className="bg-muted/30 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-foreground font-medium">
+                  {(weekTotalSec / 3600).toFixed(1)}h {t('weekHours')}
+                </span>
+              </div>
+              {timeOffThisWeek > 0 && (
+                <span className="text-xs text-sky-600 dark:text-sky-400 flex items-center gap-1">
+                  <Plane className="w-3 h-3" />
+                  {timeOffThisWeek.toFixed(0)}h time off
+                </span>
+              )}
             </div>
 
-            {currentWeekTs?.status === 'rejected' && currentWeekTs.reviewer_note && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
-                <p className="text-xs font-medium text-red-500 mb-1">{t('reviewerNote')}:</p>
-                <p className="text-xs text-red-400">{currentWeekTs.reviewer_note}</p>
+            {/* Locked state */}
+            {viewedWeekIsLocked && (
+              <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-4 mb-4 flex items-start gap-3">
+                <Lock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Week locked</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {currentWeekTs?.locked_at
+                      ? `Locked ${format(new Date(currentWeekTs.locked_at), 'd. MMM yyyy, HH:mm')}.`
+                      : 'The Sunday 23:00 submission deadline has passed.'}
+                    {' '}Contact your Project Manager or Partner to unlock.
+                  </p>
+                </div>
               </div>
             )}
 
-            {(!currentWeekTs || currentWeekTs.status === 'draft' || currentWeekTs.status === 'rejected') && (
+            {/* Returned feedback */}
+            {currentWeekTs?.status === 'rejected' && currentWeekTs.reviewer_note && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4">
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Returned for additions:</p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/80">{currentWeekTs.reviewer_note}</p>
+              </div>
+            )}
+
+            {/* Submit form — shown when editable */}
+            {!viewedWeekIsLocked && (!currentWeekTs || currentWeekTs.status === 'draft' || currentWeekTs.status === 'rejected') && (
               <div className="space-y-3">
                 <div>
                   <label className="label">{t('weeklyNote')}</label>
-                  <textarea className="input resize-none" rows={2} placeholder={t('weeklyNote')} value={note} onChange={e => setNote(e.target.value)} />
+                  <textarea
+                    className="input resize-none"
+                    rows={2}
+                    placeholder={t('weeklyNote')}
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                  />
                 </div>
-                <button onClick={submitTimesheet} disabled={submitting || weekTotalSec === 0 || isProxying} className="btn-primary w-full disabled:opacity-40">
+                <button
+                  onClick={submitTimesheet}
+                  disabled={submitting || weekTotalSec === 0 || isProxying}
+                  className="btn-primary w-full disabled:opacity-40"
+                >
                   {submitting ? t('submitting') : t('submitForReview')}
                 </button>
                 {weekTotalSec === 0 && (
@@ -330,6 +508,103 @@ export default function TimesheetsPage() {
             )}
           </div>
 
+          {/* ── Time Off section ────────────────────────────────────────── */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Time Off this week</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Vacation, public holidays, sick days</p>
+              </div>
+              {!addingTimeOff && (
+                <button
+                  onClick={() => {
+                    setAddingTimeOff(true)
+                    setNewToDate(format(currentWeekStart, 'yyyy-MM-dd'))
+                  }}
+                  className="btn-secondary text-xs py-1 px-2.5"
+                >
+                  + Add day
+                </button>
+              )}
+            </div>
+
+            {addingTimeOff && (
+              <div className="bg-muted/30 rounded-lg p-3 mb-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label text-xs">Date</label>
+                    <input
+                      type="date"
+                      className="input text-sm"
+                      value={newToDate}
+                      onChange={e => setNewToDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-xs">Type</label>
+                    <select
+                      className="input text-sm"
+                      value={newToType}
+                      onChange={e => setNewToType(e.target.value as any)}
+                    >
+                      <option value="vacation">Vacation</option>
+                      <option value="holiday">Public Holiday</option>
+                      <option value="sick">Sick Day</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label text-xs">Hours</label>
+                  <input
+                    type="number"
+                    className="input text-sm"
+                    value={newToHours}
+                    min="1" max="24" step="0.5"
+                    onChange={e => setNewToHours(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={addTimeOff} className="btn-primary text-xs py-1.5 px-3">Save</button>
+                  <button onClick={() => setAddingTimeOff(false)} className="btn-secondary text-xs py-1.5 px-3">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {timeOffEntries.length === 0 && !addingTimeOff ? (
+              <p className="text-xs text-muted-foreground">No time off recorded this week.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {timeOffEntries.map(entry => {
+                  const Icon = TIME_OFF_ICONS[entry.type] || Umbrella
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-3.5 h-3.5 text-sky-500" />
+                        <span className="text-xs font-medium text-foreground">{TIME_OFF_LABELS[entry.type]}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(entry.date), 'EEE d. MMM', { locale: dateFnsLocale })} · {entry.hours}h
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeTimeOff(entry.id)}
+                        className="text-xs text-muted-foreground/50 hover:text-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {timeOffThisWeek > 0 && (
+              <p className="text-xs text-muted-foreground mt-3 pt-2 border-t border-border">
+                {timeOffThisWeek.toFixed(0)}h of time off reduces your expected weekly hours for utilization.
+              </p>
+            )}
+          </div>
+
+          {/* Previous weeks list */}
           {myTimesheets.filter(ts => ts.week_start !== format(currentWeekStart, 'yyyy-MM-dd')).length > 0 && (
             <div className="card p-6">
               <h2 className="text-sm font-semibold text-foreground mb-4">{t('previousWeeks')}</h2>
@@ -342,7 +617,7 @@ export default function TimesheetsPage() {
                         <p className="text-xs font-medium text-foreground">{fmtRange(new Date(ts.week_start))}</p>
                         {ts.note && <p className="text-xs text-muted-foreground italic mt-0.5">"{ts.note}"</p>}
                       </div>
-                      <StatusBadge status={ts.status} t={t} />
+                      <StatusBadge status={ts.status} locked={ts.locked} t={t} />
                     </div>
                   ))}
               </div>
@@ -358,7 +633,7 @@ export default function TimesheetsPage() {
         </div>
       )}
 
-      {/* Review tab — admins and project managers */}
+      {/* ── Review tab ───────────────────────────────────────────────────────── */}
       {activeTab === 'team' && canReview && (
         <div className="space-y-3">
           {teamTimesheets.length === 0 ? (
@@ -368,20 +643,19 @@ export default function TimesheetsPage() {
             </div>
           ) : teamTimesheets.map(ts => {
             const isReviewing = reviewingId === ts.id
-            const totalHours = (ts.projectSummary || []).reduce((s, p) => s + p.hours, 0)
+            const totalHours  = (ts.projectSummary || []).reduce((s, p) => s + p.hours, 0)
             return (
               <div key={ts.id} className="card p-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <span className="text-sm font-semibold text-foreground">
                         {ts.user_name || ts.user_email || 'Unknown'}
                       </span>
-                      <StatusBadge status={ts.status} t={t} />
+                      <StatusBadge status={ts.status} locked={ts.locked} t={t} />
                     </div>
                     <p className="text-xs text-muted-foreground">{fmtRange(new Date(ts.week_start))}</p>
 
-                    {/* Project summary */}
                     {ts.projectSummary && ts.projectSummary.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {ts.projectSummary.map(p => (
@@ -395,28 +669,59 @@ export default function TimesheetsPage() {
                         </span>
                       </div>
                     )}
-
                     {ts.note && <p className="text-xs text-muted-foreground italic mt-1.5">"{ts.note}"</p>}
                   </div>
-                  {ts.status === 'submitted' && !isReviewing && (
-                    <button onClick={() => setReviewingId(ts.id)} className="btn-secondary text-xs py-1 px-2.5 flex-shrink-0">
-                      Review
-                    </button>
-                  )}
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Unlock button for locked timesheets */}
+                    {ts.locked && (
+                      <button
+                        onClick={() => unlockTimesheet(ts.id)}
+                        className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10"
+                      >
+                        <Unlock className="w-3 h-3" /> Unlock
+                      </button>
+                    )}
+                    {ts.status === 'submitted' && !isReviewing && (
+                      <button onClick={() => setReviewingId(ts.id)} className="btn-secondary text-xs py-1 px-2.5">
+                        Review
+                      </button>
+                    )}
+                    {/* Return approved timesheet for additions */}
+                    {ts.status === 'approved' && !isReviewing && (
+                      <button
+                        onClick={() => setReviewingId(ts.id)}
+                        className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5"
+                      >
+                        Return
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {isReviewing && (
                   <div className="border-t border-border pt-3 space-y-3">
                     <div>
                       <label className="label">{t('reviewerNote')}</label>
-                      <textarea className="input resize-none" rows={2} value={reviewerNote} onChange={e => setReviewerNote(e.target.value)} placeholder="Optional feedback…" />
+                      <textarea
+                        className="input resize-none"
+                        rows={2}
+                        value={reviewerNote}
+                        onChange={e => setReviewerNote(e.target.value)}
+                        placeholder="Optional feedback for the member…"
+                      />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => reviewTimesheet(ts.id, 'approved')} className="btn-primary flex items-center gap-1.5 flex-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> {t('approveTimesheet')}
-                      </button>
-                      <button onClick={() => reviewTimesheet(ts.id, 'rejected')} className="btn-secondary flex items-center gap-1.5 flex-1 text-red-500 border-red-500/20 hover:bg-red-500/10">
-                        <XCircle className="w-3.5 h-3.5" /> {t('rejectTimesheet')}
+                      {ts.status !== 'approved' && (
+                        <button onClick={() => reviewTimesheet(ts.id, 'approved')} className="btn-primary flex items-center gap-1.5 flex-1">
+                          <CheckCircle className="w-3.5 h-3.5" /> {t('approveTimesheet')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => reviewTimesheet(ts.id, 'rejected')}
+                        className="btn-secondary flex items-center gap-1.5 flex-1 text-amber-600 border-amber-500/20 hover:bg-amber-500/10"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Return to Member
                       </button>
                       <button onClick={() => setReviewingId(null)} className="btn-secondary px-3">{t('cancel')}</button>
                     </div>
@@ -427,8 +732,8 @@ export default function TimesheetsPage() {
                   <div className="border-t border-border pt-2 mt-1 space-y-1">
                     {ts.review_history.map((ev, i) => (
                       <p key={i} className="text-xs text-muted-foreground italic">
-                        <span className={ev.status === 'approved' ? 'text-emerald-500' : 'text-red-500'}>
-                          {ev.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                        <span className={ev.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}>
+                          {ev.status === 'approved' ? '✓ Approved' : '↩ Returned'}
                         </span>
                         {ev.note && ` — "${ev.note}"`}
                         <span className="text-muted-foreground/50 ml-1">{new Date(ev.reviewed_at).toLocaleDateString()}</span>

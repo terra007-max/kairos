@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project } from '@/lib/types'
-import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X, Lock } from 'lucide-react'
-import { format, startOfWeek } from 'date-fns'
+import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X, Lock, CalendarClock } from 'lucide-react'
+import { format, startOfWeek, endOfWeek, isFriday, isSaturday, isSunday, isAfter } from 'date-fns'
 
 type EntryMode = 'timer' | 'fromto' | 'duration'
 
@@ -43,7 +43,9 @@ export default function TimerPage() {
   const [editingEntry, setEditingEntry] = useState<any | null>(null)
   const [currentUserId, setCurrentUserId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [approvedWeeks, setApprovedWeeks] = useState<Set<string>>(new Set())
+  const [approvedWeeks, setApprovedWeeks]   = useState<Set<string>>(new Set())
+  const [submittedWeeks, setSubmittedWeeks] = useState<Set<string>>(new Set())
+  const [lockedWeeks, setLockedWeeks]       = useState<Set<string>>(new Set())
   const [levelRates, setLevelRates] = useState<Record<string, Record<string, number>>>({}) // projectId -> levelId -> rate
 
   const getMemberName = (userId: string) => {
@@ -76,7 +78,7 @@ export default function TimerPage() {
         : Promise.resolve({ data: [] }),
       supabase.from('project_members').select('project_id, user_id').eq('workspace_id', workspaceId),
       supabase.from('project_level_rates').select('project_id, level_id, hourly_rate'),
-      supabase.from('timesheets').select('week_start').eq('user_id', uid).eq('workspace_id', workspaceId).eq('status', 'approved'),
+      supabase.from('timesheets').select('week_start, status, locked').eq('user_id', uid).eq('workspace_id', workspaceId),
     ])
 
     const rateMap: Record<string, Record<string, number>> = {}
@@ -85,7 +87,9 @@ export default function TimerPage() {
       rateMap[r.project_id][r.level_id] = r.hourly_rate
     }
     setLevelRates(rateMap)
-    setApprovedWeeks(new Set((approvedSheets || []).map((ts: any) => ts.week_start)))
+    setApprovedWeeks(new Set((approvedSheets || []).filter((ts: any) => ts.status === 'approved').map((ts: any) => ts.week_start)))
+    setSubmittedWeeks(new Set((approvedSheets || []).filter((ts: any) => ts.status === 'submitted').map((ts: any) => ts.week_start)))
+    setLockedWeeks(new Set((approvedSheets || []).filter((ts: any) => ts.locked === true).map((ts: any) => ts.week_start)))
 
     let visibleProjects = proj || []
     if (role === 'member') {
@@ -118,7 +122,23 @@ export default function TimerPage() {
     return () => clearInterval(id)
   }, [running])
 
+  function getWeekBlock(date: Date): string | null {
+    const weekStart = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    if (approvedWeeks.has(weekStart))  return 'This week is approved and locked. Contact your PM or Partner to return it.'
+    if (submittedWeeks.has(weekStart)) return 'This week has already been submitted for review. Withdraw your submission to add more entries.'
+    if (lockedWeeks.has(weekStart))    return 'This week is locked. Contact your Project Manager or Partner to unlock it.'
+    // Auto-lock: past Sunday 23:00 even if no DB record
+    const sunday = endOfWeek(new Date(weekStart), { weekStartsOn: 1 })
+    sunday.setHours(23, 0, 0, 0)
+    if (isAfter(new Date(), sunday) && !lockedWeeks.has(weekStart) && !approvedWeeks.has(weekStart)) {
+      return 'The submission deadline (Sunday 23:00) for this week has passed. Contact your PM or Partner to unlock.'
+    }
+    return null
+  }
+
   async function startTimer() {
+    const blockReason = getWeekBlock(new Date())
+    if (blockReason) { alert(blockReason); return }
     const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = (myMember as any)?.level_id || null
     const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
@@ -168,12 +188,16 @@ export default function TimerPage() {
 
     if (entryMode === 'fromto') {
       startTime = new Date(`${manualDate}T${manualStart}`)
+      const blockReason = getWeekBlock(startTime)
+      if (blockReason) { alert(blockReason); setSaving(false); return }
       endTime = new Date(`${manualDate}T${manualEnd}`)
       if (endTime <= startTime) { alert('End time must be after start time'); setSaving(false); return }
     } else {
       const hours = parseFloat(manualHours)
       if (!hours || hours <= 0) { alert('Enter a valid number of hours'); setSaving(false); return }
       startTime = new Date(`${manualDate}T${manualStart}`)
+      const blockReason = getWeekBlock(startTime)
+      if (blockReason) { alert(blockReason); setSaving(false); return }
       endTime = new Date(startTime.getTime() + hours * 3600 * 1000)
     }
     endTime = applyRounding(endTime, startTime, proj?.rounding_minutes || 0)
@@ -261,12 +285,33 @@ export default function TimerPage() {
     </div>
   )
 
+  // Friday / weekend reminder — show if current week is still draft
+  const today = new Date()
+  const thisWeekStart = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const currentWeekSubmitted = submittedWeeks.has(thisWeekStart) || approvedWeeks.has(thisWeekStart)
+  const showFridayReminder = (isFriday(today) || isSaturday(today) || isSunday(today)) && !currentWeekSubmitted
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-foreground">{t('timerTitle')}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">{t('timerSubtitle')}</p>
       </div>
+
+      {/* Friday / weekend reminder */}
+      {showFridayReminder && (
+        <div className="mb-5 flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+          <CalendarClock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+              {isFriday(today) ? 'Submit your hours today — it\'s Friday!' : 'Deadline approaching — submit by Sunday 23:00'}
+            </p>
+            <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
+              Go to <a href="/timesheets" className="underline underline-offset-2">Timesheets</a> to submit this week for review.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* IDLE ALERT */}
       {showIdleAlert && running && (
