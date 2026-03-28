@@ -196,7 +196,7 @@ export default function TimesheetsPage() {
         .limit(100)
 
       let pmUserIds: string[] | null = null
-      if (!can(role, 'review:all') && can(role, 'review:managed') && isProjectManager && managedProjectIds.length > 0) {
+      if (!can(role, 'review:all') && isProjectManager && managedProjectIds.length > 0) {
         const { data: pmRows } = await supabase
           .from('project_members').select('user_id').in('project_id', managedProjectIds)
         pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
