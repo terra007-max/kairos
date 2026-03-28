@@ -84,29 +84,54 @@ BEGIN
   DELETE FROM public.clients           WHERE workspace_id = ws_id;
   DELETE FROM public.consultant_levels WHERE workspace_id = ws_id;
 
-  -- Delete non-admin users
-  DELETE FROM public.workspace_members WHERE workspace_id = ws_id AND user_id != admin_id;
-  DELETE FROM public.profiles          WHERE id != admin_id;
-  DELETE FROM auth.users               WHERE id != admin_id;
+  -- Remove non-seed workspace members (keep seed users if already present)
+  DELETE FROM public.workspace_members
+    WHERE workspace_id = ws_id AND user_id != admin_id
+      AND user_id NOT IN (
+        SELECT id FROM auth.users
+        WHERE email IN ('kati.brummer@kairos.at','moritz.flint@kairos.at',
+                        'hanni.brezina@kairos.at','rudi.rabauke@kairos.at')
+      );
 
-  -- ── Create new users ───────────────────────────────────────────────────────
-  INSERT INTO auth.users (
-    instance_id, id, aud, role, email, encrypted_password,
-    email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data, is_super_admin
-  ) VALUES
-    ('00000000-0000-0000-0000-000000000000', u_partner, 'authenticated', 'authenticated',
-     'kati.brummer@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
-     now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-    ('00000000-0000-0000-0000-000000000000', u_pm, 'authenticated', 'authenticated',
-     'moritz.flint@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
-     now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-    ('00000000-0000-0000-0000-000000000000', u_m1, 'authenticated', 'authenticated',
-     'hanni.brezina@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
-     now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-    ('00000000-0000-0000-0000-000000000000', u_m2, 'authenticated', 'authenticated',
-     'rudi.rabauke@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
-     now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  -- Resolve existing seed user IDs (stable across re-runs)
+  SELECT id INTO u_partner FROM auth.users WHERE email = 'kati.brummer@kairos.at';
+  SELECT id INTO u_pm      FROM auth.users WHERE email = 'moritz.flint@kairos.at';
+  SELECT id INTO u_m1      FROM auth.users WHERE email = 'hanni.brezina@kairos.at';
+  SELECT id INTO u_m2      FROM auth.users WHERE email = 'rudi.rabauke@kairos.at';
+
+  -- ── Create users that don't exist yet ─────────────────────────────────────
+  IF u_partner IS NULL THEN
+    u_partner := gen_random_uuid();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin)
+    VALUES ('00000000-0000-0000-0000-000000000000', u_partner, 'authenticated', 'authenticated',
+      'kati.brummer@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  END IF;
+  IF u_pm IS NULL THEN
+    u_pm := gen_random_uuid();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin)
+    VALUES ('00000000-0000-0000-0000-000000000000', u_pm, 'authenticated', 'authenticated',
+      'moritz.flint@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  END IF;
+  IF u_m1 IS NULL THEN
+    u_m1 := gen_random_uuid();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin)
+    VALUES ('00000000-0000-0000-0000-000000000000', u_m1, 'authenticated', 'authenticated',
+      'hanni.brezina@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  END IF;
+  IF u_m2 IS NULL THEN
+    u_m2 := gen_random_uuid();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin)
+    VALUES ('00000000-0000-0000-0000-000000000000', u_m2, 'authenticated', 'authenticated',
+      'rudi.rabauke@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
+  END IF;
 
   INSERT INTO public.profiles (id, email, full_name) VALUES
     (u_partner, 'kati.brummer@kairos.at',  'Kati Brummer'),
