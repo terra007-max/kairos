@@ -130,7 +130,8 @@ export default function TimesheetsPage() {
   function fmtRange(start: Date) {
     const end = endOfWeek(start, { weekStartsOn: 1 })
     const kw  = getISOWeek(start)
-    return `KW ${kw} · ${format(start, 'd. MMM', { locale: dateFnsLocale })} – ${format(end, 'd. MMM yyyy', { locale: dateFnsLocale })}`
+    const cwLabel = locale === 'de' ? 'KW' : 'CW'
+    return `${cwLabel} ${kw} · ${format(start, 'd. MMM', { locale: dateFnsLocale })} – ${format(end, 'd. MMM yyyy', { locale: dateFnsLocale })}`
   }
 
   // ── Auto-lock: mark past-deadline draft timesheets as locked ──────────────
