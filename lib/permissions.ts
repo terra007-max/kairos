@@ -35,6 +35,8 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
     'submit:timesheet',
     'review:all',
     'manage:invoices',
+    'manage:clients',
+    'manage:projects',
     'view:analytics',
   ],
   project_manager: [
