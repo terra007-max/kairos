@@ -38,19 +38,12 @@ type WorkspaceCtx = {
 
 const STORAGE_KEY = 'kairos-active-workspace'
 const PROXY_KEY   = 'kairos-proxy-user'
-const ROLE_COOKIE = 'kairos-role'
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 
 function getStoredProxy(): ProxyUser | null {
   if (typeof window === 'undefined') return null
   try { return JSON.parse(localStorage.getItem(PROXY_KEY) || 'null') } catch { return null }
-}
-
-/** Write role to a short-lived cookie so middleware can enforce route rules. */
-function setRoleCookie(role: WorkspaceRole) {
-  if (typeof document === 'undefined') return
-  document.cookie = `${ROLE_COOKIE}=${role}; path=/; SameSite=Lax; Max-Age=86400`
 }
 
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
@@ -107,9 +100,6 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const projectManagerUserIds = new Set((allProjects || []).map((p: any) => p.manager_id))
     const role = memberRow.role as WorkspaceRole
-
-    // Persist role in cookie for middleware-level route enforcement
-    setRoleCookie(role)
 
     const ws = memberRow.workspace as any
 

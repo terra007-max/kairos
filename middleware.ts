@@ -7,10 +7,12 @@ const PROTECTED = [
   '/invoices', '/settings', '/profile', '/timesheets', '/analytics', '/impressum',
 ]
 
+// Routes that require a permission check beyond "just authenticated"
+const ROLE_GATED = ROUTE_RULES.map(r => r.path)
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Build a mutable response so Supabase can refresh session cookies
   const response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -31,28 +33,38 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // ── Authentication ────────────────────────────────────────────────────────
+  // getUser() validates the JWT server-side — cannot be forged by the client.
   const { data: { user } } = await supabase.auth.getUser()
 
   const isProtected = PROTECTED.some(p => pathname === p || pathname.startsWith(p + '/'))
   const isAuthPage  = pathname === '/login' || pathname === '/signup'
 
-  // Redirect unauthenticated users away from protected pages
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Redirect already-authenticated users away from login/signup
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // ── Role-based route enforcement ────────────────────────────────────────
-  // The role cookie is written by WorkspaceProvider on load.
-  // If absent (first load / cold start) we allow through — the page itself
-  // does a client-side guard as a second line of defence.
-  const role = request.cookies.get('kairos-role')?.value as WorkspaceRole | undefined
+  // ── Role-based route enforcement ──────────────────────────────────────────
+  // Only run the DB lookup for routes that actually need a permission check.
+  // The role comes from the database (RLS-protected) — not from a cookie —
+  // so it cannot be forged by the client.
+  const needsRoleCheck = user && ROLE_GATED.some(p => pathname.startsWith(p))
 
-  if (role && user) {
+  if (needsRoleCheck) {
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle()
+
+    const role = member?.role as WorkspaceRole | undefined
+
     for (const { path, permission } of ROUTE_RULES) {
       if (pathname.startsWith(path) && !can(role, permission)) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
@@ -65,7 +77,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on all routes except static assets and Supabase auth callbacks
     '/((?!_next/static|_next/image|favicon.ico|sw.js|api/auth|invite).*)',
   ],
 }
