@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { type Client } from '@/lib/types'
-import { Users, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, Upload, X } from 'lucide-react'
 
 const COLORS = ['#6366f1','#f97316','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899']
 
@@ -42,9 +42,13 @@ export default function ClientsPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function remove(id: string) {
+  async function remove(id: string, logoUrl: string | null) {
     if (!canManageClients) return
     if (!confirm('Delete this client?')) return
+    if (logoUrl) {
+      const path = logoUrl.split('/client-logos/')[1]
+      if (path) await supabase.storage.from('client-logos').remove([decodeURIComponent(path)])
+    }
     await supabase.from('clients').delete().eq('id', id)
     load()
   }
@@ -82,9 +86,7 @@ export default function ClientsPage() {
             <div key={c.id} className="card p-5 group hover:shadow-card-hover transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: c.color }}>
-                    {c.name[0].toUpperCase()}
-                  </div>
+                  <ClientAvatar client={c} size={36} />
                   <div>
                     <h3 className="font-semibold text-foreground">{c.name}</h3>
                     {c.email && <p className="text-xs text-muted-foreground mt-0.5">{c.email}</p>}
@@ -93,7 +95,7 @@ export default function ClientsPage() {
                 {canManageClients && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => { setEditClient(c); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => remove(c.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => remove(c.id, c.logo_url)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 )}
               </div>
@@ -108,21 +110,72 @@ export default function ClientsPage() {
   )
 }
 
+export function ClientAvatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'color' | 'logo_url'>; size?: number }) {
+  if (client.logo_url) {
+    return (
+      <img
+        src={client.logo_url}
+        alt={client.name}
+        width={size}
+        height={size}
+        style={{ width: size, height: size, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+      />
+    )
+  }
+  return (
+    <div
+      style={{ width: size, height: size, borderRadius: 10, backgroundColor: client.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <span style={{ fontSize: size * 0.38, color: 'white', fontWeight: 700 }}>{client.name[0].toUpperCase()}</span>
+    </div>
+  )
+}
+
 function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: string; client: Client | null; onSave: () => void; onCancel: () => void }) {
   const supabase = createClient()
   const { t } = useI18n()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(client?.name || '')
   const [email, setEmail] = useState(client?.email || '')
   const [color, setColor] = useState(client?.color || COLORS[0])
   const [notes, setNotes] = useState(client?.notes || '')
+  const [logoUrl, setLogoUrl] = useState<string | null>(client?.logo_url || null)
+  const [logoMode, setLogoMode] = useState<'color' | 'logo'>(client?.logo_url ? 'logo' : 'color')
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  async function handleLogoUpload(file: File) {
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 2 * 1024 * 1024) { alert('Max 2 MB'); return }
+    setUploading(true)
+    const clientId = client?.id || crypto.randomUUID()
+    const ext = file.name.split('.').pop() || 'png'
+    const path = `${workspaceId}/${clientId}.${ext}`
+    const { error } = await supabase.storage.from('client-logos').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from('client-logos').getPublicUrl(path)
+      setLogoUrl(publicUrl)
+    }
+    setUploading(false)
+  }
+
+  function removeLogo() {
+    setLogoUrl(null)
+    setLogoMode('color')
+  }
 
   async function save() {
     if (!name.trim()) return
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const payload = { name: name.trim(), email: email || null, color, notes: notes || null }
+    const payload = {
+      name: name.trim(),
+      email: email || null,
+      color,
+      logo_url: logoMode === 'logo' ? logoUrl : null,
+      notes: notes || null,
+    }
     if (client) {
       await supabase.from('clients').update(payload).eq('id', client.id)
     } else {
@@ -137,16 +190,57 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div><label className="label">{t('clientName')}</label><input className="input" placeholder="Acme Corp" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
         <div><label className="label">{t('email')}</label><input type="email" className="input" placeholder="contact@acme.com" value={email} onChange={e => setEmail(e.target.value)} /></div>
-        <div>
-          <label className="label">{t('color')}</label>
-          <div className="flex items-center gap-2 mt-1">
-            {COLORS.map(c => <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-border' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />)}
+
+        <div className="col-span-2">
+          <label className="label mb-1">Icon</label>
+          {/* Tab toggle */}
+          <div className="flex gap-1 mb-3 bg-muted/50 p-1 rounded-lg w-fit">
+            <button type="button" onClick={() => setLogoMode('color')} className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${logoMode === 'color' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Color</button>
+            <button type="button" onClick={() => setLogoMode('logo')} className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${logoMode === 'logo' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Logo</button>
           </div>
+
+          {logoMode === 'color' ? (
+            <div className="flex items-center gap-2">
+              {COLORS.map(c => (
+                <button key={c} type="button" onClick={() => setColor(c)}
+                  className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-border' : 'hover:scale-110'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <>
+                  <img src={logoUrl} alt="logo" className="w-12 h-12 rounded-xl object-cover border border-border" />
+                  <button type="button" onClick={removeLogo} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500 transition-colors">
+                    <X className="w-3.5 h-3.5" /> Remove
+                  </button>
+                  <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <Upload className="w-3.5 h-3.5" /> Replace
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-border hover:border-brand-600/50 hover:bg-brand-600/5 transition-colors text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploading ? 'Uploading…' : 'Upload logo'}
+                  <span className="text-xs opacity-50">PNG, JPG, SVG · max 2 MB</span>
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0])} />
+            </div>
+          )}
         </div>
-        <div><label className="label">{t('notes')}</label><input className="input" placeholder="Optional…" value={notes} onChange={e => setNotes(e.target.value)} /></div>
+
+        <div className="col-span-2"><label className="label">{t('notes')}</label><input className="input" placeholder="Optional…" value={notes} onChange={e => setNotes(e.target.value)} /></div>
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={save} disabled={saving || !name.trim()} className="btn-primary">{saving ? t('saving') : client ? t('saveChanges') : t('createClient')}</button>
+        <button onClick={save} disabled={saving || uploading || !name.trim()} className="btn-primary">{saving ? t('saving') : client ? t('saveChanges') : t('createClient')}</button>
         <button onClick={onCancel} className="btn-secondary">{t('cancel')}</button>
       </div>
     </div>

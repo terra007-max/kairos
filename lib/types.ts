@@ -29,6 +29,7 @@ export type Client = {
   name: string
   email: string | null
   color: string
+  logo_url: string | null
   notes: string | null
   created_at: string
 }

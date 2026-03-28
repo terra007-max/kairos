@@ -13,7 +13,7 @@ import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [user, setUser] = useState<{ id: string; name: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; name: string; avatarUrl: string | null } | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -38,8 +38,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return
       }
       const { data: profile } = await supabase
-        .from('profiles').select('full_name, email').eq('id', user.id).single()
-      setUser({ id: user.id, name: profile?.full_name || profile?.email || 'You' })
+        .from('profiles').select('full_name, email, avatar_url').eq('id', user.id).single()
+      setUser({ id: user.id, name: profile?.full_name || profile?.email || 'You', avatarUrl: profile?.avatar_url || null })
     })
 
     return () => window.removeEventListener('resize', checkMobile)
@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex bg-background overflow-hidden relative" style={{ height: '100dvh' }}>
 
           {/* Desktop sidebar */}
-          {!isMobile && <Sidebar userName={user.name} />}
+          {!isMobile && <Sidebar userName={user.name} avatarUrl={user.avatarUrl} />}
 
           {/* Mobile sidebar overlay */}
           {isMobile && sidebarOpen && (
@@ -63,7 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
               />
               <div className="fixed top-0 left-0 bottom-0 z-50" style={{ width: '240px', animation: 'slideIn 0.2s ease-out' }}>
-                <Sidebar userName={user.name} onClose={() => setSidebarOpen(false)} />
+                <Sidebar userName={user.name} avatarUrl={user.avatarUrl} onClose={() => setSidebarOpen(false)} />
               </div>
             </>
           )}

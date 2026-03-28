@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { formatDuration } from '@/lib/types'
 
-export default function Sidebar({ userName, onClose }: { userName: string; onClose?: () => void }) {
+export default function Sidebar({ userName, avatarUrl, onClose }: { userName: string; avatarUrl?: string | null; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -117,9 +117,13 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
           onClick={onClose}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 hover:bg-muted/60 transition-colors ${pathname === '/profile' ? 'bg-brand-600/10' : ''}`}
         >
-          <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
-            {initials}
-          </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
+              {initials}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate leading-tight">{userName}</p>
             <p className="text-xs text-muted-foreground leading-tight">
