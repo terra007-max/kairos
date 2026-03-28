@@ -198,9 +198,22 @@ export default function TimesheetsPage() {
 
       let pmUserIds: string[] | null = null
       if (!can(role, 'review:all') && isProjectManager && managedProjectIds.length > 0) {
-        const { data: pmRows } = await supabase
-          .from('project_members').select('user_id').in('project_id', managedProjectIds)
-        pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
+        // Use time_entries to find users who have actually worked on managed projects
+        // (project_members only tracks booking restrictions, not actual team members)
+        const { data: entryRows } = await supabase
+          .from('time_entries')
+          .select('user_id')
+          .in('project_id', managedProjectIds)
+          .eq('workspace_id', workspaceId)
+        pmUserIds = Array.from(new Set((entryRows || []).map((r: any) => r.user_id)))
+        // If no entries yet, fall back to project_members (explicit access list)
+        if (pmUserIds.length === 0) {
+          const { data: pmRows } = await supabase
+            .from('project_members').select('user_id').in('project_id', managedProjectIds)
+          pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
+        }
+        // If still empty (open project, no entries yet) → show all workspace members
+        if (pmUserIds.length === 0) pmUserIds = null
       }
 
       const entryQuery = supabase
@@ -209,9 +222,9 @@ export default function TimesheetsPage() {
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
 
-      const { data: allEntries } = can(role, 'review:all')
+      const { data: allEntries } = can(role, 'review:all') || pmUserIds === null
         ? await entryQuery
-        : pmUserIds && pmUserIds.length > 0
+        : pmUserIds.length > 0
           ? await entryQuery.in('user_id', pmUserIds)
           : { data: [] }
 
