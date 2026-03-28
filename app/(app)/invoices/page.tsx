@@ -432,7 +432,7 @@ export default function InvoicesPage() {
               </div>
               {clientId && (
                 <div>
-                  <label className="label flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> Project</label>
+                  <label className="label flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> {t('projectCol')}</label>
                   <select className="input" value={projectId} onChange={e => { setProjectId(e.target.value); setGenerated(false) }}>
                     <option value="all">All projects</option>
                     {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -446,7 +446,7 @@ export default function InvoicesPage() {
               <div><label className="label">{t('dueDate')}</label><input type="date" className="input" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
               <div className="col-span-2 md:col-span-3">
                 <label className="label">{t('notesPayment')}</label>
-                <textarea className="input resize-none" rows={2} placeholder="e.g. IBAN AT12 3456 7890 · Payment within 30 days" value={notes} onChange={e => setNotes(e.target.value)} />
+                <textarea className="input resize-none" rows={2} placeholder={t('ibanPlaceholder')} value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
             </div>
           </div>
@@ -460,7 +460,7 @@ export default function InvoicesPage() {
               </div>
 
               {!summaryLoading && hoursSummary.length === 0 && (
-                <p className="text-xs text-muted-foreground/60 text-center py-4">No billable time entries found for this period.</p>
+                <p className="text-xs text-muted-foreground/60 text-center py-4">{t('noBillableTimePeriod')}</p>
               )}
 
               {!summaryLoading && hoursSummary.length > 0 && (
@@ -468,10 +468,10 @@ export default function InvoicesPage() {
                   {/* Per-project breakdown */}
                   <div className="space-y-0 rounded-lg border border-border overflow-hidden mb-4">
                     <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted/40 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      <span className="col-span-2">Project</span>
-                      <span className="text-right text-emerald-600">Approved ✓</span>
-                      <span className="text-right text-amber-500">Pending ⏳</span>
-                      <span className="text-right text-muted-foreground">Not submitted</span>
+                      <span className="col-span-2">{t('projectCol')}</span>
+                      <span className="text-right text-emerald-600">{t('approvedCol')}</span>
+                      <span className="text-right text-amber-500">{t('pendingCol')}</span>
+                      <span className="text-right text-muted-foreground">{t('notSubmittedCol')}</span>
                     </div>
                     {hoursSummary.map(p => (
                       <div key={p.projectId} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border items-center">
@@ -501,7 +501,7 @@ export default function InvoicesPage() {
                     ))}
                     {/* Totals row */}
                     <div className="grid grid-cols-5 gap-2 px-4 py-3 border-t-2 border-border bg-muted/20 items-center">
-                      <span className="col-span-2 text-xs font-semibold text-foreground">Total</span>
+                      <span className="col-span-2 text-xs font-semibold text-foreground">{t('totalRow')}</span>
                       <div className="text-right">
                         <span className="text-xs font-bold text-emerald-600">{totalApproved.toFixed(1)}h</span>
                       </div>
@@ -519,8 +519,8 @@ export default function InvoicesPage() {
                     <div className="flex items-start gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-3">
                       <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                        <span className="font-semibold">{totalApproved.toFixed(1)}h approved</span> — ready to invoice.
-                        {totalPending > 0 && <span className="text-emerald-600/70"> {totalPending.toFixed(1)}h still awaiting approval and will not be included.</span>}
+                        <span className="font-semibold">{totalApproved.toFixed(1)}h {t('readyToInvoice')}</span>
+                        {totalPending > 0 && <span className="text-emerald-600/70"> {totalPending.toFixed(1)}h {t('pendingNotIncluded')}</span>}
                       </p>
                     </div>
                   )}
@@ -528,7 +528,7 @@ export default function InvoicesPage() {
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
                       <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        <span className="font-semibold">No approved hours yet.</span> {totalPending.toFixed(1)}h are submitted and awaiting project manager approval before they can be invoiced.
+                        <span className="font-semibold">{t('noApprovedYet')}</span> {totalPending.toFixed(1)}h {t('pendingAwaitingApproval')}
                       </p>
                     </div>
                   )}
@@ -536,7 +536,7 @@ export default function InvoicesPage() {
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
                       <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        <span className="font-semibold">No approved hours.</span> Hours must be submitted and approved by the project manager before invoicing.
+                        <span className="font-semibold">{t('noApprovedHours')}</span> {t('mustBeApproved')}
                       </p>
                     </div>
                   )}
@@ -551,7 +551,7 @@ export default function InvoicesPage() {
                   className="btn-primary flex items-center gap-2 disabled:opacity-40"
                   title={totalApproved === 0 ? 'No approved hours to invoice' : ''}
                 >
-                  <FileText className="w-4 h-4" /> {loading ? t('generating') : 'Generate invoice (approved hours only)'}
+                  <FileText className="w-4 h-4" /> {loading ? t('generating') : t('generateApprovedOnly')}
                 </button>
                 {generated && (
                   <>

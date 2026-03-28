@@ -63,7 +63,7 @@ const TIME_OFF_ICONS: Record<string, typeof Umbrella> = {
 function StatusBadge({ status, locked, t }: { status: TimesheetStatus; locked?: boolean; t: (k: any) => string }) {
   if (locked) return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-500">
-      <Lock className="w-3 h-3" /> Locked
+      <Lock className="w-3 h-3" /> {t('lockedStatus')}
     </span>
   )
   if (status === 'approved') return (
@@ -73,7 +73,7 @@ function StatusBadge({ status, locked, t }: { status: TimesheetStatus; locked?: 
   )
   if (status === 'rejected') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
-      <XCircle className="w-3 h-3" /> Returned
+      <XCircle className="w-3 h-3" /> {t('returnedStatus')}
     </span>
   )
   if (status === 'submitted') return (
@@ -388,12 +388,10 @@ export default function TimesheetsPage() {
               <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-                  {isFriday(today)
-                    ? 'Submit your hours today — it\'s Friday!'
-                    : 'Deadline approaching — submit by Sunday 23:00'}
+                  {isFriday(today) ? t('deadlineToday') : t('deadlineApproaching')}
                 </p>
                 <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
-                  Hours for this week must be submitted for review before Sunday at 23:00.
+                  {t('deadlineReminderBody')}
                 </p>
               </div>
             </div>
@@ -449,22 +447,21 @@ export default function TimesheetsPage() {
                 <div className="flex items-start gap-3">
                   <Lock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Week locked</p>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{t('weekLocked')}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {currentWeekTs?.locked_at
-                        ? `Locked ${format(new Date(currentWeekTs.locked_at), 'd. MMM yyyy, HH:mm')}.`
-                        : 'The Sunday 23:00 submission deadline has passed.'}
-                      {!canReview && ' Contact your Project Manager or Partner to unlock.'}
+                        ? `${t('weekLockedAt')} ${format(new Date(currentWeekTs.locked_at), 'd. MMM yyyy, HH:mm')}.`
+                        : t('weekLockedDeadline')}
+                      {!canReview && ` ${t('contactPMToUnlock')}`}
                     </p>
                   </div>
                 </div>
-                {/* PM and Partner can unlock directly from their own tab */}
                 {canReview && currentWeekTs && (
                   <button
                     onClick={() => unlockTimesheet(currentWeekTs.id)}
                     className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10 flex-shrink-0"
                   >
-                    <Unlock className="w-3 h-3" /> Unlock
+                    <Unlock className="w-3 h-3" /> {t('unlock')}
                   </button>
                 )}
               </div>
@@ -473,7 +470,7 @@ export default function TimesheetsPage() {
             {/* Returned feedback */}
             {currentWeekTs?.status === 'rejected' && currentWeekTs.reviewer_note && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4">
-                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Returned for additions:</p>
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">{t('returnedForAdditions')}</p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/80">{currentWeekTs.reviewer_note}</p>
               </div>
             )}
@@ -499,7 +496,7 @@ export default function TimesheetsPage() {
                   {submitting ? t('submitting') : t('submitForReview')}
                 </button>
                 {weekTotalSec === 0 && (
-                  <p className="text-xs text-muted-foreground text-center">Track time this week before submitting.</p>
+                  <p className="text-xs text-muted-foreground text-center">{t('trackBeforeSubmitting')}</p>
                 )}
               </div>
             )}
@@ -523,8 +520,8 @@ export default function TimesheetsPage() {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Time Off this week</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Vacation, public holidays, sick days</p>
+                <h3 className="text-sm font-semibold text-foreground">{t('timeOffTitle')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('timeOffSubtitle')}</p>
               </div>
               {!addingTimeOff && (
                 <button
@@ -534,7 +531,7 @@ export default function TimesheetsPage() {
                   }}
                   className="btn-secondary text-xs py-1 px-2.5"
                 >
-                  + Add day
+                  {t('addDay')}
                 </button>
               )}
             </div>
@@ -543,7 +540,7 @@ export default function TimesheetsPage() {
               <div className="bg-muted/30 rounded-lg p-3 mb-3 space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="label text-xs">Date</label>
+                    <label className="label text-xs">{t('timeOffDate')}</label>
                     <input
                       type="date"
                       className="input text-sm"
@@ -552,15 +549,15 @@ export default function TimesheetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="label text-xs">Type</label>
+                    <label className="label text-xs">{t('timeOffType')}</label>
                     <select
                       className="input text-sm"
                       value={newToType}
                       onChange={e => setNewToType(e.target.value as any)}
                     >
-                      <option value="vacation">Vacation</option>
-                      <option value="holiday">Public Holiday</option>
-                      <option value="sick">Sick Day</option>
+                      <option value="vacation">{t('timeOffVacation')}</option>
+                      <option value="holiday">{t('timeOffHoliday')}</option>
+                      <option value="sick">{t('timeOffSick')}</option>
                     </select>
                   </div>
                 </div>
@@ -582,7 +579,7 @@ export default function TimesheetsPage() {
             )}
 
             {timeOffEntries.length === 0 && !addingTimeOff ? (
-              <p className="text-xs text-muted-foreground">No time off recorded this week.</p>
+              <p className="text-xs text-muted-foreground">{t('noTimeOff')}</p>
             ) : (
               <div className="space-y-1.5">
                 {timeOffEntries.map(entry => {
@@ -591,7 +588,9 @@ export default function TimesheetsPage() {
                     <div key={entry.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                       <div className="flex items-center gap-2">
                         <Icon className="w-3.5 h-3.5 text-sky-500" />
-                        <span className="text-xs font-medium text-foreground">{TIME_OFF_LABELS[entry.type]}</span>
+                        <span className="text-xs font-medium text-foreground">
+                          {entry.type === 'vacation' ? t('timeOffVacation') : entry.type === 'holiday' ? t('timeOffHoliday') : t('timeOffSick')}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(entry.date), 'EEE d. MMM', { locale: dateFnsLocale })} · {entry.hours}h
                         </span>
@@ -610,7 +609,7 @@ export default function TimesheetsPage() {
 
             {timeOffThisWeek > 0 && (
               <p className="text-xs text-muted-foreground mt-3 pt-2 border-t border-border">
-                {timeOffThisWeek.toFixed(0)}h of time off reduces your expected weekly hours for utilization.
+                {timeOffThisWeek.toFixed(0)}h {t('timeOffImpact')}
               </p>
             )}
           </div>
@@ -690,21 +689,20 @@ export default function TimesheetsPage() {
                         onClick={() => unlockTimesheet(ts.id)}
                         className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10"
                       >
-                        <Unlock className="w-3 h-3" /> Unlock
+                        <Unlock className="w-3 h-3" /> {t('unlock')}
                       </button>
                     )}
                     {ts.status === 'submitted' && !isReviewing && (
                       <button onClick={() => setReviewingId(ts.id)} className="btn-secondary text-xs py-1 px-2.5">
-                        Review
+                        {t('reviewButton')}
                       </button>
                     )}
-                    {/* Return approved timesheet for additions */}
                     {ts.status === 'approved' && !isReviewing && (
                       <button
                         onClick={() => setReviewingId(ts.id)}
                         className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5"
                       >
-                        Return
+                        {t('returnButton')}
                       </button>
                     )}
                   </div>
@@ -719,7 +717,7 @@ export default function TimesheetsPage() {
                         rows={2}
                         value={reviewerNote}
                         onChange={e => setReviewerNote(e.target.value)}
-                        placeholder="Optional feedback for the member…"
+                        placeholder={t('reviewerFeedbackPlaceholder')}
                       />
                     </div>
                     <div className="flex gap-2">
@@ -732,7 +730,7 @@ export default function TimesheetsPage() {
                         onClick={() => reviewTimesheet(ts.id, 'rejected')}
                         className="btn-secondary flex items-center gap-1.5 flex-1 text-amber-600 border-amber-500/20 hover:bg-amber-500/10"
                       >
-                        <XCircle className="w-3.5 h-3.5" /> Return to Member
+                        <XCircle className="w-3.5 h-3.5" /> {t('returnToMember')}
                       </button>
                       <button onClick={() => setReviewingId(null)} className="btn-secondary px-3">{t('cancel')}</button>
                     </div>
@@ -744,7 +742,7 @@ export default function TimesheetsPage() {
                     {ts.review_history.map((ev, i) => (
                       <p key={i} className="text-xs text-muted-foreground italic">
                         <span className={ev.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}>
-                          {ev.status === 'approved' ? '✓ Approved' : '↩ Returned'}
+                          {ev.status === 'approved' ? t('historyApproved') : t('historyReturned')}
                         </span>
                         {ev.note && ` — "${ev.note}"`}
                         <span className="text-muted-foreground/50 ml-1">{new Date(ev.reviewed_at).toLocaleDateString()}</span>

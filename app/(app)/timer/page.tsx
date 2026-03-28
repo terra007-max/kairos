@@ -307,7 +307,7 @@ export default function TimerPage() {
               {isFriday(today) ? 'Submit your hours today — it\'s Friday!' : 'Deadline approaching — submit by Sunday 23:00'}
             </p>
             <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
-              Go to <a href="/timesheets" className="underline underline-offset-2">Timesheets</a> to submit this week for review.
+              <a href="/timesheets" className="underline underline-offset-2">{t('deadlineTimerBody')}</a>
             </p>
           </div>
         </div>
