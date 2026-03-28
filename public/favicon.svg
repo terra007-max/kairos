@@ -1,11 +1,38 @@
-<svg viewBox="0 0 680 680" xmlns="http://www.w3.org/2000/svg" width="100%">
-  <rect x="90" y="90" width="500" height="500" rx="120" fill="#0ea5e9" style="fill:rgb(14, 165, 233);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="340" cy="340" r="175" fill="none" stroke="white" stroke-width="22" opacity="0.9" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:22px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.9;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="340" cy="190" r="12" fill="white" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="340" cy="490" r="12" fill="white" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="190" cy="340" r="12" fill="white" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="490" cy="340" r="12" fill="white" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="340" x2="340" y2="218" stroke="white" stroke-width="18" stroke-linecap="round" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:18px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="340" y1="340" x2="408" y2="388" stroke="white" stroke-width="14" stroke-linecap="round" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(255, 255, 255);stroke-width:14px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <circle cx="340" cy="340" r="16" fill="white" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+  <!-- Watch case background -->
+  <circle cx="60" cy="60" r="60" fill="#0f0f23"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#4f46e5" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Tick marks (12 positions) -->
+  <line x1="60" y1="8"  x2="60" y2="16"  stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="60" y1="104" x2="60" y2="112" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="8"  y1="60" x2="16" y2="60"  stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="104" y1="60" x2="112" y2="60" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+
+  <line x1="86.6" y1="13.4" x2="82.9" y2="19.8" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="106.6" y1="33.4" x2="100.2" y2="37.1" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="106.6" y1="86.6" x2="100.2" y2="82.9" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="86.6" y1="106.6" x2="82.9" y2="100.2" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="33.4" y1="106.6" x2="37.1" y2="100.2" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="13.4" y1="86.6" x2="19.8" y2="82.9" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="13.4" y1="33.4" x2="19.8" y2="37.1" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <line x1="33.4" y1="13.4" x2="37.1" y2="19.8" stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Hour hand — pointing to ~10 o'clock -->
+  <line x1="60" y1="60" x2="39" y2="36"
+        stroke="white" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Minute hand — pointing to ~2 o'clock -->
+  <line x1="60" y1="60" x2="78" y2="28"
+        stroke="#a5b4fc" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Second hand — thin accent -->
+  <line x1="60" y1="68" x2="60" y2="20"
+        stroke="#4f46e5" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Center jewel -->
+  <circle cx="60" cy="60" r="4" fill="#4f46e5"/>
+  <circle cx="60" cy="60" r="2" fill="white"/>
 </svg>
