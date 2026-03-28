@@ -15,8 +15,9 @@ ALTER TABLE public.workspaces
   ADD COLUMN IF NOT EXISTS iban            text,
   ADD COLUMN IF NOT EXISTS bic             text;
 
--- ── 2. Clients: billing address + VAT ID ─────────────────────────────────
+-- ── 2. Clients: logo, billing address + VAT ID ───────────────────────────
 ALTER TABLE public.clients
+  ADD COLUMN IF NOT EXISTS logo_url        text,
   ADD COLUMN IF NOT EXISTS address_street  text,
   ADD COLUMN IF NOT EXISTS address_city    text,
   ADD COLUMN IF NOT EXISTS address_zip     text,
