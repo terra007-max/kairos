@@ -396,14 +396,14 @@ export default function AnalyticsPage() {
           <div className="flex items-center gap-2 mb-4">
             <Receipt className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cashflow</h2>
-            <span className="text-xs text-muted-foreground/50">· {t('collectedLabel').toLowerCase()} &amp; {t('totalBilled').toLowerCase()}: {periodLabel} · {t('outstandingLabel').toLowerCase()} &amp; {t('overdueLabel').toLowerCase()}: all-time</span>
+            <span className="text-xs text-muted-foreground/50">· {t('cashflowHint')}: {periodLabel} · {t('cashflowHintOutstanding')}</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: t('totalBilled'), value: formatMoney(cashflow.billed), color: 'bg-brand-600', sub: `${invoices.filter(i => (i.status === 'paid' || i.status === 'sent') && inPeriod(i.sent_at || i.created_at)).length} ${t('invoicesTitle').toLowerCase()}` },
-              { label: t('collectedLabel'), value: formatMoney(cashflow.paid), color: 'bg-emerald-500', sub: `${invoices.filter(i => i.status === 'paid' && inPeriod(i.paid_at)).length} ${t('markAsPaid').toLowerCase()}` },
-              { label: t('outstandingLabel'), value: formatMoney(cashflow.open), color: 'bg-amber-500', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) >= today).length} ${t('invoicesTitle').toLowerCase()}` },
-              { label: t('overdueLabel'), value: formatMoney(cashflow.overdue), color: cashflow.overdue > 0 ? 'bg-red-500' : 'bg-muted-foreground/30', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} ${t('dueDateLabel').toLowerCase()}` },
+              { label: t('totalBilled'), value: formatMoney(cashflow.billed), color: 'bg-brand-600', sub: `${invoices.filter(i => (i.status === 'paid' || i.status === 'sent') && inPeriod(i.sent_at || i.created_at)).length} ${t('invoicesLabel')}` },
+              { label: t('collectedLabel'), value: formatMoney(cashflow.paid), color: 'bg-emerald-500', sub: `${invoices.filter(i => i.status === 'paid' && inPeriod(i.paid_at)).length} ${t('paidLabel')}` },
+              { label: t('outstandingLabel'), value: formatMoney(cashflow.open), color: 'bg-amber-500', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) >= today).length} ${t('invoicesLabel')}` },
+              { label: t('overdueLabel'), value: formatMoney(cashflow.overdue), color: cashflow.overdue > 0 ? 'bg-red-500' : 'bg-muted-foreground/30', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} ${t('pastDueLabel')}` },
             ].map(({ label, value, color, sub }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className={`w-1 self-stretch rounded-full ${color}`} />

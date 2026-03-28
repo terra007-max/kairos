@@ -403,6 +403,11 @@ const translations = {
 
     // Invoices
     inclLabel: 'incl.',
+    invoicesLabel: 'invoices',
+    paidLabel: 'paid',
+    pastDueLabel: 'past due',
+    cashflowHint: 'collected & billed',
+    cashflowHintOutstanding: 'outstanding & overdue: all-time',
 
     // Timer
     searchEntries: 'Search entries…',
@@ -816,6 +821,11 @@ const translations = {
 
     // Invoices
     inclLabel: 'inkl.',
+    invoicesLabel: 'Rechnungen',
+    paidLabel: 'bezahlt',
+    pastDueLabel: 'überfällig',
+    cashflowHint: 'eingenommen & gesamt verrechnet',
+    cashflowHintOutstanding: 'ausstehend & überfällig: gesamt',
 
     // Timer
     searchEntries: 'Einträge suchen…',
