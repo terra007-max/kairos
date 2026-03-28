@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { type Project, type Client, type ConsultantLevel, type ProjectLevelRate, formatMoney, formatDuration } from '@/lib/types'
 import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users, Crown } from 'lucide-react'
@@ -16,7 +17,7 @@ export default function ProjectsPage() {
   const supabase = createClient()
   const { workspaceId, role, members, effectiveUserId, managedProjectIds } = useWorkspace()
   const { t } = useI18n()
-  const isAdmin = role === 'admin'
+  const isAdmin = can(role, 'manage:projects')
 
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -58,7 +59,7 @@ export default function ProjectsPage() {
     }) as ProjectRow[]
 
     // Members only see projects they are explicitly assigned to, or manage
-    const visible = role === 'admin'
+    const visible = isAdmin
       ? rows
       : rows.filter(p =>
           (p.memberIds && uid && p.memberIds.includes(uid)) ||

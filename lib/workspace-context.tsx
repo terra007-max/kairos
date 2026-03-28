@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { type WorkspaceRole } from '@/lib/permissions'
 
-export type WorkspaceRole = 'admin' | 'partner' | 'project_manager' | 'member'
+export type { WorkspaceRole } from '@/lib/permissions'
 
 export type WorkspaceMember = {
   id: string
@@ -37,12 +38,19 @@ type WorkspaceCtx = {
 
 const STORAGE_KEY = 'kairos-active-workspace'
 const PROXY_KEY   = 'kairos-proxy-user'
+const ROLE_COOKIE = 'kairos-role'
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
 
 function getStoredProxy(): ProxyUser | null {
   if (typeof window === 'undefined') return null
   try { return JSON.parse(localStorage.getItem(PROXY_KEY) || 'null') } catch { return null }
+}
+
+/** Write role to a short-lived cookie so middleware can enforce route rules. */
+function setRoleCookie(role: WorkspaceRole) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${ROLE_COOKIE}=${role}; path=/; SameSite=Lax; Max-Age=86400`
 }
 
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
@@ -98,13 +106,17 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     ])
 
     const projectManagerUserIds = new Set((allProjects || []).map((p: any) => p.manager_id))
+    const role = memberRow.role as WorkspaceRole
+
+    // Persist role in cookie for middleware-level route enforcement
+    setRoleCookie(role)
 
     const ws = memberRow.workspace as any
 
     setBase({
       workspaceId: memberRow.workspace_id,
       workspaceName: ws?.name || 'My Workspace',
-      realRole: memberRow.role as WorkspaceRole,
+      realRole: role,
       managedProjectIds: (managedProjects || []).map((p: any) => p.id),
       members: (members || []).filter((m: any) => m.role !== 'admin').map((m: any) => ({
         id: m.id,
@@ -123,14 +135,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   useEffect(() => { load() }, [load])
 
   // Derive full context from base + proxy state
-  // Validate proxy: only allow proxying as someone who is actually in this workspace
   const ctx = useMemo<WorkspaceCtx | null>(() => {
     if (!base) return null
     const canProxy = base.realRole === 'admin'
     const validProxy = canProxy && proxyUser && base.members.some(m => m.user_id === proxyUser.userId)
     const effectiveProxy = validProxy ? proxyUser : null
     if (proxyUser && !validProxy) {
-      // Stale/invalid proxy — clear it
       localStorage.removeItem('kairos-proxy-user')
     }
     const managedProjectIds = effectiveProxy ? [] : base.managedProjectIds

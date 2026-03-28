@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney, calcEntryEarnings } from '@/lib/types'
 import {
@@ -73,7 +74,7 @@ export default function AnalyticsPage() {
         .select('*, client:clients(*), level_rates:project_level_rates(*)')
         .eq('workspace_id', workspaceId)
         .eq('status', 'active'),
-      (role === 'admin' || role === 'partner')
+      can(role, 'manage:invoices')
         ? supabase.from('invoices').select('id, subtotal, status, due_date, sent_at, paid_at, client_name').eq('workspace_id', workspaceId)
         : Promise.resolve({ data: [] }),
     ])
@@ -85,7 +86,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load() }, [load])
 
-  if (role !== 'admin' && role !== 'partner' && !isProjectManager) return (
+  if (!can(role, 'view:analytics') && !isProjectManager) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Lock className="w-8 h-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground">{t('analyticsAdminOnly')}</p>
@@ -97,10 +98,10 @@ export default function AnalyticsPage() {
     </div>
   )
 
-  // ── Scope: Admin + Partner see all; Project Managers see their projects only
-  const isAdmin = role === 'admin' || role === 'partner'
-  const scopedEntries = isAdmin ? entries : entries.filter(e => managedProjectIds.includes(e.project_id))
-  const scopedProjects = isAdmin ? projects : projects.filter(p => managedProjectIds.includes(p.id))
+  // ── Scope: review:all sees everything; review:managed sees own projects only
+  const seeAll = can(role, 'review:all')
+  const scopedEntries = seeAll ? entries : entries.filter(e => managedProjectIds.includes(e.project_id))
+  const scopedProjects = seeAll ? projects : projects.filter(p => managedProjectIds.includes(p.id))
 
   // ── Earnings ─────────────────────────────────────────────────────────────
   // Build a project lookup once so earnings calculation doesn't search arrays per entry
@@ -115,7 +116,7 @@ export default function AnalyticsPage() {
   const now = new Date()
   const monthStart = startOfMonth(now)
   // PMs only see members who have entries on their managed projects
-  const pmMemberUserIdSet = isAdmin ? null : new Set(scopedEntries.map(e => e.user_id))
+  const pmMemberUserIdSet = seeAll ? null : new Set(scopedEntries.map(e => e.user_id))
   const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIdSet || pmMemberUserIdSet.has(m.user_id)))
   const mtdEntries = withEarnings.filter(e => new Date(e.start_time) >= monthStart)
   const revenueMTD = mtdEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
@@ -291,7 +292,7 @@ export default function AnalyticsPage() {
 
   // ── Cashflow (admin only) ─────────────────────────────────────────────────
   const today = now
-  const cashflow = isAdmin ? (() => {
+  const cashflow = seeAll ? (() => {
     let billed = 0, paid = 0, open = 0, overdue = 0
     for (const inv of invoices) {
       const amount = Number(inv.subtotal) || 0

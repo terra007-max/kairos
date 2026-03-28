@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { can, type WorkspaceRole, ROUTE_RULES } from '@/lib/permissions'
 
 const PROTECTED = [
   '/dashboard', '/timer', '/projects', '/clients', '/reports',
@@ -43,6 +44,20 @@ export async function middleware(request: NextRequest) {
   // Redirect already-authenticated users away from login/signup
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // ── Role-based route enforcement ────────────────────────────────────────
+  // The role cookie is written by WorkspaceProvider on load.
+  // If absent (first load / cold start) we allow through — the page itself
+  // does a client-side guard as a second line of defence.
+  const role = request.cookies.get('kairos-role')?.value as WorkspaceRole | undefined
+
+  if (role && user) {
+    for (const { path, permission } of ROUTE_RULES) {
+      if (pathname.startsWith(path) && !can(role, permission)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    }
   }
 
   return response

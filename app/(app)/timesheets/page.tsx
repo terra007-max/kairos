@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration } from '@/lib/types'
 import {
@@ -113,7 +114,7 @@ export default function TimesheetsPage() {
   const [reviewerNote, setReviewerNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading]       = useState(true)
-  const canReview = role === 'admin' || role === 'partner' || isProjectManager
+  const canReview = can(role, 'review:all') || isProjectManager
   const [activeTab, setActiveTab]   = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [dbError, setDbError]       = useState(false)
@@ -153,7 +154,7 @@ export default function TimesheetsPage() {
     setUserId(uid)
 
     // Admin does not participate in time recording — skip all personal time fetches
-    if (role !== 'admin') {
+    if (can(role, 'record:time')) {
       const { data: entries } = await supabase
         .from('time_entries')
         .select('duration_sec')
@@ -186,7 +187,7 @@ export default function TimesheetsPage() {
       setTimeOffEntries((toEntries as TimeOffEntry[]) || [])
     }
 
-    if (role === 'admin' || role === 'partner' || isProjectManager) {
+    if (canReview) {
       const { data: teamTs } = await supabase
         .from('timesheets')
         .select('*')
@@ -195,7 +196,7 @@ export default function TimesheetsPage() {
         .limit(100)
 
       let pmUserIds: string[] | null = null
-      if (role !== 'admin' && role !== 'partner' && isProjectManager && managedProjectIds.length > 0) {
+      if (!can(role, 'review:all') && can(role, 'review:managed') && isProjectManager && managedProjectIds.length > 0) {
         const { data: pmRows } = await supabase
           .from('project_members').select('user_id').in('project_id', managedProjectIds)
         pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
@@ -207,7 +208,7 @@ export default function TimesheetsPage() {
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
 
-      const { data: allEntries } = (role === 'admin' || role === 'partner')
+      const { data: allEntries } = can(role, 'review:all')
         ? await entryQuery
         : pmUserIds && pmUserIds.length > 0
           ? await entryQuery.in('user_id', pmUserIds)
@@ -364,7 +365,7 @@ export default function TimesheetsPage() {
 
       {canReview && (
         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl mb-6 w-fit">
-          {(['mine', 'team'] as const).filter(tab => !(tab === 'mine' && role === 'admin')).map(tab => (
+          {(['mine', 'team'] as const).filter(tab => !(tab === 'mine' && !can(role, 'record:time'))).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

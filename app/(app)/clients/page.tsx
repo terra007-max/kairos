@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { type Client } from '@/lib/types'
 import { Users, Plus, Pencil, Trash2 } from 'lucide-react'
@@ -13,7 +14,7 @@ export default function ClientsPage() {
   const supabase = createClient()
   const { workspaceId, role } = useWorkspace()
   const { t } = useI18n()
-  const isAdmin = role === 'admin'
+  const canManageClients = can(role, 'manage:clients')
 
   if (role === 'member') {
     return (
@@ -42,7 +43,7 @@ export default function ClientsPage() {
   useEffect(() => { load() }, [load])
 
   async function remove(id: string) {
-    if (!isAdmin) return
+    if (!canManageClients) return
     if (!confirm('Delete this client?')) return
     await supabase.from('clients').delete().eq('id', id)
     load()
@@ -55,16 +56,16 @@ export default function ClientsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-xl font-semibold text-foreground">{t('clientsTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{isAdmin ? t('manageClients') : t('viewClients')}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{canManageClients ? t('manageClients') : t('viewClients')}</p>
         </div>
-        {isAdmin && (
+        {canManageClients && (
           <button onClick={() => { setEditClient(null); setShowForm(true) }} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> {t('newClient')}
           </button>
         )}
       </div>
 
-      {isAdmin && (showForm || editClient) && (
+      {canManageClients && (showForm || editClient) && (
         <ClientForm workspaceId={workspaceId} client={editClient}
           onSave={() => { setShowForm(false); setEditClient(null); load() }}
           onCancel={() => { setShowForm(false); setEditClient(null) }} />
@@ -89,7 +90,7 @@ export default function ClientsPage() {
                     {c.email && <p className="text-xs text-muted-foreground mt-0.5">{c.email}</p>}
                   </div>
                 </div>
-                {isAdmin && (
+                {canManageClients && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => { setEditClient(c); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
                     <button onClick={() => remove(c.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>

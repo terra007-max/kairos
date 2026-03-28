@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { type Client, type Project, formatMoney } from '@/lib/types'
@@ -124,11 +125,11 @@ export default function InvoicesPage() {
   }, [])
 
   useEffect(() => {
-    if (role === 'member' || role === 'project_manager') router.push('/dashboard')
+    if (!can(role, 'manage:invoices')) router.push('/dashboard')
   }, [role, router])
 
   const load = useCallback(async () => {
-    if (!workspaceId || (role !== 'admin' && role !== 'partner')) return
+    if (!workspaceId || !can(role, 'manage:invoices')) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const [{ data: cl }, { data: prof }] = await Promise.all([
@@ -393,7 +394,7 @@ export default function InvoicesPage() {
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
   const selectedClient = clients.find(c => c.id === clientId)
 
-  if (role === 'member' || role === 'project_manager') return null
+  if (!can(role, 'manage:invoices')) return null
 
   return (
     <div>

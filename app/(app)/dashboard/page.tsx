@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney } from '@/lib/types'
 import { Clock, TrendingUp, Briefcase, Activity, ArrowUpRight, ArrowDownRight, Minus, Target } from 'lucide-react'
@@ -71,7 +72,8 @@ export default function DashboardPage() {
     const prevMonthStart = startOfMonth(subMonths(now, 1))
     const prevMonthEnd = new Date(monthStart.getTime() - 1)
     const prevWeekEnd = new Date(weekStart.getTime() - 1)
-    const userFilter = role === 'member' ? { user_id: effectiveUserId } : {}
+    // Members see only their own stats; reviewers (all levels) see team stats
+    const userFilter = !can(role, 'review:all') && !can(role, 'review:managed') ? { user_id: effectiveUserId } : {}
 
     const [{ data: week }, { data: month }, { data: prevWeek }, { data: prevMonth }, { data: recentData }, { data: projects }, { data: clients }] = await Promise.all([
       supabase.from('time_entries').select('duration_sec, billable, hourly_rate').eq('workspace_id', workspaceId).match(userFilter).gte('start_time', weekStart.toISOString()).not('end_time', 'is', null),
@@ -116,7 +118,7 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-foreground">{t('dashboard')}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {role === 'admin' ? t('teamOverview') : t('yourOverview')} · {todayFormatted}
+          {!can(role, 'record:time') ? t('teamOverview') : t('yourOverview')} · {todayFormatted}
         </p>
       </div>
 
@@ -125,8 +127,8 @@ export default function DashboardPage() {
           <><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
         ) : (
           <>
-            <StatCard label={t('thisWeek')} value={formatDuration(stats.weekSecs)} sub={role === 'admin' ? t('teamHours') : t('yourHours')} icon={Clock} color="bg-brand-600" current={stats.weekSecs} previous={stats.prevWeekSecs} />
-            <StatCard label={t('thisMonth')} value={formatDuration(stats.monthSecs)} sub={role === 'admin' ? t('teamHours') : t('yourHours')} icon={TrendingUp} color="bg-violet-500" current={stats.monthSecs} previous={stats.prevMonthSecs} />
+            <StatCard label={t('thisWeek')} value={formatDuration(stats.weekSecs)} sub={!can(role, 'record:time') ? t('teamHours') : t('yourHours')} icon={Clock} color="bg-brand-600" current={stats.weekSecs} previous={stats.prevWeekSecs} />
+            <StatCard label={t('thisMonth')} value={formatDuration(stats.monthSecs)} sub={!can(role, 'record:time') ? t('teamHours') : t('yourHours')} icon={TrendingUp} color="bg-violet-500" current={stats.monthSecs} previous={stats.prevMonthSecs} />
             <StatCard label={t('monthlyEarnings')} value={formatMoney(stats.earnings)} sub={t('billableOnly')} icon={Activity} color="bg-emerald-500" current={stats.earnings} previous={stats.prevEarnings} />
             <StatCard label={t('activeProjects')} value={String(stats.projects)} sub={`${stats.clients} ${t('clients')}`} icon={Briefcase} color="bg-amber-500" current={stats.projects} previous={stats.projects} />
           </>
@@ -228,7 +230,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Team status — admin only */}
-        {role === 'admin' && (
+        {!can(role, 'record:time') && (
           <div className="card overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Team status</h2>
