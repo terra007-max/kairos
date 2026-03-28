@@ -60,7 +60,10 @@ DECLARE
 
 BEGIN
   -- ── Resolve workspace & admin ──────────────────────────────────────────────
-  SELECT id INTO ws_id FROM public.workspaces LIMIT 1;
+  SELECT id INTO ws_id FROM public.workspaces WHERE name = 'Kairos Consulting' LIMIT 1;
+  IF ws_id IS NULL THEN
+    SELECT id INTO ws_id FROM public.workspaces LIMIT 1;
+  END IF;
   IF ws_id IS NULL THEN RAISE EXCEPTION 'No workspace found — aborting.'; END IF;
 
   SELECT user_id INTO admin_id
@@ -153,8 +156,12 @@ BEGIN
   VALUES
     (ws_id, u_partner, 'kati.brummer@kairos.at',  'partner',         'active', lv_par, 40),
     (ws_id, u_pm,      'moritz.flint@kairos.at',  'project_manager', 'active', lv_mgr, 40),
-    (ws_id, u_m1,      'hanni.brezina@kairos.at',   'member',          'active', lv_jun, 40),
-    (ws_id, u_m2,      'rudi.rabauke@kairos.at',   'member',          'active', lv_sen, 40);
+    (ws_id, u_m1,      'hanni.brezina@kairos.at', 'member',          'active', lv_jun, 40),
+    (ws_id, u_m2,      'rudi.rabauke@kairos.at',  'member',          'active', lv_sen, 40)
+  ON CONFLICT (workspace_id, email) DO UPDATE
+    SET role = EXCLUDED.role, status = EXCLUDED.status,
+        level_id = EXCLUDED.level_id, weekly_hours = EXCLUDED.weekly_hours,
+        user_id = EXCLUDED.user_id;
 
   -- Admin gets Partner level for display purposes (but no hours)
   UPDATE public.workspace_members SET level_id = lv_par WHERE user_id = admin_id AND workspace_id = ws_id;
