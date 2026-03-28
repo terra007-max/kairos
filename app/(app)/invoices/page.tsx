@@ -136,7 +136,7 @@ export default function InvoicesPage() {
       supabase.from('profiles').select('id, full_name, email').eq('id', user.id).single(),
     ])
     setClients(cl || [])
-    setProfile(prof)
+    setProfile(prof ?? { id: user.id, full_name: user.email ?? null, email: user.email ?? null })
     const { data: inv } = await supabase.from('invoices').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false })
     setSavedInvoices((inv as SavedInvoice[]) || [])
   }, [supabase, workspaceId, role])
@@ -296,7 +296,7 @@ export default function InvoicesPage() {
     const selectedClient = clients.find(c => c.id === clientId)
     const payload = {
       workspace_id: workspaceId,
-      created_by: profile.id,
+      user_id: profile.id,
       invoice_number: invoiceNumber,
       client_id: clientId,
       client_name: selectedClient?.name || '',
