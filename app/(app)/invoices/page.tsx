@@ -10,11 +10,32 @@ import { type Client, type Project, formatMoney } from '@/lib/types'
 import { format, startOfMonth, endOfMonth, startOfWeek } from 'date-fns'
 import {
   FileText, Download, Send, CheckCircle, Clock, Package,
-  Search, X, Pencil, Trash2, Check, AlertTriangle, ShieldCheck, FolderOpen,
+  Search, X, Pencil, Trash2, Check, AlertTriangle, ShieldCheck, FolderOpen, Code2,
 } from 'lucide-react'
 
-type InvoiceLine = { description: string; hours: number; rate: number; amount: number }
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type InvoiceLine = {
+  description: string
+  hours: number
+  rate: number
+  amount: number
+  vat_rate: number    // e.g. 20, 10, 0
+  vat_amount: number
+}
+
 type InvoiceStatus = 'draft' | 'sent' | 'paid'
+
+type WorkspaceLegal = {
+  legal_name: string | null
+  address_street: string | null
+  address_city: string | null
+  address_zip: string | null
+  address_country: string | null
+  vat_id: string | null
+  iban: string | null
+  bic: string | null
+}
 
 type HoursSummary = {
   projectId: string
@@ -37,13 +58,33 @@ type SavedInvoice = {
   period_from: string
   period_to: string
   subtotal: number
+  vat_rate: number
+  vat_amount: number
+  total: number
   notes: string
   status: InvoiceStatus
   lines: InvoiceLine[]
+  seller_snapshot: WorkspaceLegal | null
+  buyer_snapshot: Partial<Client> | null
+  payment_iban: string | null
+  payment_bic: string | null
+  order_reference: string | null
   sent_at: string | null
   paid_at: string | null
   created_at: string
 }
+
+// ── VAT options ────────────────────────────────────────────────────────────────
+
+const VAT_OPTIONS = [
+  { label: '20% — Standard (Inland)',               value: 20,  taxCode: 'U20' },
+  { label: '10% — Ermäßigt',                        value: 10,  taxCode: 'U10' },
+  { label: '0% — EU-Leistung (§ 3a UStG)',          value: 0,   taxCode: 'IG'  },
+  { label: '0% — Reverse Charge (§ 19 UStG)',       value: 0,   taxCode: 'RC'  },
+  { label: '0% — Export / Ausfuhrlieferung',        value: 0,   taxCode: 'AU'  },
+]
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function statusBadge(status: InvoiceStatus, t: (k: any) => string) {
   if (status === 'paid') return (
@@ -63,14 +104,42 @@ function statusBadge(status: InvoiceStatus, t: (k: any) => string) {
   )
 }
 
+function sellerBlock(ws: WorkspaceLegal | null, name: string | null, email: string | null): string[] {
+  const lines: string[] = []
+  if (ws?.legal_name || name) lines.push(ws?.legal_name || name || '')
+  if (ws?.address_street) lines.push(ws.address_street)
+  const cityLine = [ws?.address_zip, ws?.address_city].filter(Boolean).join(' ')
+  if (cityLine) lines.push(cityLine)
+  if (ws?.address_country) lines.push(ws.address_country)
+  if (ws?.vat_id) lines.push(`UID: ${ws.vat_id}`)
+  if (email) lines.push(email)
+  return lines
+}
+
+function buyerBlock(client: Partial<Client> | null): string[] {
+  if (!client) return []
+  const lines: string[] = []
+  lines.push(client.name || '')
+  if (client.address_street) lines.push(client.address_street)
+  const cityLine = [client.address_zip, client.address_city].filter(Boolean).join(' ')
+  if (cityLine) lines.push(cityLine)
+  if (client.address_country) lines.push(client.address_country)
+  if (client.vat_id) lines.push(`UID: ${client.vat_id}`)
+  if (client.email) lines.push(client.email)
+  return lines
+}
+
+// ── BMD/NTCS Export ────────────────────────────────────────────────────────────
+
 function exportBMDNTCS(invoice: SavedInvoice, taxCode: string, revenueAccount: string, debitorAccount: string) {
   const formatGermanDate = (d: string) => format(new Date(d), 'dd.MM.yyyy')
   const formatGermanAmount = (n: number) => n.toFixed(2).replace('.', ',')
+  const tc = taxCode || 'U20'
   const header = 'Buchungskreis;Datum;Belegnummer;Buchungstext;Betrag;Steuercode;Debitorenkonto;Erlöskonto'
   const rows = invoice.lines.map(line =>
     ['1', formatGermanDate(invoice.issue_date), invoice.invoice_number,
       `"${invoice.client_name} - ${line.description}"`,
-      formatGermanAmount(line.amount), taxCode || 'U20', debitorAccount || '10000', revenueAccount || '4000',
+      formatGermanAmount(line.amount), tc, debitorAccount || '10000', revenueAccount || '4000',
     ].join(';')
   )
   const content = [header, ...rows].join('\r\n')
@@ -81,6 +150,120 @@ function exportBMDNTCS(invoice: SavedInvoice, taxCode: string, revenueAccount: s
   a.click(); URL.revokeObjectURL(url)
 }
 
+// ── ebInterface 6.1 XML Export ────────────────────────────────────────────────
+
+function exportEBInterface(invoice: SavedInvoice) {
+  const s = invoice.seller_snapshot
+  const b = invoice.buyer_snapshot
+  const vatOpt = VAT_OPTIONS.find(v => v.value === invoice.vat_rate) || VAT_OPTIONS[0]
+  const isReverseCharge = vatOpt.taxCode === 'RC'
+
+  const escXml = (v: string | null | undefined) =>
+    (v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  const sellerLines = [
+    s?.legal_name ? `      <Name>${escXml(s.legal_name)}</Name>` : '',
+    `      <Address>`,
+    s?.address_street ? `        <Street>${escXml(s.address_street)}</Street>` : '',
+    s?.address_city   ? `        <Town>${escXml(s.address_city)}</Town>` : '',
+    s?.address_zip    ? `        <ZIP>${escXml(s.address_zip)}</ZIP>` : '',
+    `        <Country CountryCode="${escXml(s?.address_country || 'AT')}">${escXml(s?.address_country || 'AT')}</Country>`,
+    `      </Address>`,
+  ].filter(Boolean).join('\n')
+
+  const buyerLines = [
+    b?.name ? `    <Name>${escXml(b.name)}</Name>` : '',
+    `    <Address>`,
+    b?.address_street ? `      <Street>${escXml(b.address_street)}</Street>` : '',
+    b?.address_city   ? `      <Town>${escXml(b.address_city)}</Town>` : '',
+    b?.address_zip    ? `      <ZIP>${escXml(b.address_zip)}</ZIP>` : '',
+    `      <Country CountryCode="${escXml(b?.address_country || 'AT')}">${escXml(b?.address_country || 'AT')}</Country>`,
+    `    </Address>`,
+    b?.email ? `    <Contact><Phone/><Email>${escXml(b.email)}</Email></Contact>` : '',
+  ].filter(Boolean).join('\n')
+
+  const lineItems = invoice.lines.map((l, i) => `    <ListLineItem>
+      <PositionNumber>${i + 1}</PositionNumber>
+      <Description>${escXml(l.description)}</Description>
+      <Quantity Unit="HUR">${l.hours.toFixed(4)}</Quantity>
+      <UnitPrice>${l.rate.toFixed(4)}</UnitPrice>
+      <VATRate TaxCode="${vatOpt.taxCode}">${l.vat_rate}.00</VATRate>
+      <LineItemAmount>${l.amount.toFixed(2)}</LineItemAmount>
+    </ListLineItem>`).join('\n')
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="http://www.ebinterface.at/schema/6p1/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.ebinterface.at/schema/6p1/ ebinterface-6p1.xsd"
+         GeneratingSystemID="Kairos"
+         DocumentTitle="Rechnung"
+         InvoiceCurrency="${invoice.notes?.includes('USD') ? 'USD' : 'EUR'}"
+         Language="ger">
+
+  <InvoiceNumber>${escXml(invoice.invoice_number)}</InvoiceNumber>
+  <InvoiceDate>${invoice.issue_date}</InvoiceDate>
+
+  <DeliveryDate>
+    <FromDate>${invoice.period_from}</FromDate>
+    <ToDate>${invoice.period_to}</ToDate>
+  </DeliveryDate>
+
+  <Biller>
+    ${s?.vat_id ? `<VATIdentificationNumber>${escXml(s.vat_id)}</VATIdentificationNumber>` : ''}
+    <InvoicingParty>
+${sellerLines}
+    </InvoicingParty>
+  </Biller>
+
+  <InvoiceRecipient>
+    ${b?.vat_id ? `<VATIdentificationNumber>${escXml(b.vat_id)}</VATIdentificationNumber>` : ''}
+${buyerLines}
+  </InvoiceRecipient>
+
+  ${invoice.order_reference ? `<OrderReference>\n    <OrderID>${escXml(invoice.order_reference)}</OrderID>\n  </OrderReference>` : ''}
+
+  <Details>
+    <ItemList>
+${lineItems}
+    </ItemList>
+  </Details>
+
+  <Tax>
+    <TaxItem>
+      <TaxableAmount>${invoice.subtotal.toFixed(2)}</TaxableAmount>
+      <TaxPercent TaxCode="${vatOpt.taxCode}">${invoice.vat_rate}.00</TaxPercent>
+      <TaxAmount>${invoice.vat_amount.toFixed(2)}</TaxAmount>
+      ${isReverseCharge ? '<Comment>Reverse Charge — Steuerschuldübergang gem. § 19 Abs. 1 UStG</Comment>' : ''}
+    </TaxItem>
+  </Tax>
+
+  <TotalGrossAmount>${invoice.total.toFixed(2)}</TotalGrossAmount>
+  <PayableAmount>${invoice.total.toFixed(2)}</PayableAmount>
+
+  <PaymentConditions>
+    <DueDate>${invoice.due_date}</DueDate>
+    ${(invoice.payment_iban || s?.iban) ? `<PaymentMethods>
+      <UniversalBankTransaction>
+        <BeneficiaryAccount>
+          <IBAN>${escXml(invoice.payment_iban || s?.iban || '')}</IBAN>
+          ${(invoice.payment_bic || s?.bic) ? `<BIC>${escXml(invoice.payment_bic || s?.bic || '')}</BIC>` : ''}
+          <BankAccountOwner>${escXml(s?.legal_name || '')}</BankAccountOwner>
+        </BeneficiaryAccount>
+      </UniversalBankTransaction>
+    </PaymentMethods>` : ''}
+  </PaymentConditions>
+
+</Invoice>`
+
+  const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url
+  a.download = `ebInterface_${invoice.invoice_number.replace(/[^a-zA-Z0-9]/g, '_')}.xml`
+  a.click(); URL.revokeObjectURL(url)
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function InvoicesPage() {
   const supabase = createClient()
   const { workspaceId, role } = useWorkspace()
@@ -90,6 +273,7 @@ export default function InvoicesPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [clientProjects, setClientProjects] = useState<Project[]>([])
   const [profile, setProfile] = useState<{ id: string; full_name: string | null; email: string | null } | null>(null)
+  const [workspace, setWorkspace] = useState<WorkspaceLegal | null>(null)
   const [clientId, setClientId] = useState('')
   const [projectId, setProjectId] = useState('all')
   const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -98,10 +282,11 @@ export default function InvoicesPage() {
   const [issueDate, setIssueDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [dueDate, setDueDate] = useState(format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd'))
   const [notes, setNotes] = useState('')
+  const [vatRateIdx, setVatRateIdx] = useState(0)   // index into VAT_OPTIONS
+  const [orderReference, setOrderReference] = useState('')
   const [lines, setLines] = useState<InvoiceLine[]>([])
   const [hoursSummary, setHoursSummary] = useState<HoursSummary[]>([])
   const [summaryLoading, setSummaryLoading] = useState(false)
-  // Cache fetched data so generate() reuses it without a second round-trip
   const cachedEntriesRef = useRef<any[]>([])
   const cachedApprovedSet = useRef<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
@@ -132,19 +317,20 @@ export default function InvoicesPage() {
     if (!workspaceId || !can(role, 'manage:invoices')) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [{ data: cl }, { data: prof }] = await Promise.all([
+    const [{ data: cl }, { data: prof }, { data: ws }] = await Promise.all([
       supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
       supabase.from('profiles').select('id, full_name, email').eq('id', user.id).single(),
+      supabase.from('workspaces').select('legal_name, address_street, address_city, address_zip, address_country, vat_id, iban, bic').eq('id', workspaceId).single(),
     ])
     setClients(cl || [])
     setProfile(prof ?? { id: user.id, full_name: user.email ?? null, email: user.email ?? null })
+    setWorkspace(ws ?? null)
     const { data: inv } = await supabase.from('invoices').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false })
     setSavedInvoices((inv as SavedInvoice[]) || [])
   }, [supabase, workspaceId, role])
 
   useEffect(() => { load() }, [load])
 
-  // Load projects when client changes
   useEffect(() => {
     setProjectId('all')
     setClientProjects([])
@@ -155,7 +341,6 @@ export default function InvoicesPage() {
       .then(({ data }) => setClientProjects(data || []))
   }, [clientId, workspaceId])
 
-  // Build hours summary whenever client/project/dates change
   const loadHoursSummary = useCallback(async () => {
     if (!clientId || !workspaceId) { setHoursSummary([]); return }
     setSummaryLoading(true)
@@ -163,7 +348,6 @@ export default function InvoicesPage() {
 
     const toEnd = new Date(toDate); toEnd.setHours(23, 59, 59)
 
-    // Fetch all billable entries for this client in range (include level_rates for rate fallback)
     let query = supabase
       .from('time_entries')
       .select('*, project:projects!inner(*, client:clients(*), level_rates:project_level_rates(level_id, hourly_rate))')
@@ -174,40 +358,23 @@ export default function InvoicesPage() {
       .lte('start_time', toEnd.toISOString())
       .eq('project.client_id', clientId)
 
-    if (projectId !== 'all') {
-      query = query.eq('project_id', projectId)
-    }
+    if (projectId !== 'all') query = query.eq('project_id', projectId)
 
     const { data: entries } = await query
-
-    // Fetch all timesheets in workspace to know approval status per user/week
     const { data: timesheets } = await supabase
       .from('timesheets')
       .select('user_id, week_start, status')
       .eq('workspace_id', workspaceId)
       .in('status', ['approved', 'submitted', 'draft', 'rejected'])
 
-    // Build lookup: userId:weekStart -> status
     const tsStatusMap: Record<string, string> = {}
-    for (const ts of timesheets || []) {
-      tsStatusMap[`${ts.user_id}:${ts.week_start}`] = ts.status
-    }
+    for (const ts of timesheets || []) tsStatusMap[`${ts.user_id}:${ts.week_start}`] = ts.status
 
-    // Group entries by project, classify by approval status
     const projectMap: Record<string, HoursSummary> = {}
     for (const e of (entries || []) as any[]) {
       const pid = e.project_id
       if (!projectMap[pid]) {
-        projectMap[pid] = {
-          projectId: pid,
-          projectName: e.project?.name || 'Unknown',
-          color: e.project?.color || '#6366f1',
-          approvedHours: 0,
-          pendingHours: 0,
-          draftHours: 0,
-          approvedRevenue: 0,
-          rate: e.project?.hourly_rate || 0,
-        }
+        projectMap[pid] = { projectId: pid, projectName: e.project?.name || 'Unknown', color: e.project?.color || '#6366f1', approvedHours: 0, pendingHours: 0, draftHours: 0, approvedRevenue: 0, rate: e.project?.hourly_rate || 0 }
       }
       const weekStart = format(startOfWeek(new Date(e.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
       const tsStatus = tsStatusMap[`${e.user_id}:${weekStart}`] || 'draft'
@@ -225,7 +392,6 @@ export default function InvoicesPage() {
       }
     }
 
-    // Round
     const summary = Object.values(projectMap).map(s => ({
       ...s,
       approvedHours: Math.round(s.approvedHours * 100) / 100,
@@ -234,14 +400,12 @@ export default function InvoicesPage() {
       approvedRevenue: Math.round(s.approvedRevenue * 100) / 100,
     }))
 
-    // Cache for generate() to reuse — avoids a second identical round-trip
     cachedEntriesRef.current = entries || []
     const approvedSet = new Set<string>()
     for (const ts of timesheets || []) {
       if (ts.status === 'approved') approvedSet.add(`${ts.user_id}:${ts.week_start}`)
     }
     cachedApprovedSet.current = approvedSet
-
     setHoursSummary(summary)
     setSummaryLoading(false)
   }, [clientId, projectId, fromDate, toDate, workspaceId, supabase])
@@ -252,21 +416,20 @@ export default function InvoicesPage() {
   const totalPending  = hoursSummary.reduce((s, p) => s + p.pendingHours, 0)
   const totalDraft    = hoursSummary.reduce((s, p) => s + p.draftHours, 0)
 
+  const selectedVat = VAT_OPTIONS[vatRateIdx]
+
   async function generate() {
     if (totalApproved === 0) return
     setLoading(true)
 
-    // Reuse cached data from loadHoursSummary — no second round-trip needed
     const entries = cachedEntriesRef.current
     const approvedSet = cachedApprovedSet.current
 
-    // Filter to approved entries only
     const approvedEntries = entries.filter((e: any) => {
       const weekStart = format(startOfWeek(new Date(e.start_time), { weekStartsOn: 1 }), 'yyyy-MM-dd')
       return approvedSet.has(`${e.user_id}:${weekStart}`)
     })
 
-    // Group by project
     const projectGroups: Record<string, { project: any; entries: any[] }> = {}
     for (const e of approvedEntries) {
       if (!projectGroups[e.project_id]) projectGroups[e.project_id] = { project: e.project, entries: [] }
@@ -282,7 +445,16 @@ export default function InvoicesPage() {
       }, 0)
       const hours = totalSecs / 3600
       const blendedRate = hours > 0 ? totalAmount / hours : (project?.hourly_rate || 0)
-      return { description: project.name, hours: Math.round(hours * 100) / 100, rate: Math.round(blendedRate * 100) / 100, amount: Math.round(totalAmount * 100) / 100 }
+      const amt = Math.round(totalAmount * 100) / 100
+      const vatAmt = Math.round(amt * selectedVat.value / 100 * 100) / 100
+      return {
+        description: project.name,
+        hours: Math.round(hours * 100) / 100,
+        rate: Math.round(blendedRate * 100) / 100,
+        amount: amt,
+        vat_rate: selectedVat.value,
+        vat_amount: vatAmt,
+      }
     })
 
     setLines(newLines)
@@ -295,6 +467,30 @@ export default function InvoicesPage() {
     if (!generated || !clientId || !profile) return
     setSaving(true)
     const selectedClient = clients.find(c => c.id === clientId)
+    const subtotalVal = lines.reduce((s, l) => s + l.amount, 0)
+    const vatAmountVal = Math.round(subtotalVal * selectedVat.value / 100 * 100) / 100
+    const totalVal = subtotalVal + vatAmountVal
+
+    const sellerSnap: WorkspaceLegal = {
+      legal_name: workspace?.legal_name ?? null,
+      address_street: workspace?.address_street ?? null,
+      address_city: workspace?.address_city ?? null,
+      address_zip: workspace?.address_zip ?? null,
+      address_country: workspace?.address_country ?? null,
+      vat_id: workspace?.vat_id ?? null,
+      iban: workspace?.iban ?? null,
+      bic: workspace?.bic ?? null,
+    }
+    const buyerSnap = selectedClient ? {
+      name: selectedClient.name,
+      email: selectedClient.email,
+      address_street: selectedClient.address_street,
+      address_city: selectedClient.address_city,
+      address_zip: selectedClient.address_zip,
+      address_country: selectedClient.address_country,
+      vat_id: selectedClient.vat_id,
+    } : null
+
     const payload = {
       workspace_id: workspaceId,
       user_id: profile.id,
@@ -305,10 +501,19 @@ export default function InvoicesPage() {
       due_date: dueDate,
       period_from: fromDate,
       period_to: toDate,
-      subtotal: lines.reduce((s, l) => s + l.amount, 0),
+      subtotal: subtotalVal,
+      vat_rate: selectedVat.value,
+      vat_amount: vatAmountVal,
+      total: totalVal,
+      currency: 'EUR',
       notes,
       status: 'sent' as const,
       lines,
+      seller_snapshot: sellerSnap,
+      buyer_snapshot: buyerSnap,
+      payment_iban: workspace?.iban ?? null,
+      payment_bic: workspace?.bic ?? null,
+      order_reference: orderReference || null,
       sent_at: new Date().toISOString(),
       paid_at: null,
     }
@@ -338,7 +543,7 @@ export default function InvoicesPage() {
 
   async function saveEditInvoice() {
     if (!editingInvoice) return
-    const update = { invoice_number: editingInvoice.invoice_number, due_date: editingInvoice.due_date, notes: editingInvoice.notes }
+    const update = { invoice_number: editingInvoice.invoice_number, due_date: editingInvoice.due_date, notes: editingInvoice.notes, order_reference: editingInvoice.order_reference }
     await supabase.from('invoices').update(update).eq('id', editingInvoice.id)
     setSavedInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? { ...inv, ...update } : inv))
     setEditingInvoice(null)
@@ -347,51 +552,115 @@ export default function InvoicesPage() {
   async function downloadPDF(inv: SavedInvoice) {
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const W = 210, ml = 20, mr = 190
-    doc.setFontSize(28).setFont('helvetica', 'bold').text('INVOICE', ml, 28)
-    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(150).text(`#${inv.invoice_number}`, ml, 36)
-    doc.setTextColor(30).setFontSize(11).setFont('helvetica', 'bold').text(profile?.full_name || profile?.email || 'Consulting', mr, 24, { align: 'right' })
-    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(120)
-    if (profile?.email) doc.text(profile.email, mr, 30, { align: 'right' })
-    doc.setDrawColor(220).setLineWidth(0.4).line(ml, 44, mr, 44)
-    doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('BILL TO', ml, 53)
-    doc.setFontSize(11).setTextColor(30).setFont('helvetica', 'normal').text(inv.client_name, ml, 60)
+    const ml = 20, mr = 190
+    const s = inv.seller_snapshot
+    const b = inv.buyer_snapshot
+    const vatPct = inv.vat_rate ?? 0
+    const vatAmt = inv.vat_amount ?? 0
+    const total  = inv.total ?? inv.subtotal
+
+    // ── Header ─────────────────────────────────────────────────
+    doc.setFontSize(26).setFont('helvetica', 'bold').text('RECHNUNG', ml, 26)
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(150).text(`Nr. ${inv.invoice_number}`, ml, 33)
+
+    // Seller (top right)
+    const sLines = sellerBlock(s, null, null)
+    let srY = 20
+    doc.setTextColor(30)
+    sLines.forEach((l, i) => {
+      if (i === 0) {
+        doc.setFontSize(10).setFont('helvetica', 'bold').text(l, mr, srY, { align: 'right' })
+      } else {
+        doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(i >= sLines.length - 2 ? 120 : 60).text(l, mr, srY, { align: 'right' })
+      }
+      srY += 5
+    })
+
+    doc.setDrawColor(220).setLineWidth(0.4).line(ml, 40, mr, 40)
+
+    // Bill to
+    let y = 50
+    doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('RECHNUNGSEMPFÄNGER', ml, y); y += 5
+    const bLines = buyerBlock(b)
+    bLines.forEach((l, i) => {
+      if (i === 0) { doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(30).text(l, ml, y) }
+      else { doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(80).text(l, ml, y) }
+      y += 4.5
+    })
+
+    // Right-side meta
     const labelX = 130, valX = mr
-    const row = (label: string, val: string, y: number) => {
-      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text(label, labelX, y)
-      doc.setFontSize(9).setTextColor(30).setFont('helvetica', 'normal').text(val, valX, y, { align: 'right' })
+    const row = (label: string, val: string, ry: number) => {
+      doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text(label, labelX, ry)
+      doc.setFontSize(8).setTextColor(30).setFont('helvetica', 'normal').text(val, valX, ry, { align: 'right' })
     }
-    row('ISSUE DATE', format(new Date(inv.issue_date), 'MMM d, yyyy'), 53)
-    row('DUE DATE', format(new Date(inv.due_date), 'MMM d, yyyy'), 60)
-    row('PERIOD', `${format(new Date(inv.period_from), 'MMM d')} – ${format(new Date(inv.period_to), 'MMM d, yyyy')}`, 67)
-    let y = 82
+    row('RECHNUNGSDATUM', format(new Date(inv.issue_date), 'dd.MM.yyyy'), 50)
+    row('FÄLLIGKEITSDATUM', format(new Date(inv.due_date), 'dd.MM.yyyy'), 56)
+    row('LEISTUNGSZEITRAUM', `${format(new Date(inv.period_from), 'dd.MM.')} – ${format(new Date(inv.period_to), 'dd.MM.yyyy')}`, 62)
+    if (inv.order_reference) row('BESTELLREFERENZ', inv.order_reference, 68)
+
+    // Line items table
+    y = Math.max(y + 6, 80)
     doc.setFillColor(245, 246, 248).rect(ml, y - 5, mr - ml, 8, 'F')
-    doc.setFontSize(8).setTextColor(100).setFont('helvetica', 'bold')
-    doc.text('DESCRIPTION', ml + 2, y); doc.text('HOURS', 130, y, { align: 'right' })
-    doc.text('RATE', 155, y, { align: 'right' }); doc.text('AMOUNT', mr, y, { align: 'right' })
-    y += 6; doc.setDrawColor(210).setLineWidth(0.3)
+    doc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold')
+    doc.text('BESCHREIBUNG', ml + 2, y)
+    doc.text('STUNDEN', 120, y, { align: 'right' })
+    doc.text('PREIS/h', 143, y, { align: 'right' })
+    doc.text('NETTO', 163, y, { align: 'right' })
+    doc.text('BETRAG', mr, y, { align: 'right' })
+    y += 5; doc.setDrawColor(210).setLineWidth(0.3)
+
     for (const line of inv.lines) {
       doc.line(ml, y, mr, y); y += 5
-      doc.setFontSize(10).setTextColor(30).setFont('helvetica', 'normal').text(line.description, ml + 2, y)
-      doc.setTextColor(90).text(`${line.hours.toFixed(2)}h`, 130, y, { align: 'right' }).text(`€${line.rate.toFixed(2)}/h`, 155, y, { align: 'right' })
+      doc.setFontSize(9).setTextColor(30).setFont('helvetica', 'normal').text(line.description, ml + 2, y)
+      doc.setTextColor(90)
+      doc.text(`${line.hours.toFixed(2)}h`, 120, y, { align: 'right' })
+      doc.text(`€${line.rate.toFixed(2)}`, 143, y, { align: 'right' })
+      doc.text(`${line.vat_rate ?? vatPct}%`, 163, y, { align: 'right' })
       doc.setTextColor(30).setFont('helvetica', 'bold').text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
       doc.setFont('helvetica', 'normal'); y += 7
     }
+
+    // Totals
     y += 4; doc.line(ml, y, mr, y); y += 6
-    doc.setFontSize(9).setTextColor(100).text('Subtotal', 145, y)
-    doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
-    y += 8; doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y); y += 7
-    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(30).text('Total', 145, y).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' })
-    if (inv.notes) {
-      y += 16; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 8
-      doc.setFontSize(8).setTextColor(150).setFont('helvetica', 'bold').text('NOTES', ml, y); y += 5
-      doc.setFontSize(9).setTextColor(80).setFont('helvetica', 'normal').text(doc.splitTextToSize(inv.notes, mr - ml), ml, y)
+    doc.setFontSize(8).setTextColor(100)
+    doc.text('Nettobetrag', 145, y)
+    doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' }); y += 6
+    doc.setTextColor(100).text(`USt. ${vatPct}%`, 145, y)
+    doc.setTextColor(30).text(`€${vatAmt.toFixed(2)}`, mr, y, { align: 'right' }); y += 2
+    doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y); y += 6
+    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(30)
+    doc.text('Gesamtbetrag', 145, y).text(`€${total.toFixed(2)}`, mr, y, { align: 'right' })
+
+    // Payment details
+    const iban = inv.payment_iban || s?.iban
+    const bic  = inv.payment_bic  || s?.bic
+    if (iban) {
+      y += 14; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 7
+      doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('ZAHLUNGSINFORMATIONEN', ml, y); y += 5
+      doc.setFontSize(8).setTextColor(60).setFont('helvetica', 'normal')
+      doc.text(`IBAN: ${iban}`, ml, y)
+      if (bic) doc.text(`BIC: ${bic}`, ml + 90, y)
+      y += 5
+      doc.text(`Empfänger: ${s?.legal_name || ''}`, ml, y)
     }
-    doc.setFontSize(8).setTextColor(180).setFont('helvetica', 'normal').text('Generated by Kairos', W / 2, 285, { align: 'center' })
+
+    // Reverse charge note
+    if (vatPct === 0 && inv.notes?.length) {
+      y += 10; doc.setFontSize(7).setTextColor(100).text(inv.notes, ml, y, { maxWidth: mr - ml })
+    } else if (inv.notes) {
+      y += 10; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 7
+      doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('ANMERKUNGEN', ml, y); y += 5
+      doc.setFontSize(8).setTextColor(80).setFont('helvetica', 'normal').text(doc.splitTextToSize(inv.notes, mr - ml), ml, y)
+    }
+
+    doc.setFontSize(7).setTextColor(180).setFont('helvetica', 'normal').text('Erstellt mit Kairos · EN 16931 konform', 105, 287, { align: 'center' })
     doc.save(`${inv.invoice_number}.pdf`)
   }
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
+  const vatAmount = Math.round(subtotal * selectedVat.value / 100 * 100) / 100
+  const total = subtotal + vatAmount
   const selectedClient = clients.find(c => c.id === clientId)
 
   if (!can(role, 'manage:invoices')) return null
@@ -445,14 +714,43 @@ export default function InvoicesPage() {
               <div><label className="label">{t('invoiceNumber')}</label><input className="input" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
               <div><label className="label">{t('issueDate')}</label><input type="date" className="input" value={issueDate} onChange={e => setIssueDate(e.target.value)} /></div>
               <div><label className="label">{t('dueDate')}</label><input type="date" className="input" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
+
+              {/* VAT rate — EN 16931 requirement */}
+              <div>
+                <label className="label">Steuersatz (USt.)</label>
+                <select className="input" value={vatRateIdx} onChange={e => { setVatRateIdx(Number(e.target.value)); setGenerated(false) }}>
+                  {VAT_OPTIONS.map((v, i) => <option key={i} value={i}>{v.label}</option>)}
+                </select>
+              </div>
+
+              {/* Order reference — ebInterface 6.1 */}
+              <div>
+                <label className="label">Bestellreferenz <span className="text-muted-foreground/50">(ebInterface)</span></label>
+                <input className="input" placeholder="Auftragsnummer, PO-Nr. …" value={orderReference} onChange={e => setOrderReference(e.target.value)} />
+              </div>
+
               <div className="col-span-2 md:col-span-3">
                 <label className="label">{t('notesPayment')}</label>
-                <textarea className="input resize-none" rows={2} placeholder={t('ibanPlaceholder')} value={notes} onChange={e => setNotes(e.target.value)} />
+                <textarea className="input resize-none" rows={2} placeholder="Zahlungshinweise, Anmerkungen …" value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
             </div>
+
+            {/* Missing legal info warning */}
+            {(!workspace?.vat_id || !workspace?.iban) && (
+              <div className="mt-4 flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Für EN 16931 konforme Rechnungen bitte{' '}
+                  {!workspace?.vat_id && <strong>UID-Nummer</strong>}
+                  {!workspace?.vat_id && !workspace?.iban && ' und '}
+                  {!workspace?.iban && <strong>IBAN</strong>}
+                  {' '}in den <a href="/settings" className="underline">Einstellungen → Unternehmensdaten</a> hinterlegen.
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Hours summary — only when client is selected */}
+          {/* Hours summary */}
           {clientId && (
             <div className="card p-5 mb-5 print:hidden">
               <div className="flex items-center justify-between mb-4">
@@ -466,7 +764,6 @@ export default function InvoicesPage() {
 
               {!summaryLoading && hoursSummary.length > 0 && (
                 <>
-                  {/* Per-project breakdown */}
                   <div className="space-y-0 rounded-lg border border-border overflow-hidden mb-4">
                     <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted/40 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       <span className="col-span-2">{t('projectCol')}</span>
@@ -500,22 +797,14 @@ export default function InvoicesPage() {
                         </div>
                       </div>
                     ))}
-                    {/* Totals row */}
                     <div className="grid grid-cols-5 gap-2 px-4 py-3 border-t-2 border-border bg-muted/20 items-center">
                       <span className="col-span-2 text-xs font-semibold text-foreground">{t('totalRow')}</span>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-emerald-600">{totalApproved.toFixed(1)}h</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-amber-500">{totalPending.toFixed(1)}h</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-muted-foreground">{totalDraft.toFixed(1)}h</span>
-                      </div>
+                      <div className="text-right"><span className="text-xs font-bold text-emerald-600">{totalApproved.toFixed(1)}h</span></div>
+                      <div className="text-right"><span className="text-xs font-bold text-amber-500">{totalPending.toFixed(1)}h</span></div>
+                      <div className="text-right"><span className="text-xs font-bold text-muted-foreground">{totalDraft.toFixed(1)}h</span></div>
                     </div>
                   </div>
 
-                  {/* Status callouts */}
                   {totalApproved > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-3">
                       <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -528,29 +817,23 @@ export default function InvoicesPage() {
                   {totalApproved === 0 && totalPending > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
                       <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        <span className="font-semibold">{t('noApprovedYet')}</span> {totalPending.toFixed(1)}h {t('pendingAwaitingApproval')}
-                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400"><span className="font-semibold">{t('noApprovedYet')}</span> {totalPending.toFixed(1)}h {t('pendingAwaitingApproval')}</p>
                     </div>
                   )}
                   {totalApproved === 0 && totalPending === 0 && hoursSummary.length > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
                       <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        <span className="font-semibold">{t('noApprovedHours')}</span> {t('mustBeApproved')}
-                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400"><span className="font-semibold">{t('noApprovedHours')}</span> {t('mustBeApproved')}</p>
                     </div>
                   )}
                 </>
               )}
 
-              {/* Action buttons */}
               <div className="flex flex-wrap items-center gap-3 mt-2">
                 <button
                   onClick={generate}
                   disabled={loading || !clientId || totalApproved === 0 || summaryLoading}
                   className="btn-primary flex items-center gap-2 disabled:opacity-40"
-                  title={totalApproved === 0 ? 'No approved hours to invoice' : ''}
                 >
                   <FileText className="w-4 h-4" /> {loading ? t('generating') : t('generateApprovedOnly')}
                 </button>
@@ -564,12 +847,12 @@ export default function InvoicesPage() {
                     </button>
                     <button
                       onClick={() => exportBMDNTCS(
-                        { id: '', invoice_number: invoiceNumber, client_name: selectedClient?.name || '', client_id: clientId, issue_date: issueDate, due_date: dueDate, period_from: fromDate, period_to: toDate, subtotal, notes, status: currentStatus, lines, sent_at: null, paid_at: null, created_at: new Date().toISOString() },
+                        { id: '', invoice_number: invoiceNumber, client_name: selectedClient?.name || '', client_id: clientId, issue_date: issueDate, due_date: dueDate, period_from: fromDate, period_to: toDate, subtotal, vat_rate: selectedVat.value, vat_amount: vatAmount, total, notes, status: currentStatus, lines, seller_snapshot: workspace, buyer_snapshot: selectedClient ?? null, payment_iban: workspace?.iban ?? null, payment_bic: workspace?.bic ?? null, order_reference: orderReference || null, sent_at: null, paid_at: null, created_at: new Date().toISOString() },
                         taxCode, revenueAccount, debitorAccount
                       )}
                       className="btn-secondary flex items-center gap-2"
                     >
-                      <Package className="w-4 h-4" /> {t('exportBMD')}
+                      <Package className="w-4 h-4" /> BMD
                     </button>
                   </>
                 )}
@@ -577,41 +860,47 @@ export default function InvoicesPage() {
             </div>
           )}
 
-          {/* Invoice preview */}
+          {/* Invoice preview — EN 16931 layout */}
           {generated && (
             <div className="card p-10 bg-white dark:bg-[hsl(217.2,32.6%,10%)]" id="invoice-preview">
+              {/* Header */}
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{t('invoice')}</h2>
-                  <p className="text-gray-400 text-sm">#{invoiceNumber}</p>
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">RECHNUNG</h2>
+                  <p className="text-gray-400 text-sm">Nr. {invoiceNumber}</p>
+                  {orderReference && <p className="text-gray-400 text-xs mt-0.5">Ref.: {orderReference}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-gray-900 dark:text-white text-lg">{profile?.full_name || profile?.email}</p>
-                  <p className="text-gray-400 text-sm mt-1">{profile?.email}</p>
+                  {sellerBlock(workspace, profile?.full_name ?? null, profile?.email ?? null).map((l, i) => (
+                    <p key={i} className={i === 0 ? 'font-bold text-gray-900 dark:text-white text-base' : 'text-gray-400 text-xs mt-0.5'}>{l}</p>
+                  ))}
                   <div className="mt-2">{statusBadge(currentStatus, t)}</div>
                 </div>
               </div>
 
+              {/* Parties + dates */}
               <div className="grid grid-cols-2 gap-8 mb-10">
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('billTo')}</p>
-                  <p className="font-semibold text-gray-900 dark:text-white text-lg">{selectedClient?.name}</p>
-                  {selectedClient?.email && <p className="text-gray-400 text-sm mt-1">{selectedClient.email}</p>}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Rechnungsempfänger</p>
+                  {buyerBlock(selectedClient ?? null).map((l, i) => (
+                    <p key={i} className={i === 0 ? 'font-semibold text-gray-900 dark:text-white text-base' : 'text-gray-500 dark:text-gray-400 text-sm mt-0.5'}>{l}</p>
+                  ))}
                 </div>
                 <div className="text-right space-y-1">
-                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">{t('issueDate')}</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(issueDate), 'MMM d, yyyy')}</span></div>
-                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">{t('dueDate')}</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(dueDate), 'MMM d, yyyy')}</span></div>
-                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">{t('period')}</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(fromDate), 'MMM d')} – {format(new Date(toDate), 'MMM d, yyyy')}</span></div>
+                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">Rechnungsdatum</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(issueDate), 'dd.MM.yyyy')}</span></div>
+                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">Fällig am</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(dueDate), 'dd.MM.yyyy')}</span></div>
+                  <div className="flex justify-end gap-8"><span className="text-xs text-gray-400 uppercase tracking-wider">Zeitraum</span><span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{format(new Date(fromDate), 'dd.MM.')} – {format(new Date(toDate), 'dd.MM.yyyy')}</span></div>
                 </div>
               </div>
 
+              {/* Line items */}
               <table className="w-full mb-8">
                 <thead>
                   <tr className="border-b-2 border-gray-200 dark:border-gray-700">
-                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Description</th>
-                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Hours</th>
-                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Rate</th>
-                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Amount</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Beschreibung</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Stunden</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Preis/h</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Netto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -626,20 +915,38 @@ export default function InvoicesPage() {
                 </tbody>
               </table>
 
+              {/* Totals */}
               <div className="flex justify-end mb-8">
-                <div className="w-64">
-                  <div className="flex justify-between py-2"><span className="text-gray-500">{t('subtotal')}</span><span className="font-medium text-gray-900 dark:text-white">{formatMoney(subtotal)}</span></div>
-                  <div className="flex justify-between py-3 border-t-2 border-gray-900 dark:border-gray-400 mt-1"><span className="font-bold text-gray-900 dark:text-white text-lg">Total</span><span className="font-bold text-gray-900 dark:text-white text-lg">{formatMoney(subtotal)}</span></div>
+                <div className="w-72">
+                  <div className="flex justify-between py-2 text-sm"><span className="text-gray-500">Nettobetrag</span><span className="font-medium text-gray-900 dark:text-white">{formatMoney(subtotal)}</span></div>
+                  <div className="flex justify-between py-2 text-sm border-b border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-500">USt. {selectedVat.value}% ({selectedVat.taxCode})</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{formatMoney(vatAmount)}</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-t-2 border-gray-900 dark:border-gray-400 mt-1">
+                    <span className="font-bold text-gray-900 dark:text-white text-lg">Gesamtbetrag</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-lg">{formatMoney(total)}</span>
+                  </div>
                 </div>
               </div>
 
+              {/* Payment info */}
+              {(workspace?.iban) && (
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mb-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bankverbindung</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{workspace.legal_name || ''}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">IBAN: {workspace.iban}{workspace.bic ? ` · BIC: ${workspace.bic}` : ''}</p>
+                </div>
+              )}
+
               {notes && (
                 <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Anmerkungen</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{notes}</p>
                 </div>
               )}
-              <div className="mt-10 text-center"><p className="text-xs text-gray-300">{t('generatedBy')}</p></div>
+
+              <div className="mt-10 text-center"><p className="text-xs text-gray-300">Erstellt mit Kairos · EN 16931 konform</p></div>
             </div>
           )}
         </>
@@ -675,8 +982,9 @@ export default function InvoicesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{inv.client_name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(inv.issue_date), 'MMM d, yyyy')} · Due {format(new Date(inv.due_date), 'MMM d, yyyy')} · {t('period')}: {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
+                    {format(new Date(inv.issue_date), 'MMM d, yyyy')} · Fällig {format(new Date(inv.due_date), 'MMM d, yyyy')} · {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
                   </p>
+                  {inv.order_reference && <p className="text-xs text-muted-foreground/60 mt-0.5">Ref.: {inv.order_reference}</p>}
                   {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{inv.notes}</p>}
                   {inv.lines && inv.lines.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -689,7 +997,10 @@ export default function InvoicesPage() {
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-foreground">{formatMoney(inv.subtotal)}</p>
+                  <p className="font-bold text-foreground">{formatMoney(inv.total ?? inv.subtotal)}</p>
+                  {(inv.vat_amount ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">inkl. {formatMoney(inv.vat_amount)} USt.</p>
+                  )}
                   <div className="flex gap-2 mt-2 justify-end flex-wrap">
                     {inv.status === 'sent' && (
                       <button onClick={() => updateStatus(inv.id, 'paid')} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10">
@@ -701,6 +1012,9 @@ export default function InvoicesPage() {
                     </button>
                     <button onClick={() => exportBMDNTCS(inv, taxCode, revenueAccount, debitorAccount)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
                       <Package className="w-3 h-3" /> BMD
+                    </button>
+                    <button onClick={() => exportEBInterface(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1" title="ebInterface 6.1 XML exportieren">
+                      <Code2 className="w-3 h-3" /> ebi
                     </button>
                     <button onClick={() => setEditingInvoice(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
                       <Pencil className="w-3 h-3" />
@@ -727,13 +1041,14 @@ export default function InvoicesPage() {
       {editingInvoice && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-md">
-            <h3 className="font-semibold text-foreground mb-5 text-sm">Edit Invoice</h3>
+            <h3 className="font-semibold text-foreground mb-5 text-sm">Rechnung bearbeiten</h3>
             <div className="space-y-4">
-              <div><label className="label">Invoice Number</label><input className="input" value={editingInvoice.invoice_number} onChange={e => setEditingInvoice({ ...editingInvoice, invoice_number: e.target.value })} /></div>
+              <div><label className="label">Rechnungsnummer</label><input className="input" value={editingInvoice.invoice_number} onChange={e => setEditingInvoice({ ...editingInvoice, invoice_number: e.target.value })} /></div>
               <div><label className="label">{t('dueDate')}</label><input type="date" className="input" value={editingInvoice.due_date} onChange={e => setEditingInvoice({ ...editingInvoice, due_date: e.target.value })} /></div>
+              <div><label className="label">Bestellreferenz</label><input className="input" placeholder="Auftragsnummer …" value={editingInvoice.order_reference || ''} onChange={e => setEditingInvoice({ ...editingInvoice, order_reference: e.target.value })} /></div>
               <div><label className="label">{t('notesPayment')}</label><textarea className="input resize-none" rows={3} value={editingInvoice.notes || ''} onChange={e => setEditingInvoice({ ...editingInvoice, notes: e.target.value })} /></div>
               <div>
-                <p className="label mb-2">Line items (read-only)</p>
+                <p className="label mb-2">Positionen (nur lesen)</p>
                 <div className="rounded-lg border border-border divide-y divide-border text-xs">
                   {editingInvoice.lines.map((l, i) => (
                     <div key={i} className="flex justify-between px-3 py-2 text-muted-foreground">
@@ -741,8 +1056,14 @@ export default function InvoicesPage() {
                       <span className="font-medium text-foreground">{formatMoney(l.amount)}</span>
                     </div>
                   ))}
+                  {(editingInvoice.vat_amount ?? 0) > 0 && (
+                    <div className="flex justify-between px-3 py-2 text-muted-foreground">
+                      <span>USt. {editingInvoice.vat_rate}%</span>
+                      <span>{formatMoney(editingInvoice.vat_amount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between px-3 py-2 font-semibold text-foreground">
-                    <span>Total</span><span>{formatMoney(editingInvoice.subtotal)}</span>
+                    <span>Gesamt</span><span>{formatMoney(editingInvoice.total ?? editingInvoice.subtotal)}</span>
                   </div>
                 </div>
               </div>

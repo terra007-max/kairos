@@ -31,6 +31,11 @@ export type Client = {
   color: string
   logo_url: string | null
   notes: string | null
+  address_street: string | null
+  address_city: string | null
+  address_zip: string | null
+  address_country: string | null
+  vat_id: string | null
   created_at: string
 }
 

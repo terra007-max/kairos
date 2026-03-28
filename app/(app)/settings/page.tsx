@@ -9,7 +9,7 @@ import { type ConsultantLevel } from '@/lib/types'
 import { useTheme } from 'next-themes'
 import {
   Plus, Trash2, GripVertical, Settings, Users,
-  Mail, Crown, Globe, Sun, Moon, Monitor, Receipt, UserPlus, User
+  Mail, Crown, Globe, Sun, Moon, Monitor, Receipt, UserPlus, User, Building2
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -40,6 +40,18 @@ export default function SettingsPage() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('')
   const [profileSaved, setProfileSaved] = useState(false)
 
+  // Company legal info (EN 16931 / ebInterface)
+  const [legalName, setLegalName] = useState('')
+  const [addressStreet, setAddressStreet] = useState('')
+  const [addressCity, setAddressCity] = useState('')
+  const [addressZip, setAddressZip] = useState('')
+  const [addressCountry, setAddressCountry] = useState('AT')
+  const [vatId, setVatId] = useState('')
+  const [companyReg, setCompanyReg] = useState('')
+  const [iban, setIban] = useState('')
+  const [bic, setBic] = useState('')
+  const [legalSaved, setLegalSaved] = useState(false)
+
   // BMD NTCS settings
   const [taxCode, setTaxCode] = useState('U20')
   const [revenueAccount, setRevenueAccount] = useState('4000')
@@ -52,6 +64,24 @@ export default function SettingsPage() {
     setRevenueAccount(localStorage.getItem('kairos-bmd-revenue') || '4000')
     setDebitorAccount(localStorage.getItem('kairos-bmd-debitor') || '10000')
   }, [])
+
+  const loadLegalInfo = useCallback(async () => {
+    if (!workspaceId) return
+    const { data } = await supabase.from('workspaces').select(
+      'legal_name, address_street, address_city, address_zip, address_country, vat_id, company_reg, iban, bic'
+    ).eq('id', workspaceId).single()
+    if (data) {
+      setLegalName(data.legal_name || '')
+      setAddressStreet(data.address_street || '')
+      setAddressCity(data.address_city || '')
+      setAddressZip(data.address_zip || '')
+      setAddressCountry(data.address_country || 'AT')
+      setVatId(data.vat_id || '')
+      setCompanyReg(data.company_reg || '')
+      setIban(data.iban || '')
+      setBic(data.bic || '')
+    }
+  }, [supabase, workspaceId])
 
   const loadLevels = useCallback(async () => {
     if (!workspaceId) return
@@ -104,6 +134,7 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
+    if (role === 'admin') loadLegalInfo()
     loadLevels()
     loadUnassignedUsers()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -125,7 +156,7 @@ export default function SettingsPage() {
         setSelectedWorkspaceId(active.workspace_id)
       }
     })
-  }, [loadLevels, loadUnassignedUsers, supabase.auth, supabase])
+  }, [loadLevels, loadUnassignedUsers, loadLegalInfo, supabase.auth, supabase, role])
 
   async function addLevel() {
     if (!newLevelName.trim()) return
@@ -185,6 +216,22 @@ export default function SettingsPage() {
   async function saveWorkspaceName() {
     await supabase.from('workspaces').update({ name: wsName }).eq('id', workspaceId)
     reload()
+  }
+
+  async function saveLegalInfo() {
+    await supabase.from('workspaces').update({
+      legal_name: legalName || null,
+      address_street: addressStreet || null,
+      address_city: addressCity || null,
+      address_zip: addressZip || null,
+      address_country: addressCountry || 'AT',
+      vat_id: vatId || null,
+      company_reg: companyReg || null,
+      iban: iban || null,
+      bic: bic || null,
+    }).eq('id', workspaceId)
+    setLegalSaved(true)
+    setTimeout(() => setLegalSaved(false), 2000)
   }
 
   async function saveMember(memberId: string) {
@@ -333,6 +380,65 @@ export default function SettingsPage() {
               <input className="input flex-1" value={wsName} onChange={e => setWsName(e.target.value)} />
               <button onClick={saveWorkspaceName} className="btn-primary">{t('save')}</button>
             </div>
+          </div>
+        )}
+
+        {/* Company legal info — EN 16931 / ebInterface (admin only) */}
+        {role === 'admin' && (
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground text-sm">Unternehmensdaten / Legal Info</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Pflichtangaben für konforme Rechnungen nach EN 16931 und ebInterface 6.1 (Rechnungen an Behörden).
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="label">Firmenname (rechtlich)</label>
+                <input className="input" placeholder="Kairos Consulting GmbH" value={legalName} onChange={e => setLegalName(e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Straße &amp; Hausnummer</label>
+                <input className="input" placeholder="Musterstraße 1" value={addressStreet} onChange={e => setAddressStreet(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">PLZ</label>
+                <input className="input" placeholder="1010" value={addressZip} onChange={e => setAddressZip(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Ort</label>
+                <input className="input" placeholder="Wien" value={addressCity} onChange={e => setAddressCity(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Land (ISO)</label>
+                <select className="input" value={addressCountry} onChange={e => setAddressCountry(e.target.value)}>
+                  <option value="AT">AT — Österreich</option>
+                  <option value="DE">DE — Deutschland</option>
+                  <option value="CH">CH — Schweiz</option>
+                  <option value="US">US — United States</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">UID-Nummer</label>
+                <input className="input" placeholder="ATU12345678" value={vatId} onChange={e => setVatId(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Firmenbuchnummer (optional)</label>
+                <input className="input" placeholder="FN 123456 a" value={companyReg} onChange={e => setCompanyReg(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">IBAN</label>
+                <input className="input" placeholder="AT12 3456 7890 1234 5678" value={iban} onChange={e => setIban(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">BIC</label>
+                <input className="input" placeholder="RLNWATWW" value={bic} onChange={e => setBic(e.target.value)} />
+              </div>
+            </div>
+            <button onClick={saveLegalInfo} className="btn-primary mt-4">
+              {legalSaved ? '✓ Gespeichert' : 'Speichern'}
+            </button>
           </div>
         )}
 

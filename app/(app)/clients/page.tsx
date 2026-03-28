@@ -7,6 +7,7 @@ import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { type Client } from '@/lib/types'
 import { Users, Plus, Pencil, Trash2, Upload, X } from 'lucide-react'
+import { ClientAvatar } from '@/components/ClientAvatar'
 
 const COLORS = ['#6366f1','#f97316','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899']
 
@@ -110,26 +111,6 @@ export default function ClientsPage() {
   )
 }
 
-export function ClientAvatar({ client, size = 36 }: { client: Pick<Client, 'name' | 'color' | 'logo_url'>; size?: number }) {
-  if (client.logo_url) {
-    return (
-      <img
-        src={client.logo_url}
-        alt={client.name}
-        width={size}
-        height={size}
-        style={{ width: size, height: size, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
-      />
-    )
-  }
-  return (
-    <div
-      style={{ width: size, height: size, borderRadius: 10, backgroundColor: client.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <span style={{ fontSize: size * 0.38, color: 'white', fontWeight: 700 }}>{client.name[0].toUpperCase()}</span>
-    </div>
-  )
-}
 
 function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: string; client: Client | null; onSave: () => void; onCancel: () => void }) {
   const supabase = createClient()
@@ -141,6 +122,11 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
   const [notes, setNotes] = useState(client?.notes || '')
   const [logoUrl, setLogoUrl] = useState<string | null>(client?.logo_url || null)
   const [logoMode, setLogoMode] = useState<'color' | 'logo'>(client?.logo_url ? 'logo' : 'color')
+  const [addressStreet, setAddressStreet] = useState(client?.address_street || '')
+  const [addressCity, setAddressCity] = useState(client?.address_city || '')
+  const [addressZip, setAddressZip] = useState(client?.address_zip || '')
+  const [addressCountry, setAddressCountry] = useState(client?.address_country || 'AT')
+  const [vatId, setVatId] = useState(client?.vat_id || '')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -175,6 +161,11 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
       color,
       logo_url: logoMode === 'logo' ? logoUrl : null,
       notes: notes || null,
+      address_street: addressStreet || null,
+      address_city: addressCity || null,
+      address_zip: addressZip || null,
+      address_country: addressCountry || 'AT',
+      vat_id: vatId || null,
     }
     if (client) {
       await supabase.from('clients').update(payload).eq('id', client.id)
@@ -235,6 +226,38 @@ function ClientForm({ workspaceId, client, onSave, onCancel }: { workspaceId: st
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0])} />
             </div>
           )}
+        </div>
+
+        {/* Billing address */}
+        <div className="col-span-2 pt-2 border-t border-border">
+          <p className="text-xs font-medium text-muted-foreground mb-3">Rechnungsadresse (EN 16931)</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="label">Straße &amp; Nr.</label>
+              <input className="input" placeholder="Musterstraße 1" value={addressStreet} onChange={e => setAddressStreet(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">PLZ</label>
+              <input className="input" placeholder="1010" value={addressZip} onChange={e => setAddressZip(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Ort</label>
+              <input className="input" placeholder="Wien" value={addressCity} onChange={e => setAddressCity(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Land (ISO)</label>
+              <select className="input" value={addressCountry} onChange={e => setAddressCountry(e.target.value)}>
+                <option value="AT">AT — Österreich</option>
+                <option value="DE">DE — Deutschland</option>
+                <option value="CH">CH — Schweiz</option>
+                <option value="US">US — United States</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">UID-Nummer (optional)</label>
+              <input className="input" placeholder="ATU12345678" value={vatId} onChange={e => setVatId(e.target.value)} />
+            </div>
+          </div>
         </div>
 
         <div className="col-span-2"><label className="label">{t('notes')}</label><input className="input" placeholder="Optional…" value={notes} onChange={e => setNotes(e.target.value)} /></div>
