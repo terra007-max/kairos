@@ -22,3 +22,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .vercel
+
+# Playwright auth state (contains session tokens)
+__tests__/e2e/.auth/
+playwright-report/
+test-results/
