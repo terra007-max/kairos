@@ -736,7 +736,7 @@ export default function InvoicesPage() {
             </div>
 
             {/* Missing legal info warning */}
-            {(!workspace?.vat_id || !workspace?.iban) && (
+            {workspace !== null && (!workspace.vat_id || !workspace.iban) && (
               <div className="mt-4 flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-600 dark:text-amber-400">
