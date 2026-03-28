@@ -35,8 +35,9 @@ export async function POST(req: NextRequest) {
 
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  if (membership.role !== 'admin') {
-    // Must be PM of a project that the timesheet user is a member of
+  // Admin and partner can always approve
+  if (membership.role !== 'admin' && membership.role !== 'partner') {
+    // Must be PM of a project the timesheet user actually tracked time on in that week
     const { data: ts } = await adminSupabase
       .from('timesheets')
       .select('user_id, week_start')
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (!ts) return NextResponse.json({ error: 'Timesheet not found.' }, { status: 404 })
 
-    // Get projects managed by this PM
+    // Get projects managed by this reviewer
     const { data: managedProjects } = await adminSupabase
       .from('projects')
       .select('id')
@@ -56,13 +57,19 @@ export async function POST(req: NextRequest) {
     const managedIds = (managedProjects || []).map((p: any) => p.id)
     if (managedIds.length === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    // Check the timesheet user is a member of one of those projects
+    // Check: does the timesheet user have time_entries on a managed project in that week?
+    const weekStart = new Date(ts.week_start)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+
     const { count } = await adminSupabase
-      .from('project_members')
+      .from('time_entries')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('user_id', ts.user_id)
       .in('project_id', managedIds)
+      .gte('start_time', weekStart.toISOString())
+      .lt('start_time', weekEnd.toISOString())
 
     if (!count || count === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

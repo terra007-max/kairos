@@ -230,7 +230,20 @@ export default function TimesheetsPage() {
 
       const enriched = (teamTs || [])
         .filter(ts => ts.user_id !== uid)
-        .filter(ts => !pmUserIds || pmUserIds.includes(ts.user_id))
+        .filter(ts => {
+          // Admin/partner: see all
+          if (!pmUserIds) return true
+          // PM: only show timesheets where this specific week has entries on their managed projects
+          // (not just "this user ever worked on a managed project")
+          const weekStart   = new Date(ts.week_start)
+          const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 })
+          return (allEntries || []).some((e: any) =>
+            e.user_id === ts.user_id &&
+            managedProjectIds.includes(e.project_id) &&
+            new Date(e.start_time) >= weekStart &&
+            new Date(e.start_time) <= weekEndDate
+          )
+        })
         .map(ts => {
           const member      = members.find(m => m.user_id === ts.user_id)
           const weekStart   = new Date(ts.week_start)
