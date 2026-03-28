@@ -60,4 +60,4 @@ CREATE POLICY "Admin and partner manage invoices" ON public.invoices FOR ALL
     )
   );
 
-RAISE NOTICE 'Role update complete';
+DO $$ BEGIN RAISE NOTICE 'Role update complete'; END $$;
