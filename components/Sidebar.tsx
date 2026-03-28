@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Clock, LayoutDashboard, FolderOpen, Users, BarChart2, LogOut, Timer, Settings, FileText, User, Scale, ClipboardList, LineChart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { formatDuration } from '@/lib/types'
@@ -46,10 +47,10 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
     { href: '/dashboard',   label: t('dashboard'),    icon: LayoutDashboard, show: true },
     { href: '/timer',       label: t('timer'),         icon: Timer,           show: true },
     { href: '/projects',    label: t('projects'),      icon: FolderOpen,      show: true },
-    { href: '/clients',     label: t('clients'),       icon: Users,           show: role === 'admin' },
+    { href: '/clients',     label: t('clients'),       icon: Users,           show: can(role, 'manage:clients') },
     { href: '/timesheets',  label: t('timesheets'),    icon: ClipboardList,   show: true },
-    { href: '/invoices',    label: t('invoices'),      icon: FileText,        show: role === 'admin' },
-    { href: '/analytics',   label: 'Analytics',        icon: LineChart,       show: role === 'admin' || isProjectManager },
+    { href: '/invoices',    label: t('invoices'),      icon: FileText,        show: can(role, 'manage:invoices') },
+    { href: '/analytics',   label: 'Analytics',        icon: LineChart,       show: can(role, 'view:analytics') || isProjectManager },
     { href: '/reports',     label: t('reports'),       icon: BarChart2,       show: true },
     { href: '/settings',    label: t('settings'),      icon: Settings,        show: true },
     { href: '/impressum',   label: t('legalNotice'),   icon: Scale,           show: true },
@@ -122,7 +123,7 @@ export default function Sidebar({ userName, onClose }: { userName: string; onClo
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate leading-tight">{userName}</p>
             <p className="text-xs text-muted-foreground leading-tight">
-              {role === 'admin' ? 'Partner' : isProjectManager ? 'Project Manager' : 'Member'}
+              {role === 'admin' ? 'Admin' : role === 'partner' ? 'Partner' : isProjectManager ? 'Project Manager' : 'Member'}
             </p>
           </div>
           <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   // Get all profiles not in this workspace
   let profilesQuery = adminSupabase.from('profiles').select('id, email, full_name')
   if (existingIds.length > 0) {
-    profilesQuery = profilesQuery.not('id', 'in', `(${existingIds.join(',')})`)
+    profilesQuery = profilesQuery.not('id', 'in', existingIds)
   }
   const { data: profiles } = await profilesQuery
 
