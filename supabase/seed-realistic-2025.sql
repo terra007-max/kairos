@@ -6,10 +6,10 @@
 -- Clears: all other users + all data, then re-seeds.
 --
 -- Users created:
---   sophie.wagner@kairos.at   Partner      (password: Kairos2025!)
---   thomas.berger@kairos.at   Project Mgr  (password: Kairos2025!)
---   anna.mueller@kairos.at    Member/Jun   (password: Kairos2025!)
---   markus.hofer@kairos.at    Member/Sen   (password: Kairos2025!)
+--   kati.brummer@kairos.at    Partner      (password: Kairos2025!)
+--   moritz.flint@kairos.at    Project Mgr  (password: Kairos2025!)
+--   hanni.brezina@kairos.at   Member/Jun   (password: Kairos2025!)
+--   rudi.rabauke@kairos.at    Member/Sen   (password: Kairos2025!)
 -- ══════════════════════════════════════════════════════════════════════════════
 
 DO $$
@@ -96,23 +96,23 @@ BEGIN
     raw_app_meta_data, raw_user_meta_data, is_super_admin
   ) VALUES
     ('00000000-0000-0000-0000-000000000000', u_partner, 'authenticated', 'authenticated',
-     'sophie.wagner@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+     'kati.brummer@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
     ('00000000-0000-0000-0000-000000000000', u_pm, 'authenticated', 'authenticated',
-     'thomas.berger@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+     'moritz.flint@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
     ('00000000-0000-0000-0000-000000000000', u_m1, 'authenticated', 'authenticated',
-     'anna.mueller@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+     'hanni.brezina@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
     ('00000000-0000-0000-0000-000000000000', u_m2, 'authenticated', 'authenticated',
-     'markus.hofer@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
+     'rudi.rabauke@kairos.at', crypt('Kairos2025!', gen_salt('bf', 10)),
      now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false);
 
   INSERT INTO public.profiles (id, email, full_name) VALUES
-    (u_partner, 'sophie.wagner@kairos.at',  'Sophie Wagner'),
-    (u_pm,      'thomas.berger@kairos.at',  'Thomas Berger'),
-    (u_m1,      'anna.mueller@kairos.at',   'Anna Müller'),
-    (u_m2,      'markus.hofer@kairos.at',   'Markus Hofer');
+    (u_partner, 'kati.brummer@kairos.at',  'Kati Brummer'),
+    (u_pm,      'moritz.flint@kairos.at',  'Moritz Flint'),
+    (u_m1,      'hanni.brezina@kairos.at',   'Hanni Brezina'),
+    (u_m2,      'rudi.rabauke@kairos.at',   'Rudi Rabauke');
 
   -- ── 1. Consultant Levels ───────────────────────────────────────────────────
   INSERT INTO public.consultant_levels (id, workspace_id, user_id, name, sort_order) VALUES
@@ -125,10 +125,10 @@ BEGIN
   INSERT INTO public.workspace_members
     (workspace_id, user_id, email, role, status, level_id, weekly_hours)
   VALUES
-    (ws_id, u_partner, 'sophie.wagner@kairos.at',  'partner',         'active', lv_par, 40),
-    (ws_id, u_pm,      'thomas.berger@kairos.at',  'project_manager', 'active', lv_mgr, 40),
-    (ws_id, u_m1,      'anna.mueller@kairos.at',   'member',          'active', lv_jun, 40),
-    (ws_id, u_m2,      'markus.hofer@kairos.at',   'member',          'active', lv_sen, 40);
+    (ws_id, u_partner, 'kati.brummer@kairos.at',  'partner',         'active', lv_par, 40),
+    (ws_id, u_pm,      'moritz.flint@kairos.at',  'project_manager', 'active', lv_mgr, 40),
+    (ws_id, u_m1,      'hanni.brezina@kairos.at',   'member',          'active', lv_jun, 40),
+    (ws_id, u_m2,      'rudi.rabauke@kairos.at',   'member',          'active', lv_sen, 40);
 
   -- Admin gets Partner level for display purposes (but no hours)
   UPDATE public.workspace_members SET level_id = lv_par WHERE user_id = admin_id AND workspace_id = ws_id;
@@ -462,6 +462,6 @@ BEGIN
     '[{"description":"Digitalisierung Mietverwaltung – Oktober 2025 (Projektabschluss)","hours":99,"rate":125,"amount":12375}]'::jsonb,
     '2025-11-03','2025-12-01');
 
-  RAISE NOTICE '✓ Seed complete. Users: sophie.wagner (Partner), thomas.berger (PM), anna.mueller (Junior), markus.hofer (Senior). Password: Kairos2025!';
+  RAISE NOTICE '✓ Seed complete. Users: kati.brummer (Partner), moritz.flint (PM), hanni.brezina (Junior), rudi.rabauke (Senior). Password: Kairos2025!';
 
 END $$;
