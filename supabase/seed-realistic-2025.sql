@@ -111,8 +111,9 @@ BEGIN
   INSERT INTO public.profiles (id, email, full_name) VALUES
     (u_partner, 'kati.brummer@kairos.at',  'Kati Brummer'),
     (u_pm,      'moritz.flint@kairos.at',  'Moritz Flint'),
-    (u_m1,      'hanni.brezina@kairos.at',   'Hanni Brezina'),
-    (u_m2,      'rudi.rabauke@kairos.at',   'Rudi Rabauke');
+    (u_m1,      'hanni.brezina@kairos.at', 'Hanni Brezina'),
+    (u_m2,      'rudi.rabauke@kairos.at',  'Rudi Rabauke')
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name;
 
   -- ── 1. Consultant Levels ───────────────────────────────────────────────────
   INSERT INTO public.consultant_levels (id, workspace_id, user_id, name, sort_order) VALUES
