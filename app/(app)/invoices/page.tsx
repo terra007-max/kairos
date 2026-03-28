@@ -124,11 +124,11 @@ export default function InvoicesPage() {
   }, [])
 
   useEffect(() => {
-    if (role === 'member') router.push('/dashboard')
+    if (role === 'member' || role === 'project_manager') router.push('/dashboard')
   }, [role, router])
 
   const load = useCallback(async () => {
-    if (!workspaceId || role !== 'admin') return
+    if (!workspaceId || (role !== 'admin' && role !== 'partner')) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const [{ data: cl }, { data: prof }] = await Promise.all([
@@ -393,7 +393,7 @@ export default function InvoicesPage() {
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
   const selectedClient = clients.find(c => c.id === clientId)
 
-  if (role === 'member') return null
+  if (role === 'member' || role === 'project_manager') return null
 
   return (
     <div>

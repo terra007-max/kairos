@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
         .select('*, client:clients(*), level_rates:project_level_rates(*)')
         .eq('workspace_id', workspaceId)
         .eq('status', 'active'),
-      role === 'admin'
+      (role === 'admin' || role === 'partner')
         ? supabase.from('invoices').select('id, subtotal, status, due_date, sent_at, paid_at, client_name').eq('workspace_id', workspaceId)
         : Promise.resolve({ data: [] }),
     ])
@@ -97,8 +97,8 @@ export default function AnalyticsPage() {
     </div>
   )
 
-  // ── Scope: Partners see all; Project Managers see their projects only ─────
-  const isAdmin = role === 'admin'
+  // ── Scope: Admin + Partner see all; Project Managers see their projects only
+  const isAdmin = role === 'admin' || role === 'partner'
   const scopedEntries = isAdmin ? entries : entries.filter(e => managedProjectIds.includes(e.project_id))
   const scopedProjects = isAdmin ? projects : projects.filter(p => managedProjectIds.includes(p.id))
 

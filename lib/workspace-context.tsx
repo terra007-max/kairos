@@ -3,11 +3,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+export type WorkspaceRole = 'admin' | 'partner' | 'project_manager' | 'member'
+
 export type WorkspaceMember = {
   id: string
   user_id: string | null
   email: string
-  role: 'admin' | 'member'
+  role: WorkspaceRole
   status: 'active' | 'pending'
   full_name?: string | null
   level_id?: string | null
@@ -19,8 +21,8 @@ export type ProxyUser = { userId: string; name: string }
 type WorkspaceCtx = {
   workspaceId: string
   workspaceName: string
-  role: 'admin' | 'member'           // 'member' when proxying
-  realRole: 'admin' | 'member'       // always the actual admin role
+  role: WorkspaceRole                // 'member' when proxying
+  realRole: WorkspaceRole            // always the actual role
   members: WorkspaceMember[]
   reload: () => Promise<void>
   effectiveUserId: string            // proxy userId when proxying, else own userId
@@ -49,7 +51,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const [base, setBase] = useState<{
     workspaceId: string
     workspaceName: string
-    realRole: 'admin' | 'member'
+    realRole: WorkspaceRole
     members: WorkspaceMember[]
     managedProjectIds: string[]
   } | null>(null)
@@ -93,7 +95,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     setBase({
       workspaceId: memberRow.workspace_id,
       workspaceName: ws?.name || 'My Workspace',
-      realRole: memberRow.role as 'admin' | 'member',
+      realRole: memberRow.role as WorkspaceRole,
       managedProjectIds: (managedProjects || []).map((p: any) => p.id),
       members: (members || []).map((m: any) => ({
         id: m.id,
@@ -114,7 +116,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   // Validate proxy: only allow proxying as someone who is actually in this workspace
   const ctx = useMemo<WorkspaceCtx | null>(() => {
     if (!base) return null
-    const validProxy = proxyUser && base.members.some(m => m.user_id === proxyUser.userId)
+    const canProxy = base.realRole === 'admin'
+    const validProxy = canProxy && proxyUser && base.members.some(m => m.user_id === proxyUser.userId)
     const effectiveProxy = validProxy ? proxyUser : null
     if (proxyUser && !validProxy) {
       // Stale/invalid proxy — clear it
@@ -131,7 +134,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       stopProxy,
       reload: load,
       managedProjectIds,
-      isProjectManager: managedProjectIds.length > 0,
+      isProjectManager: managedProjectIds.length > 0 || base.realRole === 'project_manager',
     }
   }, [base, proxyUser, userId, startProxy, stopProxy, load])
 
