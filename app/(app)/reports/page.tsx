@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n'
 import { formatDuration, formatMoney } from '@/lib/types'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseISO } from 'date-fns'
+import { de, enUS } from 'date-fns/locale'
 import { Download, Clock, TrendingUp, DollarSign } from 'lucide-react'
 
 type Range = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom'
@@ -25,7 +26,8 @@ function getRange(range: Range, custom: { from: string; to: string }) {
 export default function ReportsPage() {
   const supabase = createClient()
   const { workspaceId, role, members, effectiveUserId, isProjectManager } = useWorkspace()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? de : enUS
   const [range, setRange] = useState<Range>('this_month')
   const [custom, setCustom] = useState({ from: '', to: '' })
   const [entries, setEntries] = useState<any[]>([])
@@ -57,7 +59,7 @@ export default function ReportsPage() {
   const days = eachDayOfInterval({ start: fromDate, end: toDate })
   const dailyMap: Record<string, number> = {}
   entries.forEach(e => { const d = format(parseISO(e.start_time), 'yyyy-MM-dd'); dailyMap[d] = (dailyMap[d] || 0) + (e.duration_sec || 0) })
-  const dailyData = days.map(d => ({ date: format(d, 'MMM d'), hours: parseFloat(((dailyMap[format(d, 'yyyy-MM-dd')] || 0) / 3600).toFixed(2)) }))
+  const dailyData = days.map(d => ({ date: format(d, 'MMM d', { locale: dateFnsLocale }), hours: parseFloat(((dailyMap[format(d, 'yyyy-MM-dd')] || 0) / 3600).toFixed(2)) }))
 
   const projectMap: Record<string, { name: string; color: string; secs: number }> = {}
   entries.forEach(e => {
@@ -293,7 +295,7 @@ export default function ReportsPage() {
                       const member = members.find(m => m.user_id === e.user_id)
                       return (
                         <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{format(parseISO(e.start_time), 'MMM d, yyyy')}</td>
+                          <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{format(parseISO(e.start_time), 'MMM d, yyyy', { locale: dateFnsLocale })}</td>
                           <td className="px-5 py-3 text-xs text-foreground max-w-xs truncate">{e.description || <span className="text-muted-foreground/50 italic">—</span>}</td>
                           <td className="px-5 py-3">
                             {e.project ? <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.project.color }} />{e.project.name}</span> : <span className="text-xs text-muted-foreground/50">—</span>}

@@ -14,6 +14,7 @@ import {
   format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval,
   parseISO, differenceInDays, startOfWeek, endOfWeek, subWeeks
 } from 'date-fns'
+import { de, enUS } from 'date-fns/locale'
 import {
   TrendingUp, DollarSign, Users, Zap, AlertTriangle, CheckCircle,
   XCircle, Lock, ArrowUpRight, ArrowDownRight, Minus, ChevronLeft, Activity, Receipt
@@ -49,7 +50,8 @@ function TrendPill({ delta }: { delta: number }) {
 export default function AnalyticsPage() {
   const supabase = createClient()
   const { workspaceId, role, members, managedProjectIds, isProjectManager } = useWorkspace()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? de : enUS
   const [entries, setEntries] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
@@ -116,14 +118,19 @@ export default function AnalyticsPage() {
   const pmMemberUserIdSet = seeAll ? null : new Set(scopedEntries.map(e => e.user_id))
   const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIdSet || pmMemberUserIdSet.has(m.user_id)))
 
+  const periodLabel = period === 'this_week' ? t('thisWeekLabel')
+    : period === 'last_month' ? t('lastMonthLabel')
+    : period === 'last_3m' ? t('last3Months')
+    : t('thisMonthLabel')
+
   // ── Global period bounds (drives all KPIs, cashflow and utilization table) ─
   const periodBounds = (() => {
     const n = new Date()
     switch (period) {
-      case 'this_week': { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7), label: 'This week' } }
-      case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), label: 'Last month' } }
-      case 'last_3m': { const s = startOfMonth(subMonths(n, 2)); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7), label: 'Last 3 months' } }
-      default: { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7), label: 'This month' } }
+      case 'this_week': { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000) } }
+      case 'last_3m': { const s = startOfMonth(subMonths(n, 2)); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      default: { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
     }
   })()
 
@@ -152,7 +159,7 @@ export default function AnalyticsPage() {
     const rev = withEarnings.filter(e => e.billable && new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + e.earnings, 0)
     const hrs = withEarnings.filter(e => new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const forecast = isCurrentMonth && revenueForecast ? revenueForecast : undefined
-    return { month: format(m, 'MMM'), revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), forecast }
+    return { month: format(m, 'MMM', { locale: dateFnsLocale }), revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), forecast }
   })
 
   // ── Unified team utilization (overview) ──────────────────────────────────
@@ -239,8 +246,8 @@ export default function AnalyticsPage() {
     const thisWeekE = withEarnings.filter(e => e.user_id === m.user_id && new Date(e.start_time) >= thisWeekStart)
     const thisWeekBill  = thisWeekE.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const thisWeekTotal = thisWeekE.reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    if (thisWeekTotal === 0) anomalies.push({ message: `${m.full_name || m.email} — no time tracked this week`, severity: 'warning' })
-    else if (thisWeekBill === 0) anomalies.push({ message: `${m.full_name || m.email} — 0 billable hours this week`, severity: 'warning' })
+    if (thisWeekTotal === 0) anomalies.push({ message: `${m.full_name || m.email} — ${t('noTimeTrackedWeek')}`, severity: 'warning' })
+    else if (thisWeekBill === 0) anomalies.push({ message: `${m.full_name || m.email} — ${t('noBillableWeek')}`, severity: 'warning' })
   })
 
   scopedProjects.forEach(p => {
@@ -338,10 +345,10 @@ export default function AnalyticsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{t('analyticsSubtitle')}</p>
         </div>
         <select className="input w-auto text-xs py-1.5" value={period} onChange={e => setPeriod(e.target.value as any)}>
-          <option value="this_week">This week</option>
-          <option value="this_month">This month</option>
-          <option value="last_month">Last month</option>
-          <option value="last_3m">Last 3 months</option>
+          <option value="this_week">{t('thisWeekLabel')}</option>
+          <option value="this_month">{t('thisMonthLabel')}</option>
+          <option value="last_month">{t('lastMonthLabel')}</option>
+          <option value="last_3m">{t('last3Months')}</option>
         </select>
       </div>
 
@@ -352,8 +359,8 @@ export default function AnalyticsPage() {
             <div key={m.user_id} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-red-500">Burnout risk — {m.full_name || m.email}</p>
-                <p className="text-xs text-muted-foreground">Billable hours exceeded 100% capacity for 3 consecutive weeks. Consider rebalancing workload.</p>
+                <p className="text-xs font-semibold text-red-500">{t('burnoutRiskLabel')} — {m.full_name || m.email}</p>
+                <p className="text-xs text-muted-foreground">{t('burnoutRiskDetail')}</p>
               </div>
             </div>
           ))}
@@ -369,10 +376,10 @@ export default function AnalyticsPage() {
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: `Revenue · ${periodBounds.label}`, value: formatMoney(revenuePeriod), sub: revenueForecast ? `Forecast: ${formatMoney(revenueForecast)}` : t('billableOnly2'), icon: DollarSign, color: 'bg-emerald-500' },
+          { label: `${t('revenueMTD')} · ${periodLabel}`, value: formatMoney(revenuePeriod), sub: revenueForecast ? `${t('forecastPrefix')}: ${formatMoney(revenueForecast)}` : t('billableOnly2'), icon: DollarSign, color: 'bg-emerald-500' },
           { label: t('pipelineRemaining'), value: formatMoney(pipeline), sub: t('acrossAllProjects'), icon: TrendingUp, color: 'bg-brand-600' },
-          { label: t('teamUtilization'), value: `${utilization}%`, sub: `${periodBounds.label} · billable / capacity`, icon: Users, color: 'bg-violet-500' },
-          { label: t('avgEffectiveRate'), value: `${formatMoney(avgRate)}/h`, sub: `${periodBounds.label} · revenue ÷ billable h`, icon: Zap, color: 'bg-amber-500' },
+          { label: t('teamUtilization'), value: `${utilization}%`, sub: `${periodLabel} · ${t('billableTotalHours')}`, icon: Users, color: 'bg-violet-500' },
+          { label: t('avgEffectiveRate'), value: `${formatMoney(avgRate)}/h`, sub: `${periodLabel} · ${t('revenueDivBillable')}`, icon: Zap, color: 'bg-amber-500' },
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="card p-5">
             <div className={`inline-flex p-2 rounded-lg ${color} mb-3`}><Icon className="w-4 h-4 text-white" /></div>
@@ -389,14 +396,14 @@ export default function AnalyticsPage() {
           <div className="flex items-center gap-2 mb-4">
             <Receipt className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cashflow</h2>
-            <span className="text-xs text-muted-foreground/50">· billed &amp; collected: {periodBounds.label} · outstanding &amp; overdue: all-time</span>
+            <span className="text-xs text-muted-foreground/50">· {t('collectedLabel').toLowerCase()} &amp; {t('totalBilled').toLowerCase()}: {periodLabel} · {t('outstandingLabel').toLowerCase()} &amp; {t('overdueLabel').toLowerCase()}: all-time</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Total billed', value: formatMoney(cashflow.billed), color: 'bg-brand-600', sub: `${invoices.filter(i => (i.status === 'paid' || i.status === 'sent') && inPeriod(i.sent_at || i.created_at)).length} invoices` },
-              { label: 'Collected', value: formatMoney(cashflow.paid), color: 'bg-emerald-500', sub: `${invoices.filter(i => i.status === 'paid' && inPeriod(i.paid_at)).length} paid` },
-              { label: 'Outstanding', value: formatMoney(cashflow.open), color: 'bg-amber-500', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) >= today).length} invoices` },
-              { label: 'Overdue', value: formatMoney(cashflow.overdue), color: cashflow.overdue > 0 ? 'bg-red-500' : 'bg-muted-foreground/30', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} past due` },
+              { label: t('totalBilled'), value: formatMoney(cashflow.billed), color: 'bg-brand-600', sub: `${invoices.filter(i => (i.status === 'paid' || i.status === 'sent') && inPeriod(i.sent_at || i.created_at)).length} ${t('invoicesTitle').toLowerCase()}` },
+              { label: t('collectedLabel'), value: formatMoney(cashflow.paid), color: 'bg-emerald-500', sub: `${invoices.filter(i => i.status === 'paid' && inPeriod(i.paid_at)).length} ${t('markAsPaid').toLowerCase()}` },
+              { label: t('outstandingLabel'), value: formatMoney(cashflow.open), color: 'bg-amber-500', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) >= today).length} ${t('invoicesTitle').toLowerCase()}` },
+              { label: t('overdueLabel'), value: formatMoney(cashflow.overdue), color: cashflow.overdue > 0 ? 'bg-red-500' : 'bg-muted-foreground/30', sub: `${invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} ${t('dueDateLabel').toLowerCase()}` },
             ].map(({ label, value, color, sub }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className={`w-1 self-stretch rounded-full ${color}`} />
@@ -425,14 +432,14 @@ export default function AnalyticsPage() {
         <div className="flex flex-wrap items-center gap-3 mb-5">
           {drillMember ? (
             <button onClick={() => setUtilMemberId('all')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronLeft className="w-3.5 h-3.5" /> All members
+              <ChevronLeft className="w-3.5 h-3.5" /> {t('allMembers')}
             </button>
           ) : (
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Team Utilization <span className="font-normal normal-case">· {periodBounds.label}</span></h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('teamUtilHeader')} <span className="font-normal normal-case">· {periodLabel}</span></h2>
           )}
           <div className="flex-1" />
           <select className="input w-auto text-xs py-1" value={utilMemberId} onChange={e => setUtilMemberId(e.target.value)}>
-            <option value="all">All members</option>
+            <option value="all">{t('allMembers')}</option>
             {activeMembers.map(m => <option key={m.user_id!} value={m.user_id!}>{m.full_name || m.email}</option>)}
           </select>
         </div>
@@ -461,7 +468,7 @@ export default function AnalyticsPage() {
                 <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </button>
             ))}
-            <p className="text-[10px] text-muted-foreground/40 text-right pt-2">Click a row to drill down · vs. previous equivalent period</p>
+            <p className="text-[10px] text-muted-foreground/40 text-right pt-2">{t('drillDownHint')}</p>
           </div>
         )}
 
@@ -474,10 +481,10 @@ export default function AnalyticsPage() {
               {/* Summary tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Utilization', value: `${row.pct}%`, sub: periodBounds.label, color: utilBarColor(row.pct).replace('bg-', 'text-').replace('/40','') },
-                  { label: 'Billable hours', value: `${row.billable}h`, sub: `of ${row.capacity}h capacity` },
-                  { label: 'Revenue', value: formatMoney(row.revenue), sub: 'billable only' },
-                  { label: 'Non-billable', value: `${row.nonBillable}h`, sub: 'internal / overhead' },
+                  { label: t('utilizationLabel'), value: `${row.pct}%`, sub: periodLabel, color: utilBarColor(row.pct).replace('bg-', 'text-').replace('/40','') },
+                  { label: t('billableHours2'), value: `${row.billable}h`, sub: `${row.capacity}h ${t('capacityLabel')}` },
+                  { label: t('earnings'), value: formatMoney(row.revenue), sub: t('billableOnly2') },
+                  { label: t('nonBillable2'), value: `${row.nonBillable}h`, sub: t('internalOverhead') },
                 ].map(({ label, value, sub, color }) => (
                   <div key={label} className="bg-muted/40 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">{label}</p>
@@ -490,7 +497,7 @@ export default function AnalyticsPage() {
               {/* Week-by-week bar chart */}
               {drillWeekData.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Week-by-week</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('weekByWeekLabel')}</p>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={drillWeekData} barGap={4}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -518,7 +525,7 @@ export default function AnalyticsPage() {
               {/* Project breakdown */}
               {drillProjectBreakdown.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Time by project</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('timeByProject')}</p>
                   <div className="space-y-2">
                     {drillProjectBreakdown.map((p, i) => {
                       const maxH = drillProjectBreakdown[0].billable
@@ -549,7 +556,7 @@ export default function AnalyticsPage() {
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueHours6mo')}</h2>
             {revenueForecast && (
               <span className="text-xs bg-brand-500/10 text-brand-600 px-2 py-0.5 rounded-full font-medium">
-                Forecast: {formatMoney(revenueForecast)} this month
+                {t('forecastPrefix')}: {formatMoney(revenueForecast)} {t('thisMonthLabel').toLowerCase()}
               </span>
             )}
           </div>

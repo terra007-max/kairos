@@ -292,12 +292,12 @@ export default function SettingsPage() {
           <div className="card p-6">
             <div className="flex items-center gap-2 mb-1">
               <User className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-semibold text-foreground text-sm">My profile</h2>
+              <h2 className="font-semibold text-foreground text-sm">{t('myProfile')}</h2>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">Select your active workspace and consultant level.</p>
+            <p className="text-xs text-muted-foreground mb-4">{t('selectWorkspaceHint')}</p>
             <div className="space-y-3">
               <div>
-                <label className="label">Active workspace</label>
+                <label className="label">{t('activeWorkspace')}</label>
                 <select
                   className="input"
                   value={selectedWorkspaceId}
@@ -310,7 +310,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <button onClick={saveMyProfile} className="btn-primary mt-4">
-              {profileSaved ? '✓ Saved' : 'Save'}
+              {profileSaved ? t('savedCheck') : t('save')}
             </button>
           </div>
         )}
@@ -388,30 +388,28 @@ export default function SettingsPage() {
           <div className="card p-6">
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-semibold text-foreground text-sm">Unternehmensdaten / Legal Info</h2>
+              <h2 className="font-semibold text-foreground text-sm">{t('legalInfoTitle')}</h2>
             </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Pflichtangaben für konforme Rechnungen nach EN 16931 und ebInterface 6.1 (Rechnungen an Behörden).
-            </p>
+            <p className="text-xs text-muted-foreground mb-4">{t('legalInfoHint')}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="label">Firmenname (rechtlich)</label>
+                <label className="label">{t('legalCompanyName')}</label>
                 <input className="input" placeholder="Kairos Consulting GmbH" value={legalName} onChange={e => setLegalName(e.target.value)} />
               </div>
               <div className="col-span-2">
-                <label className="label">Straße &amp; Hausnummer</label>
+                <label className="label">{t('legalStreet')}</label>
                 <input className="input" placeholder="Musterstraße 1" value={addressStreet} onChange={e => setAddressStreet(e.target.value)} />
               </div>
               <div>
-                <label className="label">PLZ</label>
+                <label className="label">{t('legalZip')}</label>
                 <input className="input" placeholder="1010" value={addressZip} onChange={e => setAddressZip(e.target.value)} />
               </div>
               <div>
-                <label className="label">Ort</label>
+                <label className="label">{t('legalCity')}</label>
                 <input className="input" placeholder="Wien" value={addressCity} onChange={e => setAddressCity(e.target.value)} />
               </div>
               <div>
-                <label className="label">Land (ISO)</label>
+                <label className="label">{t('legalCountry')}</label>
                 <select className="input" value={addressCountry} onChange={e => setAddressCountry(e.target.value)}>
                   <option value="AT">AT — Österreich</option>
                   <option value="DE">DE — Deutschland</option>
@@ -420,11 +418,11 @@ export default function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="label">UID-Nummer</label>
+                <label className="label">{t('legalVatId')}</label>
                 <input className="input" placeholder="ATU12345678" value={vatId} onChange={e => setVatId(e.target.value)} />
               </div>
               <div>
-                <label className="label">Firmenbuchnummer (optional)</label>
+                <label className="label">{t('legalCompanyReg')}</label>
                 <input className="input" placeholder="FN 123456 a" value={companyReg} onChange={e => setCompanyReg(e.target.value)} />
               </div>
               <div>
@@ -437,7 +435,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <button onClick={saveLegalInfo} className="btn-primary mt-4">
-              {legalSaved ? '✓ Gespeichert' : 'Speichern'}
+              {legalSaved ? t('savedCheck') : t('save')}
             </button>
           </div>
         )}
@@ -471,7 +469,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <button onClick={saveBMDSettings} className="btn-primary mt-4">
-              {bmdSaved ? '✓ Saved' : t('save')}
+              {bmdSaved ? t('savedCheck') : t('save')}
             </button>
           </div>
         )}
@@ -560,7 +558,7 @@ export default function SettingsPage() {
                           }}
                           title="Weekly contracted hours"
                         />
-                        <span className="text-xs text-muted-foreground">h/w</span>
+                        <span className="text-xs text-muted-foreground">{t('hoursPerWeek')}</span>
                       </div>
                       {isDirty && (
                         <button

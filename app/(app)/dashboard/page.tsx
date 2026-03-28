@@ -27,8 +27,9 @@ function SkeletonCard() {
 }
 
 function TrendBadge({ current, previous }: { current: number; previous: number }) {
+  const { t } = useI18n()
   if (previous === 0 && current === 0) return <span className="trend-neutral"><Minus className="w-3 h-3" />—</span>
-  if (previous === 0) return <span className="trend-up"><ArrowUpRight className="w-3 h-3" />New</span>
+  if (previous === 0) return <span className="trend-up"><ArrowUpRight className="w-3 h-3" />{t('trendNew')}</span>
   const pct = Math.round(((current - previous) / previous) * 100)
   if (pct > 0) return <span className="trend-up"><ArrowUpRight className="w-3 h-3" />+{pct}%</span>
   if (pct < 0) return <span className="trend-down"><ArrowDownRight className="w-3 h-3" />{pct}%</span>
@@ -167,15 +168,15 @@ export default function DashboardPage() {
               <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">{billH.toFixed(1)}h billable / {capH.toFixed(1)}h capacity</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{billH.toFixed(1)}h {t('billableLabel')} / {capH.toFixed(1)}h {t('capacityLabel')}</p>
             </div>
           )
         }
 
         return (
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <UtilCard label="Utilization this week" pct={weekUtil} billH={weekBillH} capH={weekCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
-            <UtilCard label="Utilization this month" pct={monthUtil} billH={monthBillH} capH={monthCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
+            <UtilCard label={t('utilizationThisWeek')} pct={weekUtil} billH={weekBillH} capH={weekCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
+            <UtilCard label={t('utilizationThisMonth')} pct={monthUtil} billH={monthBillH} capH={monthCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
           </div>
         )
       })()}
@@ -233,7 +234,7 @@ export default function DashboardPage() {
         {!can(role, 'record:time') && (
           <div className="card overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Team status</h2>
+              <h2 className="text-sm font-semibold text-foreground">{t('teamStatus')}</h2>
               <span className="text-xs text-muted-foreground">{new Date().toLocaleTimeString(locale === 'de' ? 'de-AT' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <TeamStatus workspaceId={workspaceId} members={members} supabase={supabase} />
@@ -245,6 +246,7 @@ export default function DashboardPage() {
 }
 
 function TeamStatus({ workspaceId, members, supabase }: { workspaceId: string; members: any[]; supabase: any }) {
+  const { t } = useI18n()
   const [statuses, setStatuses] = useState<Record<string, any>>({})
 
   const load = useCallback(async () => {
@@ -275,7 +277,7 @@ function TeamStatus({ workspaceId, members, supabase }: { workspaceId: string; m
   const activeMembers = members.filter(m => m.status === 'active')
 
   if (activeMembers.length === 0) return (
-    <div className="px-5 py-8 text-center text-xs text-muted-foreground">No team members yet.</div>
+    <div className="px-5 py-8 text-center text-xs text-muted-foreground">{t('noTeamMembers')}</div>
   )
 
   return (
@@ -296,11 +298,11 @@ function TeamStatus({ workspaceId, members, supabase }: { workspaceId: string; m
               <p className="text-xs font-medium text-foreground truncate">{name}</p>
               {running ? (
                 <p className="text-xs text-muted-foreground truncate">
-                  <span className="text-emerald-500 font-medium">● Tracking</span>
+                  <span className="text-emerald-500 font-medium">● {t('trackingActive')}</span>
                   {running.project?.name && ` · ${running.project.name}`}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Not tracking</p>
+                <p className="text-xs text-muted-foreground">{t('notTracking')}</p>
               )}
             </div>
             {running && (

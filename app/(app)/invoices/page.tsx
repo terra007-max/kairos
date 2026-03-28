@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { type Client, type Project, formatMoney } from '@/lib/types'
 import { format, startOfMonth, endOfMonth, startOfWeek } from 'date-fns'
+import { de as dateFnsDE, enUS as dateFnsEN } from 'date-fns/locale'
 import {
   FileText, Download, Send, CheckCircle, Clock, Package,
   Search, X, Pencil, Trash2, Check, AlertTriangle, ShieldCheck, FolderOpen, Code2,
@@ -268,7 +269,8 @@ export default function InvoicesPage() {
   const supabase = createClient()
   const { workspaceId, role } = useWorkspace()
   const router = useRouter()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? dateFnsDE : dateFnsEN
 
   const [clients, setClients] = useState<Client[]>([])
   const [clientProjects, setClientProjects] = useState<Project[]>([])
@@ -982,7 +984,7 @@ export default function InvoicesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{inv.client_name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(inv.issue_date), 'MMM d, yyyy')} · Fällig {format(new Date(inv.due_date), 'MMM d, yyyy')} · {format(new Date(inv.period_from), 'MMM d')} – {format(new Date(inv.period_to), 'MMM d, yyyy')}
+                    {format(new Date(inv.issue_date), 'MMM d, yyyy', { locale: dateFnsLocale })} · {t('dueDateLabel')} {format(new Date(inv.due_date), 'MMM d, yyyy', { locale: dateFnsLocale })} · {format(new Date(inv.period_from), 'MMM d', { locale: dateFnsLocale })} – {format(new Date(inv.period_to), 'MMM d, yyyy', { locale: dateFnsLocale })}
                   </p>
                   {inv.order_reference && <p className="text-xs text-muted-foreground/60 mt-0.5">Ref.: {inv.order_reference}</p>}
                   {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{inv.notes}</p>}
@@ -999,7 +1001,7 @@ export default function InvoicesPage() {
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-foreground">{formatMoney(inv.total ?? inv.subtotal)}</p>
                   {(inv.vat_amount ?? 0) > 0 && (
-                    <p className="text-xs text-muted-foreground">inkl. {formatMoney(inv.vat_amount)} USt.</p>
+                    <p className="text-xs text-muted-foreground">{t('inclLabel')} {formatMoney(inv.vat_amount)} USt.</p>
                   )}
                   <div className="flex gap-2 mt-2 justify-end flex-wrap">
                     {inv.status === 'sent' && (

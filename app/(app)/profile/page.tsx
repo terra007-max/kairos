@@ -43,14 +43,20 @@ export default function ProfilePage() {
     setUploading(true)
     const ext = file.name.split('.').pop() || 'jpg'
     const path = `${userId}/avatar.${ext}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      // Bust cache with timestamp
-      const url = `${publicUrl}?t=${Date.now()}`
-      setAvatarUrl(url)
-      await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
-      setProfileMsg({ type: 'success', text: 'Avatar updated' })
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (uploadError) {
+      setProfileMsg({ type: 'error', text: uploadError.message })
+      setUploading(false)
+      return
+    }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    const url = `${publicUrl}?t=${Date.now()}`
+    setAvatarUrl(url)
+    const { error: dbError } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+    if (dbError) {
+      setProfileMsg({ type: 'error', text: dbError.message })
+    } else {
+      setProfileMsg({ type: 'success', text: t('profileUpdated') })
     }
     setUploading(false)
   }
@@ -122,7 +128,7 @@ export default function ProfilePage() {
                 disabled={uploading}
                 className="text-xs text-brand-600 hover:text-brand-500 mt-0.5 transition-colors"
               >
-                {uploading ? 'Uploading…' : 'Change photo'}
+                {uploading ? t('uploadingPhoto') : t('changePhoto')}
               </button>
               <p className="text-xs text-muted-foreground/50 mt-0.5">PNG, JPG · max 2 MB</p>
             </div>

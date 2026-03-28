@@ -336,6 +336,83 @@ const translations = {
     noProjectsWithBudgets: 'No active projects with budgets',
     noBudgetSet: 'No budget set',
 
+    // Proxy banner
+    proxyViewing: 'Viewing as',
+    proxyExact: '— you see exactly what they see',
+    proxyExit: 'Exit proxy',
+
+    // Dashboard
+    teamStatus: 'Team Status',
+    notTracking: 'Not tracking',
+
+    // Settings — profile section
+    myProfile: 'My profile',
+    selectWorkspaceHint: 'Select your active workspace and consultant level.',
+    activeWorkspace: 'Active workspace',
+
+    // Settings — legal info section
+    legalInfoTitle: 'Legal Info',
+    legalInfoHint: 'Required for EN 16931 and ebInterface 6.1 compliant invoices (invoices to public authorities).',
+    legalCompanyName: 'Company name (legal)',
+    legalStreet: 'Street & number',
+    legalZip: 'ZIP code',
+    legalCity: 'City',
+    legalCountry: 'Country (ISO)',
+    legalVatId: 'VAT ID',
+    legalCompanyReg: 'Company registration (optional)',
+    savedCheck: '✓ Saved',
+    dueDateLabel: 'Due',
+
+    // Pluralization helpers
+    projectSingular: 'project',
+    projectPlural: 'projects',
+    clientSingular: 'client',
+    clientPlural: 'clients',
+
+    // Dashboard util cards
+    utilizationThisWeek: 'Utilization this week',
+    utilizationThisMonth: 'Utilization this month',
+    trendNew: 'New',
+    noTeamMembers: 'No team members yet.',
+    trackingActive: 'Tracking',
+
+    // Profile page
+    changePhoto: 'Change photo',
+    uploadingPhoto: 'Uploading…',
+    hoursPerWeek: 'hours/week',
+
+    // Analytics extras
+    allMembers: 'All members',
+    teamUtilHeader: 'Team Utilization',
+    drillDownHint: 'Click a row to drill down · vs. previous equivalent period',
+    noTimeTrackedWeek: 'no time tracked this week',
+    noBillableWeek: '0 billable hours this week',
+    burnoutRiskLabel: 'Burnout risk',
+    burnoutRiskDetail: 'Billable hours exceeded 100% capacity for 3 consecutive weeks. Consider rebalancing workload.',
+    weekByWeekLabel: 'Week-by-week',
+    totalBilled: 'Total billed',
+    collectedLabel: 'Collected',
+    outstandingLabel: 'Outstanding',
+    overdueLabel: 'Overdue',
+    last3Months: 'Last 3 months',
+    billableHours2: 'Billable hours',
+    nonBillable2: 'Non-billable',
+    internalOverhead: 'internal / overhead',
+    capacityLabel: 'Capacity',
+    forecastPrefix: 'Forecast',
+
+    // Invoices
+    inclLabel: 'incl.',
+
+    // Timer
+    searchEntries: 'Search entries…',
+
+    // Projects
+    chargingRateLabel: 'Charging rate per consultant level — Admin only',
+    teamBookingLabel: 'Team — who can book on this project',
+    leaveAllUnchecked: 'Leave all unchecked to allow everyone. Select specific members to restrict access.',
+    noneOption: '— None —',
+
     // Misc
     admin: 'Admin',
     email2: 'Email',
@@ -673,6 +750,81 @@ const translations = {
     projectHealth: 'Projektstatus',
     noProjectsWithBudgets: 'Keine aktiven Projekte mit Budget',
     noBudgetSet: 'Kein Budget gesetzt',
+
+    // Proxy banner
+    proxyViewing: 'Ansicht als',
+    proxyExact: '— Sie sehen genau das, was dieser Benutzer sieht',
+    proxyExit: 'Proxy beenden',
+
+    // Dashboard
+    teamStatus: 'Team Status',
+    notTracking: 'Kein Tracking',
+    utilizationThisWeek: 'Auslastung diese Woche',
+    utilizationThisMonth: 'Auslastung diesen Monat',
+    trendNew: 'Neu',
+    noTeamMembers: 'Noch keine Teammitglieder.',
+    trackingActive: 'Erfassung läuft',
+
+    // Settings — profile section
+    myProfile: 'Mein Profil',
+    selectWorkspaceHint: 'Aktiven Arbeitsbereich und Berater-Level auswählen.',
+    activeWorkspace: 'Aktiver Arbeitsbereich',
+
+    // Settings — legal info section
+    legalInfoTitle: 'Firmendaten / Legal Info',
+    legalInfoHint: 'Pflichtangaben für konforme Rechnungen nach EN 16931 und ebInterface 6.1.',
+    legalCompanyName: 'Firmenname (rechtlich)',
+    legalStreet: 'Straße & Hausnummer',
+    legalZip: 'PLZ',
+    legalCity: 'Ort',
+    legalCountry: 'Land (ISO)',
+    legalVatId: 'UID-Nummer',
+    legalCompanyReg: 'Firmenbuchnummer (optional)',
+    savedCheck: '✓ Gespeichert',
+    dueDateLabel: 'Fällig',
+
+    // Pluralization
+    projectSingular: 'Projekt',
+    projectPlural: 'Projekte',
+    clientSingular: 'Kunde',
+    clientPlural: 'Kunden',
+
+    // Profile page
+    changePhoto: 'Foto ändern',
+    uploadingPhoto: 'Wird hochgeladen…',
+    hoursPerWeek: 'Stunden/Woche',
+
+    // Analytics extras
+    allMembers: 'Alle Mitglieder',
+    teamUtilHeader: 'Team-Auslastung',
+    drillDownHint: 'Zeile anklicken für Details · vs. vorheriger Zeitraum',
+    noTimeTrackedWeek: 'keine Zeit diese Woche erfasst',
+    noBillableWeek: '0 verrechenbare Stunden diese Woche',
+    burnoutRiskLabel: 'Burnout-Risiko',
+    burnoutRiskDetail: 'Verrechenbare Stunden haben 3 Wochen in Folge 100% der Kapazität überschritten. Bitte Aufgaben neu verteilen.',
+    weekByWeekLabel: 'Woche für Woche',
+    totalBilled: 'Gesamt verrechnet',
+    collectedLabel: 'Eingenommen',
+    outstandingLabel: 'Ausstehend',
+    overdueLabel: 'Überfällig',
+    last3Months: 'Letzte 3 Monate',
+    billableHours2: 'Verrechenbare Stunden',
+    nonBillable2: 'Nicht verrechenbar',
+    internalOverhead: 'intern / Overhead',
+    capacityLabel: 'Kapazität',
+    forecastPrefix: 'Prognose',
+
+    // Invoices
+    inclLabel: 'inkl.',
+
+    // Timer
+    searchEntries: 'Einträge suchen…',
+
+    // Projects
+    chargingRateLabel: 'Stundensatz pro Berater-Level — nur Admin',
+    teamBookingLabel: 'Team — wer kann auf diesem Projekt buchen',
+    leaveAllUnchecked: 'Alle abwählen für freien Zugang. Bestimmte Mitglieder auswählen, um den Zugang einzuschränken.',
+    noneOption: '— Keine —',
 
     // Misc
     admin: 'Admin',

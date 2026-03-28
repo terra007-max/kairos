@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n'
 import { type Project, type Client, type ConsultantLevel, type ProjectLevelRate, formatMoney, formatDuration } from '@/lib/types'
 import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users, Crown } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
+import { de, enUS } from 'date-fns/locale'
 import Link from 'next/link'
 
 const COLORS = ['#f97316','#6366f1','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6']
@@ -16,7 +17,8 @@ type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: nu
 export default function ProjectsPage() {
   const supabase = createClient()
   const { workspaceId, role, members, effectiveUserId, managedProjectIds } = useWorkspace()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? de : enUS
   const isAdmin = can(role, 'manage:projects')
 
   const [projects, setProjects] = useState<ProjectRow[]>([])
@@ -154,9 +156,9 @@ export default function ProjectsPage() {
                 {(p.start_date || p.end_date) && (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                     <CalendarDays className="w-3.5 h-3.5" />
-                    {p.start_date && format(parseISO(p.start_date), 'MMM d, yyyy')}
+                    {p.start_date && format(parseISO(p.start_date), 'MMM d, yyyy', { locale: dateFnsLocale })}
                     {p.start_date && p.end_date && ' → '}
-                    {p.end_date && format(parseISO(p.end_date), 'MMM d, yyyy')}
+                    {p.end_date && format(parseISO(p.end_date), 'MMM d, yyyy', { locale: dateFnsLocale })}
                   </div>
                 )}
 
@@ -338,7 +340,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
           <div>
             <label className="label flex items-center gap-1.5"><Crown className="w-3.5 h-3.5 text-amber-500" /> Project Manager</label>
             <select className="input" value={managerId} onChange={e => setManagerId(e.target.value)}>
-              <option value="">— None —</option>
+              <option value="">{t('noneOption')}</option>
               {activeMembers.map(m => (
                 <option key={m.user_id} value={m.user_id!}>{m.full_name || m.email}</option>
               ))}
@@ -368,7 +370,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
         </div>
         {levels.length > 0 && (
           <div className="col-span-2">
-            <label className="label">Charging rate per consultant level — Admin only</label>
+            <label className="label">{t('chargingRateLabel')}</label>
             <div className="space-y-2 mt-1">
               {levels.map(level => {
                 const rType = levelRateTypes[level.id] || 'hourly'
@@ -404,8 +406,8 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
         )}
         {activeMembers.length > 0 && (
           <div className="col-span-2">
-            <label className="label flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Team — who can book on this project</label>
-            <p className="text-xs text-muted-foreground mb-2">Leave all unchecked to allow everyone. Select specific members to restrict access.</p>
+            <label className="label flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {t('teamBookingLabel')}</label>
+            <p className="text-xs text-muted-foreground mb-2">{t('leaveAllUnchecked')}</p>
             <div className="flex flex-wrap gap-2">
               {activeMembers.map(m => {
                 const uid = m.user_id || ''

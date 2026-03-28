@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project } from '@/lib/types'
 import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X, Lock, CalendarClock } from 'lucide-react'
 import { format, startOfWeek, endOfWeek, isFriday, isSaturday, isSunday, isAfter } from 'date-fns'
+import { de, enUS } from 'date-fns/locale'
 
 type EntryMode = 'timer' | 'fromto' | 'duration'
 
@@ -23,7 +24,8 @@ const IDLE_THRESHOLD = 3 * 60 * 60
 export default function TimerPage() {
   const supabase = createClient()
   const { workspaceId, members, role, effectiveUserId, isProxying, isProjectManager } = useWorkspace()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const dateFnsLocale = locale === 'de' ? de : enUS
 
   const [projects, setProjects] = useState<Project[]>([])
   const [entries, setEntries] = useState<any[]>([])
@@ -350,7 +352,7 @@ export default function TimerPage() {
                 <div key={ft.id} className="flex items-center justify-between bg-card rounded-lg px-4 py-3 border border-border">
                   <div>
                     <p className="text-xs font-medium text-foreground">{getMemberName(ft.user_id)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{ft.project?.name || t('noProject')} · {t('runningSince')} {format(new Date(ft.start_time), 'MMM d, HH:mm')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ft.project?.name || t('noProject')} · {t('runningSince')} {format(new Date(ft.start_time), 'MMM d, HH:mm', { locale: dateFnsLocale })}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm text-orange-500 font-medium">{formatDuration(ftElapsed)}</span>
@@ -465,7 +467,7 @@ export default function TimerPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
           <input
             className="input pl-9 pr-8 text-sm"
-            placeholder="Search entries…"
+            placeholder={t('searchEntries')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -491,7 +493,7 @@ export default function TimerPage() {
         return (
           <div key={day} className="mb-5">
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-xs font-semibold text-muted-foreground">{format(new Date(day), 'EEEE, MMMM d')}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{format(new Date(day), 'EEEE, MMMM d', { locale: dateFnsLocale })}</span>
               <span className="text-xs font-mono font-semibold text-muted-foreground">{formatDuration(dayTotal)}</span>
             </div>
             <div className="card divide-y divide-border">
