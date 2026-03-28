@@ -113,7 +113,7 @@ export default function TimesheetsPage() {
   const [reviewerNote, setReviewerNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading]       = useState(true)
-  const canReview = role === 'admin' || isProjectManager
+  const canReview = role === 'admin' || role === 'partner' || isProjectManager
   const [activeTab, setActiveTab]   = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [dbError, setDbError]       = useState(false)
@@ -183,7 +183,7 @@ export default function TimesheetsPage() {
       .lte('date', format(weekEnd, 'yyyy-MM-dd'))
     setTimeOffEntries((toEntries as TimeOffEntry[]) || [])
 
-    if (role === 'admin' || isProjectManager) {
+    if (role === 'admin' || role === 'partner' || isProjectManager) {
       const { data: teamTs } = await supabase
         .from('timesheets')
         .select('*')
@@ -192,7 +192,7 @@ export default function TimesheetsPage() {
         .limit(100)
 
       let pmUserIds: string[] | null = null
-      if (role !== 'admin' && isProjectManager && managedProjectIds.length > 0) {
+      if (role !== 'admin' && role !== 'partner' && isProjectManager && managedProjectIds.length > 0) {
         const { data: pmRows } = await supabase
           .from('project_members').select('user_id').in('project_id', managedProjectIds)
         pmUserIds = Array.from(new Set((pmRows || []).map((r: any) => r.user_id)))
@@ -204,7 +204,7 @@ export default function TimesheetsPage() {
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
 
-      const { data: allEntries } = role === 'admin'
+      const { data: allEntries } = (role === 'admin' || role === 'partner')
         ? await entryQuery
         : pmUserIds && pmUserIds.length > 0
           ? await entryQuery.in('user_id', pmUserIds)

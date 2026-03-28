@@ -14,6 +14,7 @@ export type WorkspaceMember = {
   full_name?: string | null
   level_id?: string | null
   weekly_hours: number
+  isProjectManager?: boolean  // true if manager_id on any project
 }
 
 export type ProxyUser = { userId: string; name: string }
@@ -77,7 +78,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
     const memberRow = memberRows[0]
 
-    const [{ data: members }, { data: managedProjects }] = await Promise.all([
+    const [{ data: members }, { data: managedProjects }, { data: allProjects }] = await Promise.all([
       supabase
         .from('workspace_members')
         .select('id, user_id, email, role, status, level_id, weekly_hours, profile:profiles(full_name)')
@@ -88,7 +89,15 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         .eq('workspace_id', memberRow.workspace_id)
         .eq('manager_id', userId)
         .is('deleted_at', null),
+      supabase
+        .from('projects')
+        .select('manager_id')
+        .eq('workspace_id', memberRow.workspace_id)
+        .not('manager_id', 'is', null)
+        .is('deleted_at', null),
     ])
+
+    const projectManagerUserIds = new Set((allProjects || []).map((p: any) => p.manager_id))
 
     const ws = memberRow.workspace as any
 
@@ -106,6 +115,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         full_name: m.profile?.full_name,
         level_id: m.level_id,
         weekly_hours: m.weekly_hours ?? 40,
+        isProjectManager: m.user_id ? projectManagerUserIds.has(m.user_id) : false,
       })),
     })
   }, [supabase, userId])
