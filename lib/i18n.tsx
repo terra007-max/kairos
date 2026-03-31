@@ -406,6 +406,8 @@ const translations = {
     invoicesLabel: 'invoices',
     paidLabel: 'paid',
     pastDueLabel: 'past due',
+    overdueAlertSuffix: 'overdue',
+    overdueAlertBody: 'invoice(s) past due date. Mark as paid in Invoices once collected.',
     cashflowHint: 'collected & billed',
     cashflowHintOutstanding: 'outstanding & overdue: all-time',
 
@@ -824,6 +826,8 @@ const translations = {
     invoicesLabel: 'Rechnungen',
     paidLabel: 'bezahlt',
     pastDueLabel: 'überfällig',
+    overdueAlertSuffix: 'überfällig',
+    overdueAlertBody: 'Rechnung(en) mit überschrittenem Fälligkeitsdatum. Bitte in den Rechnungen als bezahlt markieren.',
     cashflowHint: 'eingenommen & gesamt verrechnet',
     cashflowHintOutstanding: 'ausstehend & überfällig: gesamt',
 

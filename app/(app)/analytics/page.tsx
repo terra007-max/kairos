@@ -419,7 +419,7 @@ export default function AnalyticsPage() {
             <div className="mt-4 flex items-start gap-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-red-500">
-                <span className="font-semibold">{formatMoney(cashflow.overdue)} overdue</span> — {invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} invoice{invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length !== 1 ? 's' : ''} past due date. Mark as paid in Invoices once collected.
+                <span className="font-semibold">{formatMoney(cashflow.overdue)} {t('overdueAlertSuffix')}</span> — {invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} {t('overdueAlertBody')}
               </p>
             </div>
           )}
