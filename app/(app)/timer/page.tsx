@@ -369,7 +369,7 @@ export default function TimerPage() {
 
       {can(role, 'record:time') && <>
       <div className="flex gap-0.5 mb-4 bg-muted p-0.5 rounded-lg w-fit">
-        {([['timer', t('liveTimer')], ['fromto', t('fromTo')], ['duration', t('enterHours')]] as [EntryMode, string][]).map(([m, label]) => (
+        {([['fromto', t('fromTo')], ['duration', t('enterHours')], ['timer', t('liveTimer')]] as [EntryMode, string][]).map(([m, label]) => (
           <button key={m} onClick={() => setEntryMode(m)} disabled={!!running && m !== 'timer'}
             className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${entryMode === m ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground disabled:opacity-40'}`}>
             {label}
