@@ -976,18 +976,22 @@ export default function InvoicesPage() {
               })
               .map(inv => (
             <div key={inv.id} className="card p-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <span className="font-semibold text-foreground text-sm">{inv.invoice_number}</span>
                     {statusBadge(inv.status, t)}
                   </div>
                   <p className="text-sm text-muted-foreground">{inv.client_name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(inv.issue_date), 'MMM d, yyyy', { locale: dateFnsLocale })} · {t('dueDateLabel')} {format(new Date(inv.due_date), 'MMM d, yyyy', { locale: dateFnsLocale })} · {format(new Date(inv.period_from), 'MMM d', { locale: dateFnsLocale })} – {format(new Date(inv.period_to), 'MMM d, yyyy', { locale: dateFnsLocale })}
-                  </p>
+                  <div className="text-xs text-muted-foreground mt-0.5 flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-1">
+                    <span>{format(new Date(inv.issue_date), 'MMM d, yyyy', { locale: dateFnsLocale })}</span>
+                    <span className="hidden sm:inline">·</span>
+                    <span>{t('dueDateLabel')} {format(new Date(inv.due_date), 'MMM d, yyyy', { locale: dateFnsLocale })}</span>
+                    <span className="hidden sm:inline">·</span>
+                    <span>{format(new Date(inv.period_from), 'MMM d', { locale: dateFnsLocale })} – {format(new Date(inv.period_to), 'MMM d, yyyy', { locale: dateFnsLocale })}</span>
+                  </div>
                   {inv.order_reference && <p className="text-xs text-muted-foreground/60 mt-0.5">Ref.: {inv.order_reference}</p>}
-                  {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{inv.notes}</p>}
+                  {inv.notes && <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2">{inv.notes}</p>}
                   {inv.lines && inv.lines.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {inv.lines.map((l, i) => (
@@ -998,12 +1002,14 @@ export default function InvoicesPage() {
                     </div>
                   )}
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-foreground">{formatMoney(inv.total ?? inv.subtotal)}</p>
-                  {(inv.vat_amount ?? 0) > 0 && (
-                    <p className="text-xs text-muted-foreground">{t('inclLabel')} {formatMoney(inv.vat_amount)} USt.</p>
-                  )}
-                  <div className="flex gap-2 mt-2 justify-end flex-wrap">
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start flex-shrink-0 gap-2">
+                  <div className="sm:text-right">
+                    <p className="font-bold text-foreground">{formatMoney(inv.total ?? inv.subtotal)}</p>
+                    {(inv.vat_amount ?? 0) > 0 && (
+                      <p className="text-xs text-muted-foreground">{t('inclLabel')} {formatMoney(inv.vat_amount)} USt.</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 sm:mt-2 justify-end flex-wrap">
                     {inv.status === 'sent' && (
                       <button onClick={() => updateStatus(inv.id, 'paid')} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10">
                         <CheckCircle className="w-3 h-3" /> {t('markAsPaid')}
