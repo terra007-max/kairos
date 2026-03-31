@@ -165,7 +165,7 @@ export default function ProjectsPage() {
                 {p.level_rates && p.level_rates.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {p.level_rates.map(lr => (
-                      <span key={lr.id} className="text-xs bg-brand-600/10 text-brand-600 px-2 py-0.5 rounded-full font-medium">
+                      <span key={lr.id} className="text-xs bg-brand-600/10 dark:bg-brand-400/15 text-brand-600 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium">
                         {(lr.level as ConsultantLevel)?.name}: {formatMoney(lr.hourly_rate)}/h
                       </span>
                     ))}
@@ -179,7 +179,7 @@ export default function ProjectsPage() {
                       const m = members.find(x => x.user_id === uid)
                       const name = m?.full_name || m?.email || uid
                       return (
-                        <span key={uid} className="text-xs bg-brand-600/10 text-brand-600 px-2 py-0.5 rounded-full font-medium">{name}</span>
+                        <span key={uid} className="text-xs bg-brand-600/10 dark:bg-brand-400/15 text-brand-600 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium">{name}</span>
                       )
                     })}
                   </div>
