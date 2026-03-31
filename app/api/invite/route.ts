@@ -7,7 +7,7 @@ const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 export async function POST(req: NextRequest) {
   // 1. Authenticate caller
-  const supabaseUser = createServerClient()
+  const supabaseUser = await createServerClient()
   const { data: { user } } = await supabaseUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

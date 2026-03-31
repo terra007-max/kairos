@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const workspaceId = requestUrl.searchParams.get('workspace')
 
   if (code) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { session } } = await supabase.auth.exchangeCodeForSession(code)
 
     // If user accepted a workspace invite, link them
