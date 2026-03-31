@@ -515,15 +515,47 @@ export default function SettingsPage() {
 
           <div className="space-y-2 mb-4">
             {members.map(m => (
-              <div key={m.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg group border border-transparent hover:border-border transition-colors">
-                <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
-                  {(m.full_name || m.email)[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">{m.full_name || m.email}</p>
-                  {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
+              <div key={m.id} className="flex flex-col gap-2 p-3 bg-muted/30 rounded-lg group border border-transparent hover:border-border transition-colors">
+                {/* Row 1: avatar + name + role badges + action buttons */}
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
+                    {(m.full_name || m.email)[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{m.full_name || m.email}</p>
+                    {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {m.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Admin</span>}
+                    {m.role === 'partner' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Partner</span>}
+                    {(m.role === 'project_manager' || m.isProjectManager) && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded-full">PM</span>}
+                    {m.status === 'pending' && (
+                      <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
+                    )}
+                    {m.user_id !== currentUserId && role === 'admin' && m.user_id && (
+                      <button
+                        onClick={() => {
+                          startProxy({ userId: m.user_id!, name: m.full_name || m.email })
+                          window.location.href = '/dashboard'
+                        }}
+                        className="p-1 text-muted-foreground hover:text-brand-600 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        title="View as this user"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {m.user_id !== currentUserId && role === 'admin' && (
+                      <button
+                        onClick={() => removeMember(m.id)}
+                        className="p-1 text-muted-foreground hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
+                {/* Row 2: level + hours controls (admin only) */}
                 {role === 'admin' && (() => {
                   const currentLevel = pendingLevels[m.id] ?? memberLevels[m.id] ?? ''
                   const savedLevel = memberLevels[m.id] ?? ''
@@ -532,7 +564,7 @@ export default function SettingsPage() {
                   const isDirty = (m.id in pendingLevels && pendingLevels[m.id] !== savedLevel)
                     || (m.id in pendingHours && pendingHours[m.id] !== savedHours)
                   return (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-wrap pl-10">
                       {levels.length > 0 && (
                         <select
                           className="input w-36 text-xs py-1"
@@ -572,35 +604,6 @@ export default function SettingsPage() {
                     </div>
                   )
                 })()}
-
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {m.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Admin</span>}
-                  {m.role === 'partner' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Partner</span>}
-                  {(m.role === 'project_manager' || m.isProjectManager) && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded-full">PM</span>}
-                  {m.status === 'pending' && (
-                    <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
-                  )}
-                  {m.user_id !== currentUserId && role === 'admin' && m.user_id && (
-                    <button
-                      onClick={() => {
-                        startProxy({ userId: m.user_id!, name: m.full_name || m.email })
-                        window.location.href = '/dashboard'
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-brand-600 transition-all"
-                      title="View as this user"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {m.user_id !== currentUserId && role === 'admin' && (
-                    <button
-                      onClick={() => removeMember(m.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
               </div>
             ))}
           </div>
