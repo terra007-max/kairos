@@ -1004,8 +1004,8 @@ export default function InvoicesPage() {
                 </div>
                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start flex-shrink-0 gap-2">
                   <div className="sm:text-right">
-                    <p className="font-bold text-foreground">{formatMoney(inv.total ?? inv.subtotal)}</p>
-                    {(inv.vat_amount ?? 0) > 0 && (
+                    <p className="font-bold text-foreground">{formatMoney(inv.total || inv.subtotal)}</p>
+                    {(inv.vat_amount || 0) > 0 && (
                       <p className="text-xs text-muted-foreground">{t('inclLabel')} {formatMoney(inv.vat_amount)} USt.</p>
                     )}
                   </div>
