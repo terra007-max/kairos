@@ -97,8 +97,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
                 <div className="flex items-center gap-2">
                   <div className="bg-brand-600 rounded-lg p-1 flex items-center justify-center">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
+                      <line x1="12" y1="12" x2="12" y2="7.5" stroke="white" strokeWidth="2" strokeLinecap="round"
+                        style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbHour 12s linear infinite' }} />
+                      <line x1="12" y1="12" x2="12" y2="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round"
+                        style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbMin 2s linear infinite' }} />
+                      <circle cx="12" cy="12" r="1.5" fill="white" />
                     </svg>
                   </div>
                   <span className="text-sm font-bold text-foreground">Kairos</span>
@@ -123,10 +128,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <style>{`
-          @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-          }
+          @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+          @keyframes sbHour  { to { transform: rotate(360deg); } }
+          @keyframes sbMin   { to { transform: rotate(360deg); } }
         `}</style>
       </WorkspaceProvider>
     </I18nProvider>

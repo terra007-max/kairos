@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Clock, LayoutDashboard, FolderOpen, Users, BarChart2, LogOut, Timer, Settings, FileText, User, Scale, ClipboardList, LineChart } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Users, BarChart2, LogOut, Timer, Settings, FileText, User, Scale, ClipboardList, LineChart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
@@ -70,7 +70,14 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
           <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
-            <Clock className="w-4 h-4 text-white" />
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" overflow="visible">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
+              <line x1="12" y1="12" x2="12" y2="7.5" stroke="white" strokeWidth="2" strokeLinecap="round"
+                style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbHour 12s linear infinite' }} />
+              <line x1="12" y1="12" x2="12" y2="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round"
+                style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbMin 2s linear infinite' }} />
+              <circle cx="12" cy="12" r="1.5" fill="white" />
+            </svg>
           </div>
           <div className="min-w-0">
             <span className="text-sm font-bold text-foreground tracking-tight block leading-tight">Kairos</span>
@@ -140,6 +147,10 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
           {t('signOut')}
         </button>
       </div>
+      <style>{`
+        @keyframes sbHour { to { transform: rotate(360deg); } }
+        @keyframes sbMin  { to { transform: rotate(360deg); } }
+      `}</style>
     </aside>
   )
 }
