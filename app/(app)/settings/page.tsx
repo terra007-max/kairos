@@ -209,7 +209,8 @@ export default function SettingsPage() {
   }
 
   async function removeMember(id: string) {
-    await supabase.from('workspace_members').delete().eq('id', id)
+    const { error } = await supabase.from('workspace_members').delete().eq('id', id).eq('workspace_id', workspaceId)
+    if (error) { alert(error.message); return }
     setConfirmDeleteId(null)
     reload()
   }
