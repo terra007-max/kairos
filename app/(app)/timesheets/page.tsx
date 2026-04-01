@@ -18,7 +18,7 @@ import {
 
 type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
-type ProjectSummary = { name: string; hours: number }
+type ProjectSummary = { id: string; name: string; hours: number; managerId?: string | null }
 
 type ReviewEvent = { status: 'approved' | 'rejected'; note: string | null; reviewed_at: string }
 
@@ -33,6 +33,7 @@ type Timesheet = {
   submitted_at: string | null
   reviewed_at: string | null
   review_history?: ReviewEvent[]
+  project_approvals?: Record<string, { status: 'approved' | 'rejected'; by: string; at: string }>
   total_seconds?: number
   projectSummary?: ProjectSummary[]
   locked?: boolean
@@ -218,7 +219,7 @@ export default function TimesheetsPage() {
 
       const entryQuery = supabase
         .from('time_entries')
-        .select('user_id, project_id, duration_sec, start_time, project:projects(name)')
+        .select('user_id, project_id, duration_sec, start_time, project:projects(name, manager_id)')
         .eq('workspace_id', workspaceId)
         .not('end_time', 'is', null)
 
@@ -254,15 +255,16 @@ export default function TimesheetsPage() {
             const d = new Date(e.start_time)
             return d >= weekStart && d <= weekEndDate
           })
-          const projectMap: Record<string, { name: string; secs: number }> = {}
+          const projectMap: Record<string, { name: string; secs: number; managerId: string | null }> = {}
           for (const e of tsEntries) {
             if (!e.project_id) continue
             const name = (e.project as any)?.name || e.project_id
-            if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0 }
+            const managerId = (e.project as any)?.manager_id || null
+            if (!projectMap[e.project_id]) projectMap[e.project_id] = { name, secs: 0, managerId }
             projectMap[e.project_id].secs += e.duration_sec || 0
           }
-          const projectSummary = Object.values(projectMap)
-            .map(p => ({ name: p.name, hours: p.secs / 3600 }))
+          const projectSummary = Object.entries(projectMap)
+            .map(([id, p]) => ({ id, name: p.name, hours: p.secs / 3600, managerId: p.managerId }))
             .sort((a, b) => b.hours - a.hours)
 
           return { ...ts, user_email: member?.email, user_name: member?.full_name, projectSummary }
@@ -319,11 +321,11 @@ export default function TimesheetsPage() {
     loadData()
   }
 
-  async function reviewTimesheet(id: string, status: 'approved' | 'rejected') {
+  async function reviewTimesheet(id: string, status: 'approved' | 'rejected', projectId?: string) {
     await fetch('/api/timesheets/review', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timesheetId: id, status, reviewerNote: reviewerNote || null, workspaceId }),
+      body: JSON.stringify({ timesheetId: id, status, reviewerNote: reviewerNote || null, workspaceId, projectId }),
     })
     setReviewingId(null); setReviewerNote(''); loadData()
   }
@@ -699,12 +701,16 @@ export default function TimesheetsPage() {
 
                     {ts.projectSummary && ts.projectSummary.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {ts.projectSummary.map(p => (
-                          <span key={p.name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted/60 rounded-md text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">{p.name}</span>
-                            <span>{p.hours.toFixed(1)}h</span>
-                          </span>
-                        ))}
+                        {ts.projectSummary.map(p => {
+                          const approval = ts.project_approvals?.[p.id]
+                          return (
+                            <span key={p.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs ${approval?.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted/60 text-muted-foreground'}`}>
+                              {approval?.status === 'approved' && <CheckCircle className="w-3 h-3" />}
+                              <span className="font-medium text-foreground">{p.name}</span>
+                              <span>{p.hours.toFixed(1)}h</span>
+                            </span>
+                          )
+                        })}
                         <span className="inline-flex items-center px-2 py-0.5 bg-brand-600/10 rounded-md text-xs font-semibold text-brand-600">
                           {totalHours.toFixed(1)}h {locale === 'de' ? 'gesamt' : 'total'}
                         </span>
@@ -751,20 +757,51 @@ export default function TimesheetsPage() {
                         placeholder={t('reviewerFeedbackPlaceholder')}
                       />
                     </div>
-                    <div className="flex gap-2">
-                      {ts.status !== 'approved' && (
-                        <button onClick={() => reviewTimesheet(ts.id, 'approved')} className="btn-primary flex items-center gap-1.5 flex-1">
-                          <CheckCircle className="w-3.5 h-3.5" /> {t('approveTimesheet')}
+
+                    {/* PM: per-project approve buttons */}
+                    {!can(role, 'review:all') && isProjectManager && ts.projectSummary && ts.projectSummary.length > 0 ? (
+                      <div className="space-y-2">
+                        {ts.projectSummary.map(p => {
+                          const isMyProject = managedProjectIds.includes(p.id)
+                          const approval = ts.project_approvals?.[p.id]
+                          if (!isMyProject) return null
+                          return (
+                            <div key={p.id} className="flex items-center justify-between gap-2 p-2 bg-muted/40 rounded-lg">
+                              <span className="text-xs font-medium text-foreground">{p.name} · {p.hours.toFixed(1)}h</span>
+                              {approval?.status === 'approved' ? (
+                                <span className="flex items-center gap-1 text-xs text-emerald-500"><CheckCircle className="w-3 h-3" />{t('approved')}</span>
+                              ) : (
+                                <div className="flex gap-1.5">
+                                  <button onClick={() => reviewTimesheet(ts.id, 'approved', p.id)} className="btn-primary text-xs py-1 px-2.5 flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" /> {t('approveTimesheet')}
+                                  </button>
+                                  <button onClick={() => reviewTimesheet(ts.id, 'rejected', p.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-amber-600 border-amber-500/20 hover:bg-amber-500/10">
+                                    <XCircle className="w-3 h-3" /> {t('returnToMember')}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                        <button onClick={() => setReviewingId(null)} className="btn-secondary text-xs px-3">{t('cancel')}</button>
+                      </div>
+                    ) : (
+                      /* Admin / Partner: single approve for entire timesheet */
+                      <div className="flex gap-2">
+                        {ts.status !== 'approved' && (
+                          <button onClick={() => reviewTimesheet(ts.id, 'approved')} className="btn-primary flex items-center gap-1.5 flex-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> {t('approveTimesheet')}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => reviewTimesheet(ts.id, 'rejected')}
+                          className="btn-secondary flex items-center gap-1.5 flex-1 text-amber-600 border-amber-500/20 hover:bg-amber-500/10"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> {t('returnToMember')}
                         </button>
-                      )}
-                      <button
-                        onClick={() => reviewTimesheet(ts.id, 'rejected')}
-                        className="btn-secondary flex items-center gap-1.5 flex-1 text-amber-600 border-amber-500/20 hover:bg-amber-500/10"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> {t('returnToMember')}
-                      </button>
-                      <button onClick={() => setReviewingId(null)} className="btn-secondary px-3">{t('cancel')}</button>
-                    </div>
+                        <button onClick={() => setReviewingId(null)} className="btn-secondary px-3">{t('cancel')}</button>
+                      </div>
+                    )}
                   </div>
                 )}
 

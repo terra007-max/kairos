@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /c/Users/Max/OneDrive/Desktop/kairos/supabase/*.sql)"
+    ]
+  }
+}
