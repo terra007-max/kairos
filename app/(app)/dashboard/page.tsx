@@ -141,11 +141,11 @@ export default function DashboardPage() {
         const now = new Date()
         const monthStart = startOfMonth(now)
         const weekStart = startOfWeek(now, { weekStartsOn: 1 })
-        const myMember = members.find(m => m.user_id === effectiveUserId)
-        const weeklyH = myMember?.weekly_hours ?? 40
+        const activeMembers = members.filter(m => m.status === 'active')
+        const totalWeeklyH = activeMembers.reduce((sum, m) => sum + (m.weekly_hours ?? 40), 0)
         const weeksElapsedMonth = Math.max((now.getTime() - monthStart.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7)
-        const weekCapH = weeklyH
-        const monthCapH = weeklyH * weeksElapsedMonth
+        const weekCapH = totalWeeklyH
+        const monthCapH = totalWeeklyH * weeksElapsedMonth
         const weekBillH = stats.weekBillableSecs / 3600
         const monthBillH = stats.monthBillableSecs / 3600
         const prevWeekBillH = stats.prevWeekBillableSecs / 3600
@@ -175,8 +175,8 @@ export default function DashboardPage() {
 
         return (
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <UtilCard label={t('utilizationThisWeek')} pct={weekUtil} billH={weekBillH} capH={weekCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
-            <UtilCard label={t('utilizationThisMonth')} pct={monthUtil} billH={monthBillH} capH={monthCapH} prevBillH={prevWeekBillH} capHPrev={weeklyH} />
+            <UtilCard label={t('utilizationThisWeek')} pct={weekUtil} billH={weekBillH} capH={weekCapH} prevBillH={prevWeekBillH} capHPrev={totalWeeklyH} />
+            <UtilCard label={t('utilizationThisMonth')} pct={monthUtil} billH={monthBillH} capH={monthCapH} prevBillH={prevWeekBillH} capHPrev={totalWeeklyH} />
           </div>
         )
       })()}
