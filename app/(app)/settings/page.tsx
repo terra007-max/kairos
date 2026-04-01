@@ -531,9 +531,7 @@ export default function SettingsPage() {
                     {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {m.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Admin</span>}
-                    {m.role === 'partner' && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full"><Crown className="w-2.5 h-2.5" />Partner</span>}
-                    {(m.role === 'project_manager' || m.isProjectManager) && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded-full">PM</span>}
+                    {m.role === 'partner' && <span title="Partner"><Crown className="w-3.5 h-3.5 text-amber-500" /></span>}
                     {m.status === 'pending' && (
                       <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
                     )}
