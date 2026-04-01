@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [unassignedUsers, setUnassignedUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([])
   const [addingUserId, setAddingUserId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // My profile
   const [myWorkspaces, setMyWorkspaces] = useState<{ workspace_id: string; name: string }[]>([])
@@ -208,8 +209,8 @@ export default function SettingsPage() {
   }
 
   async function removeMember(id: string) {
-    if (!confirm('Remove this member?')) return
     await supabase.from('workspace_members').delete().eq('id', id)
+    setConfirmDeleteId(null)
     reload()
   }
 
@@ -546,7 +547,7 @@ export default function SettingsPage() {
                     )}
                     {m.user_id !== currentUserId && role === 'admin' && (
                       <button
-                        onClick={() => removeMember(m.id)}
+                        onClick={() => setConfirmDeleteId(m.id)}
                         className="p-1 text-muted-foreground hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -564,10 +565,10 @@ export default function SettingsPage() {
                   const isDirty = (m.id in pendingLevels && pendingLevels[m.id] !== savedLevel)
                     || (m.id in pendingHours && pendingHours[m.id] !== savedHours)
                   return (
-                    <div className="flex items-center gap-1.5 flex-wrap pl-10">
+                    <div className="flex items-center gap-2 pl-10">
                       {levels.length > 0 && (
                         <select
-                          className="input w-36 text-xs py-1"
+                          className="input w-36 text-xs py-1 flex-shrink-0"
                           value={currentLevel}
                           onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
                         >
@@ -577,26 +578,24 @@ export default function SettingsPage() {
                           ))}
                         </select>
                       )}
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          max={40}
-                          className="input w-16 text-xs py-1 text-center"
-                          value={currentHours}
-                          onChange={e => {
-                            const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
-                            setPendingHours(prev => ({ ...prev, [m.id]: v }))
-                          }}
-                          title="Weekly contracted hours"
-                        />
-                        <span className="text-xs text-muted-foreground">{t('hoursPerWeek')}</span>
-                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        max={40}
+                        className="input w-14 text-xs py-1 text-center flex-shrink-0"
+                        value={currentHours}
+                        onChange={e => {
+                          const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
+                          setPendingHours(prev => ({ ...prev, [m.id]: v }))
+                        }}
+                        title="Weekly contracted hours"
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{t('hoursPerWeek')}</span>
                       {isDirty && (
                         <button
                           onClick={() => saveMember(m.id)}
                           disabled={savingLevel === m.id}
-                          className="btn-primary text-xs py-1 px-2.5"
+                          className="btn-primary text-xs py-1 px-2.5 ml-auto"
                         >
                           {savingLevel === m.id ? '…' : 'Save'}
                         </button>
@@ -677,6 +676,30 @@ export default function SettingsPage() {
         </div>}
 
       </div>
+
+      {/* Delete member confirmation modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-sm font-semibold text-foreground mb-2">{t('removeMemberTitle')}</h3>
+            <p className="text-xs text-muted-foreground mb-5">{t('removeMemberConfirm')}</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="btn-secondary text-sm px-4 py-2"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={() => removeMember(confirmDeleteId)}
+                className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {t('remove')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
