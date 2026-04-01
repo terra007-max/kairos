@@ -434,7 +434,7 @@ const translations = {
   de: {
     // Nav
     dashboard: 'Übersicht',
-    timer: 'Timer',
+    timer: 'Zeiterfassung',
     projects: 'Projekte',
     clients: 'Kunden',
     invoices: 'Rechnungen',
@@ -463,7 +463,7 @@ const translations = {
     startTimerHint: 'Starten Sie den Timer für Ihren ersten Eintrag',
 
     // Timer
-    timerTitle: 'Timer',
+    timerTitle: 'Zeiterfassung',
     timerSubtitle: 'Zeit mit dem Live-Timer erfassen oder manuell hinzufügen.',
     liveTimer: '⏱ Live-Timer',
     fromTo: '🕐 Von → Bis',
