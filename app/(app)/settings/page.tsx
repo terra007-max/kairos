@@ -571,9 +571,10 @@ export default function SettingsPage() {
                     || (m.id in pendingRoles && pendingRoles[m.id] !== savedRole)
                   return (
                     <div className="flex items-center gap-2 pl-10">
+                      {/* Level */}
                       {levels.length > 0 && (
                         <select
-                          className="input w-36 text-xs py-1 shrink-0"
+                          className="bg-transparent border border-border rounded-md text-xs px-2 py-1 text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           value={currentLevel}
                           onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
                         >
@@ -583,29 +584,39 @@ export default function SettingsPage() {
                           ))}
                         </select>
                       )}
-                      <input
-                        type="number"
-                        min={0}
-                        max={40}
-                        className="input w-14 text-xs py-1 text-center shrink-0"
-                        value={currentHours}
-                        onChange={e => {
-                          const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
-                          setPendingHours(prev => ({ ...prev, [m.id]: v }))
-                        }}
-                        title="Weekly contracted hours"
-                      />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">{t('hoursPerWeek')}</span>
+                      {/* Hours */}
+                      <div className="flex items-center gap-1 border border-border rounded-md px-2 py-1 shrink-0">
+                        <input
+                          type="number"
+                          min={0}
+                          max={40}
+                          className="w-7 bg-transparent text-xs text-center text-foreground focus:outline-none"
+                          value={currentHours}
+                          onChange={e => {
+                            const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
+                            setPendingHours(prev => ({ ...prev, [m.id]: v }))
+                          }}
+                          title="Weekly contracted hours"
+                        />
+                        <span className="text-[10px] text-muted-foreground">h/w</span>
+                      </div>
+                      {/* Role pill toggle */}
                       {m.role !== 'admin' && (
-                        <select
-                          className="input text-xs py-1 shrink-0 ml-1"
-                          value={currentRole}
-                          onChange={e => setPendingRoles(prev => ({ ...prev, [m.id]: e.target.value }))}
-                        >
-                          <option value="member">Member</option>
-                          <option value="project_manager">Project Manager</option>
-                          <option value="partner">Partner</option>
-                        </select>
+                        <div className="flex rounded-md border border-border overflow-hidden shrink-0">
+                          {(['member', 'project_manager', 'partner'] as const).map(r => (
+                            <button
+                              key={r}
+                              onClick={() => setPendingRoles(prev => ({ ...prev, [m.id]: r }))}
+                              className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                                currentRole === r
+                                  ? 'bg-brand-600 text-white'
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                              }`}
+                            >
+                              {r === 'member' ? 'Member' : r === 'project_manager' ? 'PM' : 'Partner'}
+                            </button>
+                          ))}
+                        </div>
                       )}
                       {isDirty && (
                         <button
