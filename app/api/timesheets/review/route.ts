@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     // Update per-project approval
     const currentApprovals = (ts.project_approvals as Record<string, any>) || {}
-    const updatedApprovals = {
+    const updatedApprovals: Record<string, any> = {
       ...currentApprovals,
       [projectId]: { status, by: user.id, at: new Date().toISOString() },
     }
