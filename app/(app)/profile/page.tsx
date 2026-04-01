@@ -57,6 +57,7 @@ export default function ProfilePage() {
       setProfileMsg({ type: 'error', text: dbError.message })
     } else {
       setProfileMsg({ type: 'success', text: t('profileUpdated') })
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { avatarUrl: url } }))
     }
     setUploading(false)
   }
@@ -66,6 +67,9 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', user.id)
+    if (!error) {
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { name: fullName } }))
+    }
     setProfileMsg(error ? { type: 'error', text: error.message } : { type: 'success', text: t('profileUpdated') })
     setSavingProfile(false)
   }

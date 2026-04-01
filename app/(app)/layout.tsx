@@ -42,7 +42,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setUser({ id: user.id, name: profile?.full_name || profile?.email || 'You', avatarUrl: profile?.avatar_url || null })
     })
 
-    return () => window.removeEventListener('resize', checkMobile)
+    const handleProfileUpdate = (e: Event) => {
+      const { name, avatarUrl } = (e as CustomEvent).detail
+      setUser(prev => prev ? { ...prev, name: name ?? prev.name, avatarUrl: avatarUrl ?? prev.avatarUrl } : prev)
+    }
+    window.addEventListener('profile-updated', handleProfileUpdate)
+
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+      window.removeEventListener('profile-updated', handleProfileUpdate)
+    }
   }, [router])
 
   if (!user) return <KairosLoader />
