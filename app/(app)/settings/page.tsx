@@ -490,7 +490,7 @@ export default function SettingsPage() {
             <div className="space-y-2">
               {unassignedUsers.map(u => (
                 <div key={u.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-transparent">
-                  <div className="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 text-xs font-bold flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 text-xs font-bold shrink-0">
                     {(u.full_name || u.email)[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => addToWorkspace(u)}
                     disabled={addingUserId === u.id}
-                    className="btn-primary text-xs py-1 px-3 flex-shrink-0"
+                    className="btn-primary text-xs py-1 px-3 shrink-0"
                   >
                     {addingUserId === u.id ? 'Adding…' : 'Add to workspace'}
                   </button>
@@ -523,14 +523,14 @@ export default function SettingsPage() {
               <div key={m.id} className="flex flex-col gap-2 p-3 bg-muted/30 rounded-lg group border border-transparent hover:border-border transition-colors">
                 {/* Row 1: avatar + name + role badges + action buttons */}
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold shrink-0">
                     {(m.full_name || m.email)[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{m.full_name || m.email}</p>
                     {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {m.role === 'partner' && <span title="Partner"><Crown className="w-3.5 h-3.5 text-amber-500" /></span>}
                     {m.status === 'pending' && (
                       <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2 pl-10">
                       {levels.length > 0 && (
                         <select
-                          className="input w-36 text-xs py-1 flex-shrink-0"
+                          className="input w-36 text-xs py-1 shrink-0"
                           value={currentLevel}
                           onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
                         >
@@ -587,7 +587,7 @@ export default function SettingsPage() {
                         type="number"
                         min={0}
                         max={40}
-                        className="input w-14 text-xs py-1 text-center flex-shrink-0"
+                        className="input w-14 text-xs py-1 text-center shrink-0"
                         value={currentHours}
                         onChange={e => {
                           const v = Math.min(40, Math.max(0, parseInt(e.target.value) || 0))
@@ -598,7 +598,7 @@ export default function SettingsPage() {
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{t('hoursPerWeek')}</span>
                       {m.role !== 'admin' && (
                         <select
-                          className="input text-xs py-1 flex-shrink-0 ml-1"
+                          className="input text-xs py-1 shrink-0 ml-1"
                           value={currentRole}
                           onChange={e => setPendingRoles(prev => ({ ...prev, [m.id]: e.target.value }))}
                         >

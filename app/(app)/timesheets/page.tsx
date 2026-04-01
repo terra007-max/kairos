@@ -382,7 +382,7 @@ export default function TimesheetsPage() {
         <h1 className="text-xl font-semibold text-foreground">{t('timesheetsTitle')}</h1>
       </div>
       <div className="card p-6 flex gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-foreground mb-1">Database migration required</p>
           <p className="text-xs text-muted-foreground mb-3">
@@ -431,7 +431,7 @@ export default function TimesheetsPage() {
           {/* Friday / weekend deadline reminder */}
           {showDeadlineReminder && (
             <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-              <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
                   {isFriday(today) ? t('deadlineToday') : t('deadlineApproaching')}
@@ -491,7 +491,7 @@ export default function TimesheetsPage() {
             {viewedWeekIsLocked && (
               <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-4 mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <Lock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{t('weekLocked')}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -505,7 +505,7 @@ export default function TimesheetsPage() {
                 {canReview && currentWeekTs && (
                   <button
                     onClick={() => unlockTimesheet(currentWeekTs.id)}
-                    className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10 flex-shrink-0"
+                    className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-sky-600 border-sky-500/20 hover:bg-sky-500/10 shrink-0"
                   >
                     <Unlock className="w-3 h-3" /> {t('unlock')}
                   </button>
@@ -743,7 +743,7 @@ export default function TimesheetsPage() {
                     {ts.note && <p className="text-xs text-muted-foreground italic mt-1.5">"{ts.note}"</p>}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     {/* Unlock button for locked timesheets */}
                     {ts.locked && (
                       <button

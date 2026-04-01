@@ -740,7 +740,7 @@ export default function InvoicesPage() {
             {/* Missing legal info warning */}
             {workspace !== null && (!workspace.vat_id || !workspace.iban) && (
               <div className="mt-4 flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Für EN 16931 konforme Rechnungen bitte{' '}
                   {!workspace?.vat_id && <strong>UID-Nummer</strong>}
@@ -776,7 +776,7 @@ export default function InvoicesPage() {
                     {hoursSummary.map(p => (
                       <div key={p.projectId} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border items-center">
                         <div className="col-span-2 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                           <span className="text-xs font-medium text-foreground truncate">{p.projectName}</span>
                         </div>
                         <div className="text-right">
@@ -809,7 +809,7 @@ export default function InvoicesPage() {
 
                   {totalApproved > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-3">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-emerald-600 dark:text-emerald-400">
                         <span className="font-semibold">{totalApproved.toFixed(1)}h {t('readyToInvoice')}</span>
                         {totalPending > 0 && <span className="text-emerald-600/70"> {totalPending.toFixed(1)}h {t('pendingNotIncluded')}</span>}
@@ -818,13 +818,13 @@ export default function InvoicesPage() {
                   )}
                   {totalApproved === 0 && totalPending > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600 dark:text-amber-400"><span className="font-semibold">{t('noApprovedYet')}</span> {totalPending.toFixed(1)}h {t('pendingAwaitingApproval')}</p>
                     </div>
                   )}
                   {totalApproved === 0 && totalPending === 0 && hoursSummary.length > 0 && (
                     <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-600 dark:text-amber-400"><span className="font-semibold">{t('noApprovedHours')}</span> {t('mustBeApproved')}</p>
                     </div>
                   )}
@@ -1002,7 +1002,7 @@ export default function InvoicesPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start flex-shrink-0 gap-2">
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start shrink-0 gap-2">
                   <div className="sm:text-right">
                     <p className="font-bold text-foreground">{formatMoney(inv.total || inv.subtotal)}</p>
                     {(inv.vat_amount || 0) > 0 && (

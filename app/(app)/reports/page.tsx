@@ -195,7 +195,7 @@ export default function ReportsPage() {
                     <div className="mt-3 space-y-1.5">
                       {pieData.map((p, i) => (
                         <div key={i} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                           <span className="text-xs text-foreground truncate flex-1">{p.name}</span>
                           <span className="text-xs text-muted-foreground tabular-nums">{p.value}h</span>
                         </div>
@@ -219,7 +219,7 @@ export default function ReportsPage() {
                   <div key={row.userId} className="card p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 font-bold text-sm flex-shrink-0">{name[0].toUpperCase()}</div>
+                        <div className="w-9 h-9 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 font-bold text-sm shrink-0">{name[0].toUpperCase()}</div>
                         <div>
                           <p className="font-semibold text-foreground text-sm">{name}</p>
                           {row.member?.full_name && <p className="text-xs text-muted-foreground">{row.member.email}</p>}
@@ -258,9 +258,9 @@ export default function ReportsPage() {
                             const pct = Math.round((secs / row.secs) * 100)
                             return (
                               <div key={projName} className="flex items-center gap-2">
-                                <p className="text-xs text-muted-foreground w-32 truncate flex-shrink-0">{projName}</p>
+                                <p className="text-xs text-muted-foreground w-32 truncate shrink-0">{projName}</p>
                                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-violet-400 rounded-full" style={{ width: `${pct}%` }} /></div>
-                                <p className="text-xs font-mono text-muted-foreground w-14 text-right flex-shrink-0">{formatDuration(secs)}</p>
+                                <p className="text-xs font-mono text-muted-foreground w-14 text-right shrink-0">{formatDuration(secs)}</p>
                               </div>
                             )
                           })}
@@ -298,7 +298,7 @@ export default function ReportsPage() {
                           <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{format(parseISO(e.start_time), 'MMM d, yyyy', { locale: dateFnsLocale })}</td>
                           <td className="px-5 py-3 text-xs text-foreground max-w-xs truncate">{e.description || <span className="text-muted-foreground/50 italic">—</span>}</td>
                           <td className="px-5 py-3">
-                            {e.project ? <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: e.project.color }} />{e.project.name}</span> : <span className="text-xs text-muted-foreground/50">—</span>}
+                            {e.project ? <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: e.project.color }} />{e.project.name}</span> : <span className="text-xs text-muted-foreground/50">—</span>}
                           </td>
                           {role === 'admin' && <td className="px-5 py-3 text-xs text-muted-foreground">{member?.full_name || member?.email || '—'}</td>}
                           <td className="px-5 py-3 text-right font-mono text-xs text-foreground">{e.duration_sec ? formatDuration(e.duration_sec) : '—'}</td>

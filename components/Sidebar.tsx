@@ -69,7 +69,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
       {/* Logo */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+          <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm shrink-0">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" overflow="visible">
               <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
               <line x1="12" y1="12" x2="12" y2="7.5" stroke="white" strokeWidth="2" strokeLinecap="round"
@@ -89,7 +89,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
       {/* Running timer */}
       {runningEntry && (
         <Link href="/timer" onClick={onClose} className="mx-2 mt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 hover:bg-red-500/15 transition-colors">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
           <span className="text-xs font-medium text-red-500 flex-1">{t('timerRunning')}</span>
           <span className="text-xs font-mono text-red-500 tabular-nums">{formatDuration(elapsed)}</span>
         </Link>
@@ -110,7 +110,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
                   : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
               }`}
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-brand-600 dark:text-brand-500' : 'text-muted-foreground'}`} />
+              <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-brand-600 dark:text-brand-500' : 'text-muted-foreground'}`} />
               {label}
             </Link>
           )
@@ -125,9 +125,9 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 hover:bg-muted/60 transition-colors ${pathname === '/profile' ? 'bg-brand-600/10' : ''}`}
         >
           {avatarUrl ? (
-            <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+            <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full object-cover shrink-0" />
           ) : (
-            <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold shrink-0">
               {initials}
             </div>
           )}
@@ -137,7 +137,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
               {role === 'admin' ? 'Admin' : role === 'partner' ? 'Partner' : isProjectManager ? 'Project Manager' : 'Member'}
             </p>
           </div>
-          <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         </Link>
         <button
           onClick={signOut}

@@ -138,7 +138,7 @@ export default function ProjectsPage() {
               <div key={p.id} className="card p-5 group hover:shadow-card-hover transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: p.color }} />
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: p.color }} />
                     <div>
                       <Link href={`/projects/${p.id}`} className="font-semibold text-foreground hover:text-brand-600 transition-colors text-sm">{p.name}</Link>
                       {p.client && <p className="text-xs text-muted-foreground mt-0.5">{(p.client as Client).name}</p>}
@@ -174,7 +174,7 @@ export default function ProjectsPage() {
 
                 {p.memberIds && p.memberIds.length > 0 && (
                   <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-                    <Users className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+                    <Users className="w-3 h-3 text-muted-foreground/50 shrink-0" />
                     {p.memberIds.map(uid => {
                       const m = members.find(x => x.user_id === uid)
                       const name = m?.full_name || m?.email || uid
@@ -189,7 +189,7 @@ export default function ProjectsPage() {
                   const pmName = pm?.full_name || pm?.email
                   return pmName ? (
                     <div className="flex items-center gap-1.5 mb-3">
-                      <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                      <Crown className="w-3 h-3 text-amber-500 shrink-0" />
                       <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{pmName}</span>
                     </div>
                   ) : null
@@ -376,9 +376,9 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
                 const rType = levelRateTypes[level.id] || 'hourly'
                 return (
                   <div key={level.id} className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-foreground w-28 flex-shrink-0">{level.name}</span>
+                    <span className="text-xs font-medium text-foreground w-28 shrink-0">{level.name}</span>
                     {/* hourly / daily toggle */}
-                    <div className="flex gap-0.5 bg-muted p-0.5 rounded-md flex-shrink-0">
+                    <div className="flex gap-0.5 bg-muted p-0.5 rounded-md shrink-0">
                       {(['hourly', 'daily'] as const).map(rt => (
                         <button key={rt} type="button"
                           onClick={() => setLevelRateTypes(prev => ({ ...prev, [level.id]: rt }))}
@@ -391,7 +391,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
                       value={levelRates[level.id] || ''}
                       onChange={e => setLevelRates(prev => ({ ...prev, [level.id]: e.target.value }))}
                       min="0" step="0.01" />
-                    <span className="text-xs text-muted-foreground flex-shrink-0 w-20">
+                    <span className="text-xs text-muted-foreground shrink-0 w-20">
                       {levelRates[level.id] && rType === 'daily'
                         ? `= ${formatMoney(parseFloat(levelRates[level.id]) / 8)}/h`
                         : levelRates[level.id] && rType === 'hourly'
@@ -416,7 +416,7 @@ function ProjectForm({ project, clients, levels, workspaceId, members, isAdmin, 
                 return (
                   <button key={uid} type="button" onClick={() => toggleMember(uid)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${checked ? 'bg-brand-600/10 border-brand-600/30 text-brand-600' : 'border-border text-muted-foreground hover:border-brand-600/30 hover:text-foreground'}`}>
-                    <span className="w-5 h-5 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-[10px] font-bold flex-shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-[10px] font-bold shrink-0">
                       {name[0].toUpperCase()}
                     </span>
                     {name}

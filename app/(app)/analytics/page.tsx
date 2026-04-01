@@ -357,7 +357,7 @@ export default function AnalyticsPage() {
         <div className="space-y-2">
           {burnoutRisks.map(m => (
             <div key={m.user_id} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-semibold text-red-500">{t('burnoutRiskLabel')} — {m.full_name || m.email}</p>
                 <p className="text-xs text-muted-foreground">{t('burnoutRiskDetail')}</p>
@@ -366,7 +366,7 @@ export default function AnalyticsPage() {
           ))}
           {anomalies.map((a, i) => (
             <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${a.severity === 'error' ? 'bg-red-500/10 border border-red-500/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
-              <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${a.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`} />
+              <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${a.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`} />
               <p className={`text-xs ${a.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`}>{a.message}</p>
             </div>
           ))}
@@ -417,7 +417,7 @@ export default function AnalyticsPage() {
           </div>
           {cashflow.overdue > 0 && (
             <div className="mt-4 flex items-start gap-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <p className="text-xs text-red-500">
                 <span className="font-semibold">{formatMoney(cashflow.overdue)} {t('overdueAlertSuffix')}</span> — {invoices.filter(i => i.status === 'sent' && new Date(i.due_date) < today).length} {t('overdueAlertBody')}
               </p>
@@ -455,17 +455,17 @@ export default function AnalyticsPage() {
                 onClick={() => row.userId && setUtilMemberId(row.userId)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors group text-left"
               >
-                <div className="w-8 h-8 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold shrink-0">
                   {row.name[0].toUpperCase()}
                 </div>
-                <span className="text-xs font-medium text-foreground w-28 truncate flex-shrink-0">{row.name}</span>
+                <span className="text-xs font-medium text-foreground w-28 truncate shrink-0">{row.name}</span>
                 <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${utilBarColor(row.pct)}`} style={{ width: `${Math.min(row.pct, 100)}%` }} />
                 </div>
                 <span className={`text-xs font-bold w-10 text-right tabular-nums ${utilBarColor(row.pct).replace('bg-', 'text-').replace('/40', '')}`}>{row.pct}%</span>
                 <span className="text-xs text-muted-foreground w-24 text-right tabular-nums hidden sm:block">{row.billable}h / {row.capacity}h</span>
                 <TrendPill delta={row.trend} />
-                <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </button>
             ))}
             <p className="text-[10px] text-muted-foreground/40 text-right pt-2">{t('drillDownHint')}</p>
@@ -531,8 +531,8 @@ export default function AnalyticsPage() {
                       const maxH = drillProjectBreakdown[0].billable
                       return (
                         <div key={i} className="flex items-center gap-3">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                          <span className="text-xs text-foreground truncate w-36 flex-shrink-0">{p.name}</span>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="text-xs text-foreground truncate w-36 shrink-0">{p.name}</span>
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div className="h-full rounded-full bg-brand-500" style={{ width: `${maxH > 0 ? (p.billable / maxH) * 100 : 0}%` }} />
                           </div>
@@ -677,12 +677,12 @@ export default function AnalyticsPage() {
           <div className="divide-y divide-border">
             {projectHealth.map(({ p, spent, hoursSpent, budgetPct, hoursPct, worstPct }) => (
               <div key={p.id} className="px-5 py-3.5 flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{p.client?.name || '—'}</p>
                 </div>
-                <div className="text-right flex-shrink-0">
+                <div className="text-right shrink-0">
                   {budgetPct !== null && <p className={`text-xs font-semibold ${healthColor(budgetPct)}`}>{formatMoney(spent)} / {formatMoney(p.budget_amount)}</p>}
                   {hoursPct !== null && <p className={`text-xs ${healthColor(hoursPct)}`}>{hoursSpent.toFixed(1)}h / {p.budget_hours}h</p>}
                   {budgetPct === null && hoursPct === null && <p className="text-xs text-muted-foreground/50">{t('noBudgetSet')}</p>}

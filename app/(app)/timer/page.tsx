@@ -308,7 +308,7 @@ export default function TimerPage() {
 
       {can(role, 'submit:timesheet') && showFridayReminder && (
         <div className="mb-5 flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-          <CalendarClock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <CalendarClock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
               {isFriday(today) ? 'Submit your hours today — it\'s Friday!' : 'Deadline approaching — submit by Sunday 23:00'}
@@ -324,7 +324,7 @@ export default function TimerPage() {
       {showIdleAlert && running && (
         <div className="mb-5 card border-amber-500/30 bg-amber-500/10 p-5">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-semibold text-amber-600 dark:text-amber-400 text-sm">{t('idleTitle')} {Math.floor(elapsed / 3600)}h {Math.floor((elapsed % 3600) / 60)}m</p>
               <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">{t('idleQuestion')}</p>
@@ -502,7 +502,7 @@ export default function TimerPage() {
                 const isLocked = approvedWeeks.has(entryWeek)
                 return (
                 <div key={entry.id} className="px-4 py-3.5 flex items-center gap-3 group hover:bg-muted/30 transition-colors">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.project?.color || '#6b7280' }} />
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.project?.color || '#6b7280' }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">
                       {entry.description || <span className="italic text-muted-foreground/60 font-normal">{t('noDescription')}</span>}

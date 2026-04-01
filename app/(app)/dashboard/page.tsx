@@ -210,7 +210,7 @@ export default function DashboardPage() {
               </div>
             ) : recent.map((entry: any) => (
               <div key={entry.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-muted/30 transition-colors">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.project?.color || '#e5e7eb' }} />
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.project?.color || '#e5e7eb' }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">
                     {entry.description || <span className="text-muted-foreground italic">{t('noDescription')}</span>}
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                     {entry.project?.name || t('noProject')} · {formatDistanceToNow(new Date(entry.start_time), { addSuffix: true, locale: dateLocale })}
                   </p>
                 </div>
-                <div className="text-right flex-shrink-0 flex items-center gap-2">
+                <div className="text-right shrink-0 flex items-center gap-2">
                   {entry.billable && <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">{t('billable')}</span>}
                   <p className="text-sm font-mono font-medium text-foreground tabular-nums">
                     {entry.duration_sec ? formatDuration(entry.duration_sec) : '—'}
@@ -288,7 +288,7 @@ function TeamStatus({ workspaceId, members, supabase }: { workspaceId: string; m
         const elapsed = running ? Math.floor((Date.now() - new Date(running.start_time).getTime()) / 1000) : 0
         return (
           <div key={m.id} className="px-5 py-3.5 flex items-center gap-3">
-            <div className="relative flex-shrink-0">
+            <div className="relative shrink-0">
               <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold">
                 {name[0].toUpperCase()}
               </div>
