@@ -171,8 +171,8 @@ export default function ReportsPage() {
                 <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t('dailyHours')}</h2>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={dailyData} barSize={days.length > 14 ? 6 : 16}>
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="hours" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
                   </BarChart>
@@ -189,7 +189,7 @@ export default function ReportsPage() {
                         <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value">
                           {pieData.map((p, i) => <Cell key={i} fill={p.color} />)}
                         </Pie>
-                        <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
+                        <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="mt-3 space-y-1.5">

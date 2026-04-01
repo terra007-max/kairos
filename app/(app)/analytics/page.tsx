@@ -500,10 +500,10 @@ export default function AnalyticsPage() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('weekByWeekLabel')}</p>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={drillWeekData} barGap={4}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
-                      <ReferenceLine y={drillMember.weekly_hours ?? 40} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 2" label={{ value: 'Capacity', fill: 'hsl(var(--muted-foreground))', fontSize: 9, position: 'insideTopRight' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
+                      <ReferenceLine y={drillMember.weekly_hours ?? 40} stroke="var(--muted-foreground)" strokeDasharray="4 2" label={{ value: 'Capacity', fill: 'var(--muted-foreground)', fontSize: 9, position: 'insideTopRight' }} />
                       <Tooltip content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null
                         const d = payload[0]?.payload
@@ -562,10 +562,10 @@ export default function AnalyticsPage() {
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={revenueTrend} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="rev" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-              <YAxis yAxisId="hrs" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="rev" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+              <YAxis yAxisId="hrs" orientation="right" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
               <Tooltip content={<CustomTooltip />} />
               <Bar yAxisId="rev" dataKey="revenue" name="Revenue (€)" fill="#6366f1" radius={[4, 4, 0, 0]} />
               <Bar yAxisId="hrs" dataKey="hours" name="hours" fill="#0ea5e9" radius={[4, 4, 0, 0]} opacity={0.6} />
@@ -586,7 +586,7 @@ export default function AnalyticsPage() {
                 <Pie data={clientData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="revenue">
                   {clientData.map((c, i) => <Cell key={i} fill={c.color} />)}
                 </Pie>
-                <Tooltip formatter={(v: number) => [formatMoney(v), 'Revenue']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
+                <Tooltip formatter={(v: number) => [formatMoney(v), 'Revenue']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                 <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} formatter={(value) => <span className="text-foreground">{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
@@ -654,10 +654,10 @@ export default function AnalyticsPage() {
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => [formatMoney(v), '']} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', fontSize: 11, backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => [formatMoney(v), '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                 {burndownProject?.budget_amount && <ReferenceLine y={burndownProject.budget_amount} stroke="#ef4444" strokeDasharray="6 3" label={{ value: 'Budget', fill: '#ef4444', fontSize: 10, position: 'insideTopRight' }} />}
                 <Area type="monotone" dataKey="spent" name="Spent" stroke="#6366f1" strokeWidth={2} fill="url(#spentGrad)" />
               </AreaChart>
