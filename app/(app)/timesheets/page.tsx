@@ -119,6 +119,7 @@ export default function TimesheetsPage() {
   const [activeTab, setActiveTab]   = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [dbError, setDbError]       = useState(false)
+  const [weekProjectPMs, setWeekProjectPMs] = useState<{ projectName: string; pmName: string }[]>([])
 
   // Time-off add form
   const [addingTimeOff, setAddingTimeOff]     = useState(false)
@@ -159,12 +160,24 @@ export default function TimesheetsPage() {
     if (can(role, 'record:time')) {
       const { data: entries } = await supabase
         .from('time_entries')
-        .select('duration_sec')
+        .select('duration_sec, project_id, project:projects(name, manager_id)')
         .eq('user_id', uid)
         .not('end_time', 'is', null)
         .gte('start_time', currentWeekStart.toISOString())
         .lte('start_time', weekEnd.toISOString())
       setWeekTotalSec((entries || []).reduce((s: number, e: any) => s + (e.duration_sec || 0), 0))
+
+      // Build per-project PM list for the member's "routed to" display
+      const seen = new Set<string>()
+      const pms: { projectName: string; pmName: string }[] = []
+      for (const e of entries || []) {
+        const p = (e as any).project
+        if (!p || !p.manager_id || seen.has(e.project_id)) continue
+        seen.add(e.project_id)
+        const pm = members.find(m => m.user_id === p.manager_id)
+        if (pm) pms.push({ projectName: p.name, pmName: pm.full_name || pm.email })
+      }
+      setWeekProjectPMs(pms)
 
       const { data: myTs, error } = await supabase
         .from('timesheets')
@@ -537,6 +550,17 @@ export default function TimesheetsPage() {
             {currentWeekTs?.status === 'submitted' && (
               <div className="space-y-3">
                 {currentWeekTs.note && <p className="text-xs text-muted-foreground italic">"{currentWeekTs.note}"</p>}
+                {weekProjectPMs.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg px-3 py-2.5 space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{t('routedTo')}</p>
+                    {weekProjectPMs.map(({ projectName, pmName }) => (
+                      <div key={projectName} className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">{projectName}</span>
+                        <span className="text-xs font-medium text-brand-600 dark:text-brand-400">{pmName}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button onClick={withdrawTimesheet} className="btn-secondary w-full text-sm">{t('withdrawSubmission')}</button>
               </div>
             )}
