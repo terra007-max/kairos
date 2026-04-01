@@ -586,7 +586,7 @@ export default function AnalyticsPage() {
                 <Pie data={clientData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="revenue">
                   {clientData.map((c, i) => <Cell key={i} fill={c.color} />)}
                 </Pie>
-                <Tooltip formatter={(v: number) => [formatMoney(v), 'Revenue']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
+                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), 'Revenue']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                 <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} formatter={(value) => <span className="text-foreground">{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
@@ -657,7 +657,7 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => [formatMoney(v), '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
+                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                 {burndownProject?.budget_amount && <ReferenceLine y={burndownProject.budget_amount} stroke="#ef4444" strokeDasharray="6 3" label={{ value: 'Budget', fill: '#ef4444', fontSize: 10, position: 'insideTopRight' }} />}
                 <Area type="monotone" dataKey="spent" name="Spent" stroke="#6366f1" strokeWidth={2} fill="url(#spentGrad)" />
               </AreaChart>

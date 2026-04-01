@@ -189,7 +189,7 @@ export default function ReportsPage() {
                         <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value">
                           {pieData.map((p, i) => <Cell key={i} fill={p.color} />)}
                         </Pie>
-                        <Tooltip formatter={(v: number) => [`${v}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
+                        <Tooltip formatter={(v) => [`${Number(v ?? 0)}h`, '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="mt-3 space-y-1.5">
