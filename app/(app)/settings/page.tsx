@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [pendingLevels, setPendingLevels] = useState<Record<string, string>>({})
   const [memberHours, setMemberHours] = useState<Record<string, number>>({})
   const [pendingHours, setPendingHours] = useState<Record<string, number>>({})
+  const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({})
   const [savingLevel, setSavingLevel] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [unassignedUsers, setUnassignedUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([])
@@ -239,11 +240,12 @@ export default function SettingsPage() {
   async function saveMember(memberId: string) {
     const levelId = pendingLevels[memberId] ?? memberLevels[memberId] ?? ''
     const weeklyHours = pendingHours[memberId] ?? memberHours[memberId] ?? 40
+    const newRole = pendingRoles[memberId]
     setSavingLevel(memberId)
     const res = await fetch('/api/admin/member-level', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId, levelId, weeklyHours, workspaceId }),
+      body: JSON.stringify({ memberId, levelId, weeklyHours, workspaceId, role: newRole }),
     })
     if (!res.ok) {
       const err = await res.json()
@@ -255,6 +257,7 @@ export default function SettingsPage() {
     setMemberHours(prev => ({ ...prev, [memberId]: weeklyHours }))
     setPendingLevels(prev => { const n = { ...prev }; delete n[memberId]; return n })
     setPendingHours(prev => { const n = { ...prev }; delete n[memberId]; return n })
+    setPendingRoles(prev => { const n = { ...prev }; delete n[memberId]; return n })
     setSavingLevel(null)
     reload()
   }
@@ -557,14 +560,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Row 2: level + hours controls (admin only) */}
+                {/* Row 2: level + hours + role controls (admin only) */}
                 {role === 'admin' && (() => {
                   const currentLevel = pendingLevels[m.id] ?? memberLevels[m.id] ?? ''
                   const savedLevel = memberLevels[m.id] ?? ''
                   const currentHours = pendingHours[m.id] ?? memberHours[m.id] ?? 40
                   const savedHours = memberHours[m.id] ?? 40
+                  const savedRole = m.role
+                  const currentRole = pendingRoles[m.id] ?? savedRole
                   const isDirty = (m.id in pendingLevels && pendingLevels[m.id] !== savedLevel)
                     || (m.id in pendingHours && pendingHours[m.id] !== savedHours)
+                    || (m.id in pendingRoles && pendingRoles[m.id] !== savedRole)
                   return (
                     <div className="flex items-center gap-2 pl-10">
                       {levels.length > 0 && (
@@ -592,6 +598,17 @@ export default function SettingsPage() {
                         title="Weekly contracted hours"
                       />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{t('hoursPerWeek')}</span>
+                      {m.role !== 'admin' && (
+                        <select
+                          className="input text-xs py-1 flex-shrink-0 ml-1"
+                          value={currentRole}
+                          onChange={e => setPendingRoles(prev => ({ ...prev, [m.id]: e.target.value }))}
+                        >
+                          <option value="member">Member</option>
+                          <option value="project_manager">Project Manager</option>
+                          <option value="partner">Partner</option>
+                        </select>
+                      )}
                       {isDirty && (
                         <button
                           onClick={() => saveMember(m.id)}

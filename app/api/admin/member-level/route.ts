@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { memberId, levelId, weeklyHours, workspaceId } = await req.json()
+  const { memberId, levelId, weeklyHours, workspaceId, role: newRole } = await req.json()
   if (!memberId || !workspaceId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -42,8 +42,10 @@ export async function PATCH(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  const ALLOWED_ROLES = ['member', 'project_manager', 'partner']
   const patch: Record<string, unknown> = { level_id: levelId || null }
   if (weeklyHours !== undefined) patch.weekly_hours = weeklyHours
+  if (newRole && ALLOWED_ROLES.includes(newRole)) patch.role = newRole
 
   const { error } = await adminSupabase
     .from('workspace_members')

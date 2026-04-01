@@ -536,7 +536,7 @@ export default function TimesheetsPage() {
                 </div>
                 <button
                   onClick={submitTimesheet}
-                  disabled={submitting || weekTotalSec === 0 || isProxying}
+                  disabled={submitting || weekTotalSec === 0}
                   className="btn-primary w-full disabled:opacity-40"
                 >
                   {submitting ? t('submitting') : t('submitForReview')}

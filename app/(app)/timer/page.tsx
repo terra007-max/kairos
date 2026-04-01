@@ -399,7 +399,7 @@ export default function TimerPage() {
                 <Square className="w-4 h-4 fill-current" /> {t('stop')}
               </button>
             ) : (
-              <button onClick={startTimer} disabled={isProxying} className="flex items-center gap-2 btn-primary px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={startTimer} className="flex items-center gap-2 btn-primary px-5 py-2">
                 <Play className="w-4 h-4 fill-current" /> {t('start')}
               </button>
             )}
