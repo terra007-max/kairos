@@ -58,7 +58,7 @@ export default function TimesheetsPage() {
       const seen = new Set<string>()
       const pms: { projectName: string; pmName: string }[] = []
       for (const e of entries || []) {
-        const p = (e as { project?: { name: string; manager_id: string | null } | null; project_id: string }).project
+        const p = (e as unknown as { project?: { name: string; manager_id: string | null } | null; project_id: string }).project
         const eTyped = e as { project_id: string }
         if (!p || !p.manager_id || seen.has(eTyped.project_id)) continue
         seen.add(eTyped.project_id)
