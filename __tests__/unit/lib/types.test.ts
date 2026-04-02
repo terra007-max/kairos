@@ -98,6 +98,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     rounding_minutes: 0,
     budget_hours: null,
     budget_amount: null,
+    manager_id: null,
     created_at: '2024-01-01',
     ...overrides,
   }

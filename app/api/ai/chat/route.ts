@@ -98,7 +98,7 @@ function getPeriodBounds(period: string): { start: Date; end: Date } {
 // ── Tool executors ────────────────────────────────────────────────────────────
 
 async function runGetHoursSummary(
-  adminDb: ReturnType<typeof createClient>,
+  adminDb: any,
   workspaceId: string,
   userId: string,
   role: string,
@@ -188,7 +188,7 @@ async function runGetHoursSummary(
 }
 
 async function runGetProjectStatus(
-  adminDb: ReturnType<typeof createClient>,
+  adminDb: any,
   workspaceId: string,
   role: string,
   managedIds: string[],
@@ -247,7 +247,7 @@ async function runGetProjectStatus(
 }
 
 async function runGetTeamOverview(
-  adminDb: ReturnType<typeof createClient>,
+  adminDb: any,
   workspaceId: string,
   role: string,
   input: { period: string }
@@ -291,7 +291,7 @@ async function runGetTeamOverview(
 }
 
 async function runGetTimesheetStatus(
-  adminDb: ReturnType<typeof createClient>,
+  adminDb: any,
   workspaceId: string,
   role: string,
   input: { period: string }
