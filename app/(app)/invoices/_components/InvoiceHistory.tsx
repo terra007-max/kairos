@@ -9,7 +9,7 @@ import { FileText, Download, Send, CheckCircle, Clock, Search, X, Pencil, Trash2
 import { type SavedInvoice, type InvoiceStatus } from '../_lib/types'
 import { exportBMDNTCS, exportEBInterface, downloadPDF } from '../_lib/export'
 
-function StatusBadge({ status, t }: { status: InvoiceStatus; t: (k: string) => string }) {
+function StatusBadge({ status, t }: { status: InvoiceStatus; t: (k: any) => string }) {
   if (status === 'paid') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
       <CheckCircle className="w-3 h-3" /> {t('invoiceStatusPaid')}
