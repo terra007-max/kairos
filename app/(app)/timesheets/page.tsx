@@ -30,8 +30,6 @@ export default function TimesheetsPage() {
   const canReview = can(role, 'review:all') || isProjectManager
   const [activeTab, setActiveTab] = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
 
-  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
-
   const autoLockPastWeeks = useCallback(async (sheets: Timesheet[]) => {
     const toUpdate = sheets
       .filter(ts => ts.status === 'draft' && !ts.locked && isDeadlinePassed(new Date(ts.week_start)))
@@ -45,6 +43,7 @@ export default function TimesheetsPage() {
     if (!workspaceId) return
     const uid = effectiveUserId
     setUserId(uid)
+    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
 
     if (can(role, 'record:time')) {
       const { data: entries } = await supabase
@@ -165,7 +164,7 @@ export default function TimesheetsPage() {
       setTeamTimesheets(enriched)
     }
     setLoading(false)
-  }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds, autoLockPastWeeks, canReview, effectiveUserId, weekEnd])
+  }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds, autoLockPastWeeks, canReview, effectiveUserId])
 
   useEffect(() => { loadData() }, [loadData])
 
