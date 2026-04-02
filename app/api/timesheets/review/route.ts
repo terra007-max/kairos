@@ -35,11 +35,13 @@ export async function POST(req: NextRequest) {
 
   const isAdminOrPartner = membership.role === 'admin' || membership.role === 'partner'
 
-  // Fetch timesheet
+  // Fetch timesheet — enforce workspace_id so a reviewer from workspace A
+  // cannot touch timesheets belonging to workspace B
   const { data: ts } = await adminSupabase
     .from('timesheets')
     .select('user_id, week_start, review_history, project_approvals')
     .eq('id', timesheetId)
+    .eq('workspace_id', workspaceId)
     .single()
 
   if (!ts) return NextResponse.json({ error: 'Timesheet not found.' }, { status: 404 })
