@@ -9,20 +9,14 @@
 export default function KairosLoader({ size = 'page' }: { size?: 'page' | 'sm' }) {
   if (size === 'sm') {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '16rem', width: '100%' }}>
+        {/* Use a padded viewBox so the arms have room without relying on overflow:visible */}
         <svg
-          viewBox="0 0 80 80"
-          width="28"
-          height="28"
+          viewBox="-10 -10 100 100"
+          width="64"
+          height="64"
           aria-hidden="true"
-          style={{ overflow: 'visible' }}
         >
-          <defs>
-            <filter id="klGlowSm" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.8" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
           <line x1="28" y1="40" x2="5"  y2="10"
             stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
             strokeDasharray="38" strokeDashoffset="38"
@@ -34,25 +28,23 @@ export default function KairosLoader({ size = 'page' }: { size?: 'page' | 'sm' }
             style={{ animation: 'klPast 3.6s ease-in-out infinite 0.12s' }}
           />
           <line x1="28" y1="40" x2="28" y2="6"
-            stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+            stroke="var(--foreground)" strokeWidth="3" strokeLinecap="round"
             strokeDasharray="34" strokeDashoffset="34"
             style={{ animation: 'klSpine 3.6s ease-in-out infinite' }}
           />
           <line x1="28" y1="40" x2="28" y2="74"
-            stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+            stroke="var(--foreground)" strokeWidth="3" strokeLinecap="round"
             strokeDasharray="34" strokeDashoffset="34"
             style={{ animation: 'klSpine 3.6s ease-in-out infinite 0.06s' }}
           />
           <line x1="28" y1="40" x2="72" y2="7"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+            stroke="var(--foreground)" strokeWidth="2.5" strokeLinecap="round"
             strokeDasharray="55" strokeDashoffset="55"
-            filter="url(#klGlowSm)"
             style={{ animation: 'klFuture 3.6s ease-in-out infinite' }}
           />
           <line x1="28" y1="40" x2="72" y2="73"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+            stroke="var(--foreground)" strokeWidth="2.5" strokeLinecap="round"
             strokeDasharray="55" strokeDashoffset="55"
-            filter="url(#klGlowSm)"
             style={{ animation: 'klFuture 3.6s ease-in-out infinite 0.12s' }}
           />
         </svg>

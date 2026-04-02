@@ -164,6 +164,9 @@ export async function POST(req: NextRequest) {
       reviewed_at: new Date().toISOString(),
       reviewed_by: user.id,
       review_history: history,
+      // Clear per-project approvals when returning a timesheet so the
+      // next review cycle starts with a clean slate
+      ...(status === 'rejected' ? { project_approvals: {} } : {}),
     })
     .eq('id', timesheetId)
 

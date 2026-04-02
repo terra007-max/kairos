@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
+import KairosLoader from '@/components/KairosLoader'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -53,14 +54,22 @@ function InviteForm() {
       // Save display name to profile
       await supabase.from('profiles').upsert({ id: user.id, full_name: fullName.trim(), email: user.email })
 
-      // Link the user to the workspace
+      // Link the user to the workspace — validate the invite exists first
+      // to prevent workspace_id substitution attacks in the invite link
       if (workspaceId) {
-        await supabase
+        const { data: invite } = await supabase
           .from('workspace_members')
-          .update({ user_id: user.id, status: 'active' })
+          .select('id')
           .eq('workspace_id', workspaceId)
           .eq('email', user.email?.toLowerCase() ?? '')
           .eq('status', 'pending')
+          .single()
+        if (invite) {
+          await supabase
+            .from('workspace_members')
+            .update({ user_id: user.id, status: 'active' })
+            .eq('id', invite.id)
+        }
       }
     }
 
@@ -70,7 +79,7 @@ function InviteForm() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+        <KairosLoader />
       </div>
     )
   }
@@ -145,7 +154,7 @@ export default function InvitePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+        <KairosLoader />
       </div>
     }>
       <InviteForm />

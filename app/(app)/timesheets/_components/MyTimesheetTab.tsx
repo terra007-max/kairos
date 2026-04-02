@@ -85,8 +85,14 @@ export function MyTimesheetTab({
     setSubmitting(true)
     const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd')
     if (currentWeekTs) {
+      // Clear stale per-project approvals from a previous review cycle so
+      // reviewers don't see rejected/approved pills from before the resubmission
+      const wasRejected = currentWeekTs.status === 'rejected'
       await supabase.from('timesheets').update({
-        status: 'submitted', note: note || null, submitted_at: new Date().toISOString(),
+        status: 'submitted',
+        note: note || null,
+        submitted_at: new Date().toISOString(),
+        ...(wasRejected ? { project_approvals: {}, reviewer_note: null } : {}),
       }).eq('id', currentWeekTs.id)
     } else {
       await supabase.from('timesheets').insert({

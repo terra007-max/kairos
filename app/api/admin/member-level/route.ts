@@ -14,8 +14,8 @@ export async function PATCH(req: NextRequest) {
   if (!memberId || !workspaceId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
-  if (weeklyHours !== undefined && (typeof weeklyHours !== 'number' || weeklyHours < 0 || weeklyHours > 40)) {
-    return NextResponse.json({ error: 'weeklyHours must be 0–40' }, { status: 400 })
+  if (weeklyHours !== undefined && (typeof weeklyHours !== 'number' || isNaN(weeklyHours) || weeklyHours < 0 || weeklyHours > 80)) {
+    return NextResponse.json({ error: 'weeklyHours must be 0–80' }, { status: 400 })
   }
 
   // Verify caller is admin of this workspace
