@@ -110,16 +110,19 @@ export async function POST(req: NextRequest) {
 
     const projectsNeedingApproval = (projectsWithPMs || []).map((p: any) => p.id)
 
-    // Determine overall status
+    // Determine overall status.
+    // If no projects have PMs, a PM cannot auto-approve the whole timesheet —
+    // that would require an admin/partner action.
     let overallStatus: 'submitted' | 'approved' | 'rejected' = 'submitted'
     if (status === 'rejected') {
       overallStatus = 'rejected'
-    } else {
+    } else if (projectsNeedingApproval.length > 0) {
       const allApproved = projectsNeedingApproval.every(
         pid => updatedApprovals[pid]?.status === 'approved'
       )
       if (allApproved) overallStatus = 'approved'
     }
+    // else: no PM-managed projects → stay 'submitted', admin must approve
 
     const history = [...((ts.review_history as any[]) || []), {
       status: overallStatus === 'submitted' ? 'partial' : overallStatus,

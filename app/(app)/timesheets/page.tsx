@@ -30,12 +30,16 @@ export default function TimesheetsPage() {
   const canReview = can(role, 'review:all') || isProjectManager
   const [activeTab, setActiveTab] = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
 
-  const autoLockPastWeeks = useCallback(async (sheets: Timesheet[]) => {
+  const autoLockPastWeeks = useCallback(async (sheets: Timesheet[], uid: string) => {
+    // Lock past-deadline drafts AND submitted timesheets — submitted weeks past the
+    // deadline should also be locked so the member cannot withdraw and re-edit them
     const toUpdate = sheets
-      .filter(ts => ts.status === 'draft' && !ts.locked && isDeadlinePassed(new Date(ts.week_start)))
+      .filter(ts => !ts.locked && (ts.status === 'draft' || ts.status === 'submitted') && isDeadlinePassed(new Date(ts.week_start)))
       .map(ts => ts.id)
     if (toUpdate.length === 0) return sheets
-    await supabase.from('timesheets').update({ locked: true, locked_at: new Date().toISOString() }).in('id', toUpdate)
+    await supabase.from('timesheets')
+      .update({ locked: true, locked_at: new Date().toISOString(), locked_by: uid })
+      .in('id', toUpdate)
     return sheets.map(ts => toUpdate.includes(ts.id) ? { ...ts, locked: true } : ts)
   }, [supabase])
 
@@ -76,7 +80,7 @@ export default function TimesheetsPage() {
 
       if (error?.code === '42P01') { setDbError(true); setLoading(false); return }
 
-      const lockedTs = await autoLockPastWeeks(myTs || [])
+      const lockedTs = await autoLockPastWeeks(myTs || [], uid)
       setMyTimesheets(lockedTs)
 
       const { data: toEntries } = await supabase

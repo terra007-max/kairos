@@ -28,6 +28,7 @@ export function TeamReviewTab({
 
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewerNote, setReviewerNote] = useState('')
+  const [confirmReturnId, setConfirmReturnId] = useState<string | null>(null)
 
   function fmtRange(start: Date) {
     const end = endOfWeek(start, { weekStartsOn: 1 })
@@ -60,8 +61,10 @@ export function TeamReviewTab({
   return (
     <div className="space-y-3">
       {teamTimesheets.map(ts => {
-        const isReviewing  = reviewingId === ts.id
-        const totalHours   = (ts.projectSummary || []).reduce((s, p) => s + p.hours, 0)
+        const isReviewing       = reviewingId === ts.id
+        const isConfirmingReturn = confirmReturnId === ts.id
+        const totalHours        = (ts.projectSummary || []).reduce((s, p) => s + p.hours, 0)
+        const unmanagedProjects = (ts.projectSummary || []).filter(p => !p.managerId)
 
         return (
           <div key={ts.id} className="card p-5">
@@ -79,11 +82,13 @@ export function TeamReviewTab({
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {ts.projectSummary.map(p => {
                       const approval = ts.project_approvals?.[p.id]
+                      const unmanaged = !p.managerId
                       return (
-                        <span key={p.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs ${approval?.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted/60 text-muted-foreground'}`}>
+                        <span key={p.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs ${approval?.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : unmanaged ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400' : 'bg-muted/60 text-muted-foreground'}`}>
                           {approval?.status === 'approved' && <CheckCircle className="w-3 h-3" />}
                           <span className="font-medium text-foreground">{p.name}</span>
                           <span>{p.hours.toFixed(1)}h</span>
+                          {unmanaged && <span className="opacity-50" title="No project manager — auto-approved">·</span>}
                         </span>
                       )
                     })}
@@ -91,6 +96,11 @@ export function TeamReviewTab({
                       {totalHours.toFixed(1)}h {locale === 'de' ? 'gesamt' : 'total'}
                     </span>
                   </div>
+                )}
+                {unmanagedProjects.length > 0 && ts.status === 'submitted' && (
+                  <p className="text-[10px] text-sky-600/70 mt-1">
+                    {unmanagedProjects.map(p => p.name).join(', ')} {unmanagedProjects.length === 1 ? 'has' : 'have'} no PM — auto-approved on full approval
+                  </p>
                 )}
                 {ts.note && <p className="text-xs text-muted-foreground italic mt-1.5">"{ts.note}"</p>}
               </div>
@@ -109,10 +119,21 @@ export function TeamReviewTab({
                     {t('reviewButton')}
                   </button>
                 )}
-                {ts.status === 'approved' && !isReviewing && (
-                  <button onClick={() => setReviewingId(ts.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5">
+                {ts.status === 'approved' && !isReviewing && !isConfirmingReturn && (
+                  <button onClick={() => setConfirmReturnId(ts.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1.5 text-amber-600 border-amber-500/20 hover:bg-amber-500/10">
                     {t('returnButton')}
                   </button>
+                )}
+                {ts.status === 'approved' && isConfirmingReturn && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-amber-600">{locale === 'de' ? 'Sicher?' : 'Sure?'}</span>
+                    <button onClick={() => { setConfirmReturnId(null); setReviewingId(ts.id) }} className="btn-secondary text-xs py-1 px-2 text-amber-600 border-amber-500/20 hover:bg-amber-500/10">
+                      {locale === 'de' ? 'Ja, zurücksenden' : 'Yes, return'}
+                    </button>
+                    <button onClick={() => setConfirmReturnId(null)} className="btn-secondary text-xs py-1 px-2">
+                      {t('cancel')}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
