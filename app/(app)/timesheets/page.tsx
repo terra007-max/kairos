@@ -149,7 +149,7 @@ export default function TimesheetsPage() {
           })
           const projectMap: Record<string, { name: string; secs: number; managerId: string | null }> = {}
           for (const e of tsEntries) {
-            const eTyped = e as { project_id: string; project?: { name: string; manager_id: string | null } | null; duration_sec?: number }
+            const eTyped = e as unknown as { project_id: string; project?: { name: string; manager_id: string | null } | null; duration_sec?: number }
             if (!eTyped.project_id) continue
             const name = eTyped.project?.name || eTyped.project_id
             const managerId = eTyped.project?.manager_id || null
