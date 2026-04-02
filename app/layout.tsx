@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     title: 'Kairos',
   },
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
+    icon: '/icon.svg',
+    shortcut: '/icon-192.png',
     apple: '/icon-192.png',
   },
 }

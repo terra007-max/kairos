@@ -88,9 +88,7 @@ function InviteForm() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-xl">K</span>
-          </div>
+          <img src="/icon.svg" alt="Kairos" className="w-14 h-14 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Welcome to Kairos</h1>
           <p className="text-sm text-muted-foreground mt-2">Enter your name and set a password to finish creating your account</p>
         </div>

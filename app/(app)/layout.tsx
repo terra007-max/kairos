@@ -91,9 +91,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Menu size={18} className="text-muted-foreground" />
                 </button>
                 <div className="flex items-center gap-2">
-                  <div className="bg-brand-600 rounded-lg p-1 flex items-center justify-center">
-                    <KairosIcon size={14} />
-                  </div>
+                  <img src="/icon.svg" alt="Kairos" className="w-7 h-7" />
                   <span className="text-sm font-bold text-foreground">Kairos</span>
                 </div>
               </div>

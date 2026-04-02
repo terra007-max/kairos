@@ -38,9 +38,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-10 h-10 bg-brand-600 rounded-xl shadow-sm mb-4">
-            <Clock className="w-5 h-5 text-white" />
-          </div>
+          <img src="/icon.svg" alt="Kairos" className="w-14 h-14 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-foreground">Kairos</h1>
           <p className="text-sm text-muted-foreground mt-1">Track your time. Maximize your value.</p>
         </div>

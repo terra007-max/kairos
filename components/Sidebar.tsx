@@ -69,9 +69,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
       {/* Logo */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm shrink-0">
-            <KairosIcon size={16} />
-          </div>
+          <img src="/icon.svg" alt="Kairos" className="w-8 h-8 shrink-0" />
           <div className="min-w-0">
             <span className="text-sm font-bold text-foreground tracking-tight block leading-tight">Kairos</span>
             <span className="text-xs text-muted-foreground truncate block max-w-[140px] leading-tight">{workspaceName}</span>
