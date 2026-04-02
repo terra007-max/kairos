@@ -2,7 +2,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
-type WorkspaceMemberLike = { user_id: string; full_name?: string | null; email?: string | null }
+type WorkspaceMemberLike = { user_id: string | null; full_name?: string | null; email?: string | null }
 type Anomaly = { message: string; severity: 'error' | 'warning' }
 
 export function AlertsSection({ burnoutRisks, anomalies }: {
@@ -15,8 +15,8 @@ export function AlertsSection({ burnoutRisks, anomalies }: {
 
   return (
     <div className="space-y-2">
-      {burnoutRisks.map(m => (
-        <div key={m.user_id} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+      {burnoutRisks.map((m, i) => (
+        <div key={m.user_id ?? i} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
           <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-xs font-semibold text-red-500">{t('burnoutRiskLabel')} — {m.full_name || m.email}</p>
