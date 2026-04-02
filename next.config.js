@@ -2,9 +2,6 @@
 const isDev = process.env.NODE_ENV === 'development'
 
 const nextConfig = {
-  experimental: {
-    disableRouterProgressBar: true,
-  },
   async headers() {
     return [
       {

@@ -147,6 +147,9 @@
   50%      { opacity: 1; }
 }
 
+/* Hide Next.js router progress bar */
+[data-nprogress], #nprogress { display: none !important; }
+
 /* Mobile larger touch targets */
 @media (max-width: 767px) {
   .input { font-size: 16px !important; min-height: 44px; }
