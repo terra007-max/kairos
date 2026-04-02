@@ -132,7 +132,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'var(--background, #09090b)',
+    background: '#09090b',
     zIndex: 9999,
   },
   scene: {
