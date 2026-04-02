@@ -71,12 +71,18 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
         <div className="flex items-center gap-2.5">
           <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm shrink-0">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" overflow="visible">
-              <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
-              <line x1="12" y1="12" x2="12" y2="7.5" stroke="white" strokeWidth="2" strokeLinecap="round"
-                style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbHour 12s linear infinite' }} />
-              <line x1="12" y1="12" x2="12" y2="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round"
-                style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbMin 2s linear infinite' }} />
-              <circle cx="12" cy="12" r="1.5" fill="white" />
+              {/* Past ghost arms — left, dissolving */}
+              <line x1="8" y1="12" x2="2" y2="4"  stroke="white" strokeWidth="1.5" strokeLinecap="round"
+                style={{ animation: 'razorPast 3.2s ease-in-out infinite' }} />
+              <line x1="8" y1="12" x2="2" y2="20" stroke="white" strokeWidth="1.5" strokeLinecap="round"
+                style={{ animation: 'razorPast 3.2s ease-in-out infinite 0.4s' }} />
+              {/* Razor — the present moment */}
+              <line x1="8" y1="3" x2="8" y2="21" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+              {/* Future arms — right, forming */}
+              <line x1="8" y1="12" x2="19" y2="3"  stroke="white" strokeWidth="2" strokeLinecap="round"
+                style={{ animation: 'razorFuture 3.2s ease-in-out infinite' }} />
+              <line x1="8" y1="12" x2="19" y2="21" stroke="white" strokeWidth="2" strokeLinecap="round"
+                style={{ animation: 'razorFuture 3.2s ease-in-out infinite 0.4s' }} />
             </svg>
           </div>
           <div className="min-w-0">

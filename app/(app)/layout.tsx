@@ -97,13 +97,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
                 <div className="flex items-center gap-2">
                   <div className="bg-brand-600 rounded-lg p-1 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
-                      <line x1="12" y1="12" x2="12" y2="7.5" stroke="white" strokeWidth="2" strokeLinecap="round"
-                        style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbHour 12s linear infinite' }} />
-                      <line x1="12" y1="12" x2="12" y2="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round"
-                        style={{ transformBox: 'fill-box' as never, transformOrigin: 'center', animation: 'sbMin 2s linear infinite' }} />
-                      <circle cx="12" cy="12" r="1.5" fill="white" />
+                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" overflow="visible">
+                      <line x1="8" y1="12" x2="2" y2="4"  stroke="white" strokeWidth="1.5" strokeLinecap="round"
+                        style={{ animation: 'razorPast 3.2s ease-in-out infinite' }} />
+                      <line x1="8" y1="12" x2="2" y2="20" stroke="white" strokeWidth="1.5" strokeLinecap="round"
+                        style={{ animation: 'razorPast 3.2s ease-in-out infinite 0.4s' }} />
+                      <line x1="8" y1="3" x2="8" y2="21" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+                      <line x1="8" y1="12" x2="19" y2="3"  stroke="white" strokeWidth="2" strokeLinecap="round"
+                        style={{ animation: 'razorFuture 3.2s ease-in-out infinite' }} />
+                      <line x1="8" y1="12" x2="19" y2="21" stroke="white" strokeWidth="2" strokeLinecap="round"
+                        style={{ animation: 'razorFuture 3.2s ease-in-out infinite 0.4s' }} />
                     </svg>
                   </div>
                   <span className="text-sm font-bold text-foreground">Kairos</span>
@@ -128,9 +131,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <style>{`
-          @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-          @keyframes sbHour  { to { transform: rotate(360deg); } }
-          @keyframes sbMin   { to { transform: rotate(360deg); } }
+          @keyframes slideIn     { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+          @keyframes razorFuture { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+          @keyframes razorPast   { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.38; } }
         `}</style>
       </WorkspaceProvider>
     </I18nProvider>

@@ -574,7 +574,7 @@ export default function SettingsPage() {
                       {/* Level */}
                       {levels.length > 0 && (
                         <select
-                          className="bg-transparent border border-border rounded-md text-xs px-2 py-1 text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          className="bg-card border border-border rounded-md text-xs px-2 py-1 text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           value={currentLevel}
                           onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
                         >

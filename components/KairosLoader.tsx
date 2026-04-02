@@ -2,118 +2,125 @@
 
 /**
  * KairosLoader — branded full-screen loading state.
- * Pure CSS + inline SVG, zero JS overhead, no external deps.
  *
  * Kairos (Καιρός) — Greek god of the opportune moment.
- * Depicted with a forelock you can seize, bald at the back:
- * opportunity must be grasped as it arrives.
+ * "The Razor's Edge": a vertical stroke (the present) flanked by
+ * two K-arms reaching into the future (right, solid) while
+ * mirror ghost arms dissolve into the past (left, fading).
  */
 export default function KairosLoader() {
   return (
     <div style={styles.root}>
       <div style={styles.scene}>
 
-        {/* ── Watch face ─────────────────────────────────────── */}
-        <div style={styles.watchOuter}>
-          <div style={styles.watchInner}>
-            <svg
-              viewBox="0 0 120 120"
-              width="120"
-              height="120"
-              style={styles.svg}
-              aria-hidden="true"
-            >
-              {/* Outer ring glow */}
-              <circle cx="60" cy="60" r="56" fill="none" stroke="#4f46e5" strokeWidth="1" opacity="0.2" />
+        {/* ── Mark ───────────────────────────────────────────── */}
+        <svg
+          viewBox="0 0 80 80"
+          width="120"
+          height="120"
+          aria-hidden="true"
+          style={{ overflow: 'visible' }}
+        >
+          <defs>
+            <filter id="klGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.8" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
 
-              {/* Tick marks */}
-              {Array.from({ length: 12 }).map((_, i) => {
-                const angle = (i * 30 * Math.PI) / 180
-                const isMajor = i % 3 === 0
-                const r1 = isMajor ? 46 : 48
-                const r2 = 52
-                return (
-                  <line
-                    key={i}
-                    x1={60 + r1 * Math.sin(angle)}
-                    y1={60 - r1 * Math.cos(angle)}
-                    x2={60 + r2 * Math.sin(angle)}
-                    y2={60 - r2 * Math.cos(angle)}
-                    stroke="#4f46e5"
-                    strokeWidth={isMajor ? 2 : 1}
-                    opacity={isMajor ? 0.9 : 0.4}
-                    strokeLinecap="round"
-                  />
-                )
-              })}
+          {/* Past ghost arms — left, dissolving into the past */}
+          <line x1="28" y1="40" x2="5"  y2="10"
+            stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
+            strokeDasharray="38" strokeDashoffset="38"
+            style={{ animation: 'klPast 3.6s ease-in-out infinite' }}
+          />
+          <line x1="28" y1="40" x2="5"  y2="70"
+            stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
+            strokeDasharray="38" strokeDashoffset="38"
+            style={{ animation: 'klPast 3.6s ease-in-out infinite 0.12s' }}
+          />
 
-              {/* Hour hand — slow sweep */}
-              <line
-                x1="60" y1="60" x2="60" y2="32"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-                style={{ transformOrigin: '60px 60px', animation: 'kHour 12s linear infinite' }}
-              />
+          {/* Razor spine — upper half, draws from junction upward */}
+          <line x1="28" y1="40" x2="28" y2="6"
+            stroke="white" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray="34" strokeDashoffset="34"
+            style={{ animation: 'klSpine 3.6s ease-in-out infinite' }}
+          />
+          {/* Razor spine — lower half, draws from junction downward */}
+          <line x1="28" y1="40" x2="28" y2="74"
+            stroke="white" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray="34" strokeDashoffset="34"
+            style={{ animation: 'klSpine 3.6s ease-in-out infinite 0.06s' }}
+          />
 
-              {/* Minute hand — medium sweep */}
-              <line
-                x1="60" y1="60" x2="60" y2="22"
-                stroke="#a5b4fc"
-                strokeWidth="2"
-                strokeLinecap="round"
-                style={{ transformOrigin: '60px 60px', animation: 'kMinute 2s linear infinite' }}
-              />
+          {/* Future arms — right, materialising */}
+          <line x1="28" y1="40" x2="72" y2="7"
+            stroke="white" strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="55" strokeDashoffset="55"
+            filter="url(#klGlow)"
+            style={{ animation: 'klFuture 3.6s ease-in-out infinite' }}
+          />
+          <line x1="28" y1="40" x2="72" y2="73"
+            stroke="white" strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="55" strokeDashoffset="55"
+            filter="url(#klGlow)"
+            style={{ animation: 'klFuture 3.6s ease-in-out infinite 0.12s' }}
+          />
+        </svg>
 
-              {/* Second hand — fast, accent color */}
-              <line
-                x1="60" y1="68" x2="60" y2="18"
-                stroke="#4f46e5"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                style={{ transformOrigin: '60px 60px', animation: 'kSecond 1s steps(60, end) infinite' }}
-              />
-
-              {/* Center jewel */}
-              <circle cx="60" cy="60" r="3.5" fill="#4f46e5" />
-              <circle cx="60" cy="60" r="1.5" fill="white" />
-            </svg>
-          </div>
-        </div>
-
-        {/* ── Logo + wordmark ─────────────────────────────────── */}
+        {/* ── Wordmark ─────────────────────────────────────── */}
         <div style={styles.wordmark}>
           <span style={styles.word}>Kairos</span>
           <span style={styles.tagline}>Καιρός · the right moment</span>
         </div>
 
-        {/* ── Subtle arc progress ─────────────────────────────── */}
-        <svg width="180" height="4" viewBox="0 0 180 4" style={styles.bar} aria-hidden="true">
-          <rect x="0" y="0" width="180" height="4" rx="2" fill="#4f46e5" opacity="0.12" />
-          <rect
-            x="0" y="0" width="60" height="4" rx="2"
-            fill="#4f46e5"
-            style={{ animation: 'kBar 1.4s ease-in-out infinite' }}
+        {/* ── Progress bar ─────────────────────────────────── */}
+        <svg width="160" height="4" viewBox="0 0 160 4" style={{ overflow: 'hidden', borderRadius: '2px' }} aria-hidden="true">
+          <rect x="0" y="0" width="160" height="4" rx="2" fill="#4f46e5" opacity="0.12" />
+          <rect x="0" y="0" width="50"  height="4" rx="2" fill="#4f46e5"
+            style={{ animation: 'klBar 1.5s ease-in-out infinite' }}
           />
         </svg>
       </div>
 
       <style>{`
-        @keyframes kHour   { to { transform: rotate(360deg); } }
-        @keyframes kMinute { to { transform: rotate(360deg); } }
-        @keyframes kSecond { to { transform: rotate(360deg); } }
-        @keyframes kPulse  {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0); }
-          50%       { box-shadow: 0 0 0 16px rgba(79,70,229,0.08); }
+        /* 1. Razor spine draws from the junction outward (0–22%) */
+        @keyframes klSpine {
+          0%         { stroke-dashoffset: 34; opacity: 0; }
+          5%         { opacity: 1; }
+          22%, 78%   { stroke-dashoffset: 0; opacity: 1; }
+          90%        { stroke-dashoffset: 0; opacity: 0; }
+          100%       { stroke-dashoffset: 34; opacity: 0; }
         }
-        @keyframes kBar {
-          0%   { transform: translateX(-60px); opacity: 0.4; }
+
+        /* 2. Future arms draw from junction outward (17–45%) */
+        @keyframes klFuture {
+          0%, 17%    { stroke-dashoffset: 55; opacity: 0; }
+          20%        { opacity: 1; }
+          45%, 78%   { stroke-dashoffset: 0; opacity: 1; }
+          90%        { stroke-dashoffset: 0; opacity: 0; }
+          100%       { stroke-dashoffset: 55; opacity: 0; }
+        }
+
+        /* 3. Past ghost arms bloom then dissolve (28–68%) */
+        @keyframes klPast {
+          0%, 28%    { stroke-dashoffset: 38; opacity: 0; }
+          42%        { stroke-dashoffset: 0;  opacity: 0.45; }
+          68%        { stroke-dashoffset: 0;  opacity: 0; }
+          100%       { stroke-dashoffset: 38; opacity: 0; }
+        }
+
+        /* Progress shimmer */
+        @keyframes klBar {
+          0%   { transform: translateX(-50px); opacity: 0.4; }
           50%  { opacity: 1; }
-          100% { transform: translateX(180px); opacity: 0.4; }
+          100% { transform: translateX(160px); opacity: 0.4; }
         }
-        @keyframes kFade {
-          0%, 100% { opacity: 0.5; }
-          50%       { opacity: 1; }
+
+        /* Tagline pulse */
+        @keyframes klFade {
+          0%, 100% { opacity: 0.45; }
+          50%      { opacity: 1; }
         }
       `}</style>
     </div>
@@ -134,30 +141,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '20px',
-  },
-  watchOuter: {
-    width: '136px',
-    height: '136px',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle at 35% 35%, #1e1b4b, #0f0f23)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 0 0 1px rgba(79,70,229,0.25), 0 8px 32px rgba(0,0,0,0.6)',
-    animation: 'kPulse 3s ease-in-out infinite',
-  },
-  watchInner: {
-    width: '120px',
-    height: '120px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  svg: {
-    display: 'block',
+    gap: '24px',
   },
   wordmark: {
     display: 'flex',
@@ -173,13 +157,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tagline: {
     fontSize: '10px',
-    letterSpacing: '0.12em',
-    color: '#6366f1',
+    letterSpacing: '0.14em',
+    color: '#818cf8',
     textTransform: 'uppercase' as const,
-    animation: 'kFade 2.8s ease-in-out infinite',
-  },
-  bar: {
-    overflow: 'hidden',
-    borderRadius: '2px',
+    animation: 'klFade 2.8s ease-in-out infinite',
   },
 }
