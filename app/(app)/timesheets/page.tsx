@@ -7,6 +7,7 @@ import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { AlertCircle } from 'lucide-react'
+import KairosLoader from '@/components/KairosLoader'
 import { type Timesheet, type TimeOffEntry, isDeadlinePassed } from './_lib/types'
 import { MyTimesheetTab } from './_components/MyTimesheetTab'
 import { TeamReviewTab } from './_components/TeamReviewTab'
@@ -168,11 +169,7 @@ export default function TimesheetsPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  if (loading) return <KairosLoader size="sm" />
 
   if (dbError) return (
     <div className="max-w-xl">

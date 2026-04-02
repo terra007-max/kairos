@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useI18n } from '@/lib/i18n'
 import { User, Mail, Lock, Save, Camera } from 'lucide-react'
+import KairosLoader from '@/components/KairosLoader'
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -86,7 +87,7 @@ export default function ProfilePage() {
 
   const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return <KairosLoader size="sm" />
 
   return (
     <div>

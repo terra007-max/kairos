@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseISO } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
 import { Download, Clock, TrendingUp, DollarSign } from 'lucide-react'
+import KairosLoader from '@/components/KairosLoader'
 
 type Range = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom'
 
@@ -162,7 +163,7 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /></div>
+        <KairosLoader size="sm" />
       ) : (
         <>
           {activeTab === 'overview' && (

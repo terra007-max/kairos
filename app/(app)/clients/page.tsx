@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n'
 import { type Client } from '@/lib/types'
 import { Users, Plus, Pencil, Trash2, Upload, X } from 'lucide-react'
 import { ClientAvatar } from '@/components/ClientAvatar'
+import KairosLoader from '@/components/KairosLoader'
 
 const COLORS = ['#6366f1','#f97316','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899']
 
@@ -53,7 +54,7 @@ export default function ClientsPage() {
     </div>
   )
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return <KairosLoader size="sm" />
 
   return (
     <div>

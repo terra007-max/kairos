@@ -1,14 +1,65 @@
 'use client'
 
 /**
- * KairosLoader — branded full-screen loading state.
+ * KairosLoader — branded loading state.
  *
- * Kairos (Καιρός) — Greek god of the opportune moment.
- * "The Razor's Edge": a vertical stroke (the present) flanked by
- * two K-arms reaching into the future (right, solid) while
- * mirror ghost arms dissolve into the past (left, fading).
+ * size="page" (default): full-screen overlay with wordmark + progress bar
+ * size="sm": compact inline K mark, same footprint as the old w-6 h-6 spinner
  */
-export default function KairosLoader() {
+export default function KairosLoader({ size = 'page' }: { size?: 'page' | 'sm' }) {
+  if (size === 'sm') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <svg
+          viewBox="0 0 80 80"
+          width="28"
+          height="28"
+          aria-hidden="true"
+          style={{ overflow: 'visible' }}
+        >
+          <defs>
+            <filter id="klGlowSm" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.8" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          <line x1="28" y1="40" x2="5"  y2="10"
+            stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
+            strokeDasharray="38" strokeDashoffset="38"
+            style={{ animation: 'klPast 3.6s ease-in-out infinite' }}
+          />
+          <line x1="28" y1="40" x2="5"  y2="70"
+            stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
+            strokeDasharray="38" strokeDashoffset="38"
+            style={{ animation: 'klPast 3.6s ease-in-out infinite 0.12s' }}
+          />
+          <line x1="28" y1="40" x2="28" y2="6"
+            stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray="34" strokeDashoffset="34"
+            style={{ animation: 'klSpine 3.6s ease-in-out infinite' }}
+          />
+          <line x1="28" y1="40" x2="28" y2="74"
+            stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray="34" strokeDashoffset="34"
+            style={{ animation: 'klSpine 3.6s ease-in-out infinite 0.06s' }}
+          />
+          <line x1="28" y1="40" x2="72" y2="7"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="55" strokeDashoffset="55"
+            filter="url(#klGlowSm)"
+            style={{ animation: 'klFuture 3.6s ease-in-out infinite' }}
+          />
+          <line x1="28" y1="40" x2="72" y2="73"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="55" strokeDashoffset="55"
+            filter="url(#klGlowSm)"
+            style={{ animation: 'klFuture 3.6s ease-in-out infinite 0.12s' }}
+          />
+        </svg>
+      </div>
+    )
+  }
+
   return (
     <div style={styles.root}>
       <div style={styles.scene}>
@@ -28,7 +79,6 @@ export default function KairosLoader() {
             </filter>
           </defs>
 
-          {/* Past ghost arms — left, dissolving into the past */}
           <line x1="28" y1="40" x2="5"  y2="10"
             stroke="#818cf8" strokeWidth="2" strokeLinecap="round"
             strokeDasharray="38" strokeDashoffset="38"
@@ -40,20 +90,17 @@ export default function KairosLoader() {
             style={{ animation: 'klPast 3.6s ease-in-out infinite 0.12s' }}
           />
 
-          {/* Razor spine — upper half, draws from junction upward */}
           <line x1="28" y1="40" x2="28" y2="6"
             stroke="white" strokeWidth="3" strokeLinecap="round"
             strokeDasharray="34" strokeDashoffset="34"
             style={{ animation: 'klSpine 3.6s ease-in-out infinite' }}
           />
-          {/* Razor spine — lower half, draws from junction downward */}
           <line x1="28" y1="40" x2="28" y2="74"
             stroke="white" strokeWidth="3" strokeLinecap="round"
             strokeDasharray="34" strokeDashoffset="34"
             style={{ animation: 'klSpine 3.6s ease-in-out infinite 0.06s' }}
           />
 
-          {/* Future arms — right, materialising */}
           <line x1="28" y1="40" x2="72" y2="7"
             stroke="white" strokeWidth="2.5" strokeLinecap="round"
             strokeDasharray="55" strokeDashoffset="55"
@@ -82,7 +129,6 @@ export default function KairosLoader() {
           />
         </svg>
       </div>
-
     </div>
   )
 }

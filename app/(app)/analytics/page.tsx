@@ -12,6 +12,7 @@ import {
 } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
 import { Lock } from 'lucide-react'
+import KairosLoader from '@/components/KairosLoader'
 
 import { AlertsSection } from './_components/AlertsSection'
 import { KPIRow } from './_components/KPIRow'
@@ -67,11 +68,7 @@ export default function AnalyticsPage() {
       <p className="text-sm text-muted-foreground">{t('analyticsAdminOnly')}</p>
     </div>
   )
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  if (loading) return <KairosLoader size="sm" />
 
   // ── Scope ────────────────────────────────────────────────────────────────
   const seeAll = can(role, 'review:all')

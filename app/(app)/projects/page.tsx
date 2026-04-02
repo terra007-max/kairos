@@ -10,6 +10,7 @@ import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays
 import { format, parseISO } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
 import Link from 'next/link'
+import KairosLoader from '@/components/KairosLoader'
 
 const COLORS = ['#f97316','#6366f1','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6']
 type ProjectRow = Project & { client?: Client; totalSecs?: number; earnings?: number; level_rates?: ProjectLevelRate[]; memberIds?: string[]; manager_id?: string | null }
@@ -92,7 +93,7 @@ export default function ProjectsPage() {
 
   const filtered = projects.filter(p => p.status === tab)
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return <KairosLoader size="sm" />
 
   return (
     <div>

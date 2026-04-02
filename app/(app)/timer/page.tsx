@@ -7,6 +7,7 @@ import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { formatDuration, type Project } from '@/lib/types'
 import { Play, Square, Trash2, Pencil, Check, Clock, PenLine, AlertTriangle, StopCircle, Search, X, Lock, CalendarClock } from 'lucide-react'
+import KairosLoader from '@/components/KairosLoader'
 import { format, startOfWeek, endOfWeek, isFriday, isSaturday, isSunday, isAfter } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
 
@@ -287,11 +288,7 @@ export default function TimerPage() {
     return acc
   }, {})
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  if (loading) return <KairosLoader size="sm" />
 
   // Friday / weekend reminder — show if current week is still draft
   const today = new Date()
