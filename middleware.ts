@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { can, type WorkspaceRole, ROUTE_RULES } from '@/lib/permissions'
 
 const PROTECTED = [
-  '/dashboard', '/timer', '/projects', '/clients', '/reports',
+  '/dashboard', '/timer', '/projects', '/clients',
   '/invoices', '/settings', '/profile', '/timesheets', '/analytics', '/impressum',
 ]
 

@@ -5,7 +5,6 @@ const STATIC_ASSETS = [
   '/timer',
   '/projects',
   '/clients',
-  '/reports',
   '/manifest.json',
   '/favicon.svg',
 ]

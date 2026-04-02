@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Timer, FolderOpen, BarChart2, Settings } from 'lucide-react'
+import { LayoutDashboard, Timer, FolderOpen, Settings } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
 export default function MobileNav() {
@@ -13,7 +13,6 @@ export default function MobileNav() {
     { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { href: '/timer',     label: t('timer'),     icon: Timer },
     { href: '/projects',  label: t('projects'),  icon: FolderOpen },
-    { href: '/reports',   label: t('reports'),   icon: BarChart2 },
     { href: '/settings',  label: t('settings'),  icon: Settings },
   ]
 
