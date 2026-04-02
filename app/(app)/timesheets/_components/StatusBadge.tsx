@@ -5,7 +5,7 @@ import { type TimesheetStatus } from '../_lib/types'
 export function StatusBadge({ status, locked, t }: {
   status: TimesheetStatus
   locked?: boolean
-  t: (k: string) => string
+  t: (k: any) => string
 }) {
   if (locked) return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-500">
