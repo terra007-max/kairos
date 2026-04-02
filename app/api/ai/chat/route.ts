@@ -344,7 +344,10 @@ async function runGetTimesheetStatus(
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
+export const maxDuration = 30 // seconds — Vercel hobby plan allows up to 60s on Pro
+
 export async function POST(req: NextRequest) {
+  try {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'AI not configured.' }, { status: 500 })
 
@@ -461,4 +464,8 @@ Role-based access:
 
   const textBlock = response.content.find(b => b.type === 'text') as Anthropic.TextBlock | undefined
   return NextResponse.json({ reply: textBlock?.text || 'Sorry, I could not generate a response.' })
+  } catch (err: any) {
+    console.error('[AI chat error]', err)
+    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  }
 }
