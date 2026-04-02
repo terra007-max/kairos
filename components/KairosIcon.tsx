@@ -9,11 +9,10 @@
 export default function KairosIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="-2 -2 28 28"
       width={size}
       height={size}
       aria-hidden="true"
-      style={{ overflow: 'visible' }}
     >
       {/* Past ghost arms — left, dissolving */}
       <line x1="8" y1="12" x2="2" y2="4"  stroke="white" strokeWidth="1.5" strokeLinecap="round"
