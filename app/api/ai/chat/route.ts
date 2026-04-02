@@ -2,64 +2,74 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Uses the Gemini REST API directly (v1) to avoid SDK version/model issues.
-// gemini-1.5-flash on v1 is confirmed free: 15 RPM, 1500 RPD.
-const GEMINI_URL = (apiKey: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`
+// Mistral AI — free tier available at console.mistral.ai
+// Uses OpenAI-compatible format with function calling support.
+const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions'
+const MODEL = 'mistral-small-latest'
 
-// ── Tool declarations ─────────────────────────────────────────────────────────
+// ── Tool definitions (OpenAI-compatible format) ───────────────────────────────
 
-const TOOLS = [{
-  functionDeclarations: [
-    {
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
       name: 'get_hours_summary',
       description: 'Get total hours worked. period: this_week|last_week|this_month|last_month|last_3_months. group_by: user|project|day|none.',
       parameters: {
-        type: 'OBJECT',
+        type: 'object',
         properties: {
-          period: { type: 'STRING', description: 'this_week, last_week, this_month, last_month, or last_3_months' },
-          user_name: { type: 'STRING', description: 'Filter by member name (optional)' },
-          project_name: { type: 'STRING', description: 'Filter by project name (optional)' },
-          group_by: { type: 'STRING', description: 'Group by: user, project, day, or none' },
+          period: { type: 'string', description: 'this_week, last_week, this_month, last_month, or last_3_months' },
+          user_name: { type: 'string', description: 'Filter by member name (optional)' },
+          project_name: { type: 'string', description: 'Filter by project name (optional)' },
+          group_by: { type: 'string', description: 'Group by: user, project, day, or none' },
         },
         required: ['period', 'group_by'],
       },
     },
-    {
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_project_status',
       description: 'Get project budget, hours spent, and estimated revenue for one or all projects.',
       parameters: {
-        type: 'OBJECT',
+        type: 'object',
         properties: {
-          project_name: { type: 'STRING', description: 'Filter by project name (optional, omit for all)' },
-          include_inactive: { type: 'BOOLEAN', description: 'Include archived projects' },
+          project_name: { type: 'string', description: 'Filter by project name (optional, omit for all)' },
+          include_inactive: { type: 'boolean', description: 'Include archived projects' },
         },
       },
     },
-    {
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_team_overview',
       description: 'Get team hours and utilization vs weekly targets. period: this_week|last_week|this_month.',
       parameters: {
-        type: 'OBJECT',
+        type: 'object',
         properties: {
-          period: { type: 'STRING', description: 'this_week, last_week, or this_month' },
+          period: { type: 'string', description: 'this_week, last_week, or this_month' },
         },
         required: ['period'],
       },
     },
-    {
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_timesheet_status',
-      description: 'Get timesheet submission and approval status for the team. period: current_week|last_week.',
+      description: 'Get timesheet submission and approval status for the team.',
       parameters: {
-        type: 'OBJECT',
+        type: 'object',
         properties: {
-          period: { type: 'STRING', description: 'current_week or last_week' },
+          period: { type: 'string', description: 'current_week or last_week' },
         },
         required: ['period'],
       },
     },
-  ],
-}]
+  },
+]
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -95,23 +105,23 @@ async function runGetHoursSummary(db: any, workspaceId: string, userId: string, 
   if (input.project_name) entries = entries.filter((e: any) => e.project?.name?.toLowerCase().includes(input.project_name.toLowerCase()))
   if (input.user_name && role !== 'member') entries = entries.filter((e: any) => e.profile?.full_name?.toLowerCase().includes(input.user_name.toLowerCase()))
   if (!entries.length) return { result: 'No matching entries found.' }
-  const totalHours = entries.reduce((s: number, e: any) => s + (e.duration_sec || 0), 0) / 3600
+  const total = entries.reduce((s: number, e: any) => s + (e.duration_sec || 0), 0) / 3600
   if (input.group_by === 'user') {
     const byUser: Record<string, number> = {}
     for (const e of entries) { const n = e.profile?.full_name || 'Unknown'; byUser[n] = (byUser[n] || 0) + (e.duration_sec || 0) / 3600 }
-    return { total_hours: Math.round(totalHours * 10) / 10, by_user: Object.entries(byUser).sort((a, b) => b[1] - a[1]).map(([name, h]) => ({ name, hours: Math.round(h * 10) / 10 })) }
+    return { total_hours: Math.round(total * 10) / 10, by_user: Object.entries(byUser).sort((a, b) => b[1] - a[1]).map(([name, h]) => ({ name, hours: Math.round(h * 10) / 10 })) }
   }
   if (input.group_by === 'project') {
     const byP: Record<string, number> = {}
     for (const e of entries) { const n = e.project?.name || 'No project'; byP[n] = (byP[n] || 0) + (e.duration_sec || 0) / 3600 }
-    return { total_hours: Math.round(totalHours * 10) / 10, by_project: Object.entries(byP).sort((a, b) => b[1] - a[1]).map(([name, h]) => ({ name, hours: Math.round(h * 10) / 10 })) }
+    return { total_hours: Math.round(total * 10) / 10, by_project: Object.entries(byP).sort((a, b) => b[1] - a[1]).map(([name, h]) => ({ name, hours: Math.round(h * 10) / 10 })) }
   }
   if (input.group_by === 'day') {
     const byD: Record<string, number> = {}
     for (const e of entries) { const d = e.start_time?.slice(0, 10) || '?'; byD[d] = (byD[d] || 0) + (e.duration_sec || 0) / 3600 }
-    return { total_hours: Math.round(totalHours * 10) / 10, by_day: Object.entries(byD).sort().map(([date, h]) => ({ date, hours: Math.round(h * 10) / 10 })) }
+    return { total_hours: Math.round(total * 10) / 10, by_day: Object.entries(byD).sort().map(([date, h]) => ({ date, hours: Math.round(h * 10) / 10 })) }
   }
-  return { total_hours: Math.round(totalHours * 10) / 10, entry_count: entries.length }
+  return { total_hours: Math.round(total * 10) / 10, entry_count: entries.length }
 }
 
 async function runGetProjectStatus(db: any, workspaceId: string, role: string, managedIds: string[], input: any) {
@@ -132,7 +142,7 @@ async function runGetProjectStatus(db: any, workspaceId: string, role: string, m
   return { projects: projects.map((p: any) => {
     const spent = Math.round((hrs[p.id] || 0) * 10) / 10
     return { name: p.name, client: (p.client as any)?.name || null, hours_spent: spent, budget_hours: p.budget_hours || null, budget_used_pct: p.budget_hours ? Math.round(spent / p.budget_hours * 100) : null, estimated_revenue: p.hourly_rate ? Math.round(spent * p.hourly_rate) : null }
-  })}
+  }) }
 }
 
 async function runGetTeamOverview(db: any, workspaceId: string, role: string, input: any) {
@@ -167,31 +177,12 @@ async function runGetTimesheetStatus(db: any, workspaceId: string, role: string,
   return { week: weekStr, not_submitted: notSubmitted, ...groups }
 }
 
-// ── Gemini REST call ──────────────────────────────────────────────────────────
-
-async function geminiCall(apiKey: string, contents: any[], systemPrompt: string) {
-  const res = await fetch(GEMINI_URL(apiKey), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      tools: TOOLS,
-      contents,
-    }),
-  })
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Gemini ${res.status}: ${err}`)
-  }
-  return res.json()
-}
-
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'AI not configured. Add GEMINI_API_KEY to environment.' }, { status: 500 })
+    const apiKey = process.env.MISTRAL_API_KEY
+    if (!apiKey) return NextResponse.json({ error: 'AI not configured. Add MISTRAL_API_KEY to Vercel environment variables.' }, { status: 500 })
 
     const serverDb = await createServerClient()
     const { data: { user }, error: authError } = await serverDb.auth.getUser()
@@ -220,40 +211,51 @@ export async function POST(req: NextRequest) {
     }
 
     const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    const systemPrompt = `You are Kairos AI, a helpful assistant in a time-tracking app called Kairos. Today is ${today}. You are speaking with ${userName} (role: ${role}). Use tools to fetch real data — never make up numbers. Be concise and friendly. Format: "12.5 hours", "€ 3,200". admin/partner see all team data; project_manager sees managed projects; member sees own data only.`
+    const systemPrompt = `You are Kairos AI, a helpful assistant in a time-tracking app. Today is ${today}. You are speaking with ${userName} (role: ${role}). Use tools to fetch real data — never make up numbers. Be concise and friendly. Format numbers like "12.5 hours" or "€ 3,200". admin/partner see all team data; project_manager sees managed projects; member sees own data only.`
 
-    // Convert message history to Gemini contents format
-    const contents = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }))
+    // Build message list for Mistral (OpenAI-compatible format)
+    const mistralMessages: any[] = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map((m: { role: string; content: string }) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      })),
+    ]
 
-    // Agentic loop
+    // Agentic tool-use loop
     let loopCount = 0
     while (loopCount < 5) {
-      const data = await geminiCall(apiKey, contents, systemPrompt)
-      const candidate = data.candidates?.[0]
-      const parts: any[] = candidate?.content?.parts || []
-      const finishReason = candidate?.finishReason
+      const res = await fetch(MISTRAL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: MODEL, messages: mistralMessages, tools: TOOLS, tool_choice: 'auto' }),
+      })
 
-      // Add model response to contents
-      contents.push({ role: 'model', parts })
+      if (!res.ok) {
+        const errText = await res.text()
+        throw new Error(`Mistral ${res.status}: ${errText}`)
+      }
 
-      // Check for function calls
-      const fnCalls = parts.filter((p: any) => p.functionCall)
-      if (!fnCalls.length || finishReason === 'STOP') {
-        // Done — return text
-        const text = parts.find((p: any) => p.text)?.text || 'Sorry, I could not generate a response.'
-        return NextResponse.json({ reply: text })
+      const data = await res.json()
+      const choice = data.choices?.[0]
+      const message = choice?.message
+      const finishReason = choice?.finish_reason
+
+      // Add assistant message to history
+      mistralMessages.push(message)
+
+      if (finishReason === 'stop' || !message?.tool_calls?.length) {
+        return NextResponse.json({ reply: message?.content || 'Sorry, I could not generate a response.' })
       }
 
       loopCount++
 
-      // Execute tool calls and add results
-      const fnResults = await Promise.all(fnCalls.map(async (p: any) => {
-        const { name, args } = p.functionCall
+      // Execute each tool call
+      for (const toolCall of message.tool_calls) {
         let result: unknown
         try {
+          const args = JSON.parse(toolCall.function.arguments || '{}')
+          const name = toolCall.function.name
           if (name === 'get_hours_summary') result = await runGetHoursSummary(adminDb, workspaceId, user.id, role, args)
           else if (name === 'get_project_status') result = await runGetProjectStatus(adminDb, workspaceId, role, managedIds, args)
           else if (name === 'get_team_overview') result = await runGetTeamOverview(adminDb, workspaceId, role, args)
@@ -262,10 +264,13 @@ export async function POST(req: NextRequest) {
         } catch (e: any) {
           result = { error: e.message || 'Tool failed' }
         }
-        return { functionResponse: { name, response: { result } } }
-      }))
 
-      contents.push({ role: 'user', parts: fnResults })
+        mistralMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result),
+        })
+      }
     }
 
     return NextResponse.json({ reply: 'Sorry, I could not complete the request.' })
