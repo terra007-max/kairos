@@ -344,8 +344,6 @@ async function runGetTimesheetStatus(
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
-export const maxDuration = 30 // seconds — Vercel hobby plan allows up to 60s on Pro
-
 export async function POST(req: NextRequest) {
   try {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -411,7 +409,7 @@ Role-based access:
 
   const anthropic = getAnthropic(apiKey)
   let response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-3-5-haiku-20241022',
     max_tokens: 1024,
     system: systemPrompt,
     tools: TOOLS,
@@ -450,7 +448,7 @@ Role-based access:
 
     // Feed results back to Claude
     response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system: systemPrompt,
       tools: TOOLS,
