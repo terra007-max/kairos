@@ -36,7 +36,7 @@ export default function TimerPage() {
   const [description, setDescription] = useState('')
   const [projectId, setProjectId] = useState('')
   const [billable, setBillable] = useState(true)
-  const [entryMode, setEntryMode] = useState<EntryMode>('timer')
+  const [entryMode, setEntryMode] = useState<EntryMode>('fromto')
   const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [manualStart, setManualStart] = useState('09:00')
   const [manualEnd, setManualEnd] = useState('10:00')
