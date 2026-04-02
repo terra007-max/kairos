@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="115" ry="115" fill="#09090b"/>
+
+  <!-- Kairos K mark, centred, scaled up -->
+  <!-- Spine: vertical razor, the present moment -->
+  <line x1="196" y1="120" x2="196" y2="392"
+    stroke="white" stroke-width="36" stroke-linecap="round"/>
+  <!-- Past arms: dissolving left (slightly thinner, same white for icon use) -->
+  <line x1="196" y1="256" x2="96" y2="130"
+    stroke="white" stroke-width="24" stroke-linecap="round" opacity="0.45"/>
+  <line x1="196" y1="256" x2="96" y2="382"
+    stroke="white" stroke-width="24" stroke-linecap="round" opacity="0.45"/>
+  <!-- Future arms: reaching right -->
+  <line x1="196" y1="256" x2="400" y2="118"
+    stroke="white" stroke-width="30" stroke-linecap="round"/>
+  <line x1="196" y1="256" x2="400" y2="394"
+    stroke="white" stroke-width="30" stroke-linecap="round"/>
+</svg>
