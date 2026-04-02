@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // Uses the Gemini REST API directly (v1) to avoid SDK version/model issues.
 // gemini-1.5-flash on v1 is confirmed free: 15 RPM, 1500 RPD.
 const GEMINI_URL = (apiKey: string) =>
-  `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`
 
 // ── Tool declarations ─────────────────────────────────────────────────────────
 
