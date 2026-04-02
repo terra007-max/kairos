@@ -51,9 +51,13 @@ export default function AIChat() {
         }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Something went wrong.' }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Could not reach the AI. Please try again.' }])
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.error || 'Something went wrong.' }])
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Something went wrong.' }])
+      }
+    } catch (e: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e?.message || 'Could not reach the AI.'}` }])
     } finally {
       setLoading(false)
     }

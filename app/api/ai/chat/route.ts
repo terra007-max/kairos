@@ -3,7 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Instantiated lazily inside the handler so a missing key doesn't crash the module
+let _anthropic: Anthropic | null = null
+function getAnthropic(apiKey: string) {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey })
+  return _anthropic
+}
 
 // ── Tools Claude can call ────────────────────────────────────────────────────
 
@@ -401,6 +406,7 @@ Role-based access:
   // Agentic loop: Claude calls tools, we execute them, loop until done
   const claudeMessages: Anthropic.MessageParam[] = messages
 
+  const anthropic = getAnthropic(apiKey)
   let response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
