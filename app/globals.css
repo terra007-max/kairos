@@ -61,6 +61,12 @@
   ::-webkit-scrollbar       { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-muted rounded-full; }
+
+  /* Native <select> options inherit the app theme in all browsers */
+  select option {
+    background-color: var(--card);
+    color: var(--foreground);
+  }
 }
 
 @layer components {
@@ -101,6 +107,44 @@
 
   .mobile-nav     { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
   .mobile-content { padding-bottom: calc(5rem + var(--safe-bottom)); }
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+
+/* Layout / sidebar */
+@keyframes slideIn     { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes razorFuture { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+@keyframes razorPast   { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.38; } }
+
+/* KairosLoader — Razor's Edge sequence */
+@keyframes klSpine {
+  0%         { stroke-dashoffset: 34; opacity: 0; }
+  5%         { opacity: 1; }
+  22%, 78%   { stroke-dashoffset: 0; opacity: 1; }
+  90%        { stroke-dashoffset: 0; opacity: 0; }
+  100%       { stroke-dashoffset: 34; opacity: 0; }
+}
+@keyframes klFuture {
+  0%, 17%    { stroke-dashoffset: 55; opacity: 0; }
+  20%        { opacity: 1; }
+  45%, 78%   { stroke-dashoffset: 0; opacity: 1; }
+  90%        { stroke-dashoffset: 0; opacity: 0; }
+  100%       { stroke-dashoffset: 55; opacity: 0; }
+}
+@keyframes klPast {
+  0%, 28%    { stroke-dashoffset: 38; opacity: 0; }
+  42%        { stroke-dashoffset: 0;  opacity: 0.45; }
+  68%        { stroke-dashoffset: 0;  opacity: 0; }
+  100%       { stroke-dashoffset: 38; opacity: 0; }
+}
+@keyframes klBar {
+  0%   { transform: translateX(-50px); opacity: 0.4; }
+  50%  { opacity: 1; }
+  100% { transform: translateX(160px); opacity: 0.4; }
+}
+@keyframes klFade {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
 }
 
 /* Mobile larger touch targets */

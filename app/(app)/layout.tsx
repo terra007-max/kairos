@@ -9,6 +9,7 @@ import { WorkspaceProvider } from '@/lib/workspace-context'
 import { I18nProvider } from '@/lib/i18n'
 import ProxyBanner from '@/components/ProxyBanner'
 import KairosLoader from '@/components/KairosLoader'
+import KairosIcon from '@/components/KairosIcon'
 import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -59,7 +60,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
       <WorkspaceProvider userId={user.id}>
-        <div className="flex bg-background overflow-hidden relative" style={{ height: '100dvh' }}>
+        <div className="flex bg-background overflow-hidden relative h-dvh">
 
           {/* Desktop sidebar */}
           {!isMobile && <Sidebar userName={user.name} avatarUrl={user.avatarUrl} />}
@@ -71,21 +72,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 onClick={() => setSidebarOpen(false)}
                 className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
               />
-              <div className="fixed top-0 left-0 bottom-0 z-50" style={{ width: '240px', animation: 'slideIn 0.2s ease-out' }}>
+              <div className="fixed top-0 left-0 bottom-0 z-50 w-60 [animation:slideIn_0.2s_ease-out]">
                 <Sidebar userName={user.name} avatarUrl={user.avatarUrl} onClose={() => setSidebarOpen(false)} />
               </div>
             </>
           )}
 
           {/* Main content */}
-          <main
-            className="flex-1 overflow-y-auto overflow-x-hidden"
-            style={{
-              marginLeft: isMobile ? '0' : '224px',
-              paddingBottom: isMobile ? '80px' : '0',
-              width: isMobile ? '100%' : 'calc(100% - 224px)',
-            }}
-          >
+          <main className={`flex-1 overflow-y-auto overflow-x-hidden ${isMobile ? 'ml-0 pb-20 w-full' : 'ml-56 pb-0 w-[calc(100%-224px)]'}`}>
             {/* Mobile top bar */}
             {isMobile && (
               <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
@@ -97,17 +91,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
                 <div className="flex items-center gap-2">
                   <div className="bg-brand-600 rounded-lg p-1 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" overflow="visible">
-                      <line x1="8" y1="12" x2="2" y2="4"  stroke="white" strokeWidth="1.5" strokeLinecap="round"
-                        style={{ animation: 'razorPast 3.2s ease-in-out infinite' }} />
-                      <line x1="8" y1="12" x2="2" y2="20" stroke="white" strokeWidth="1.5" strokeLinecap="round"
-                        style={{ animation: 'razorPast 3.2s ease-in-out infinite 0.4s' }} />
-                      <line x1="8" y1="3" x2="8" y2="21" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-                      <line x1="8" y1="12" x2="19" y2="3"  stroke="white" strokeWidth="2" strokeLinecap="round"
-                        style={{ animation: 'razorFuture 3.2s ease-in-out infinite' }} />
-                      <line x1="8" y1="12" x2="19" y2="21" stroke="white" strokeWidth="2" strokeLinecap="round"
-                        style={{ animation: 'razorFuture 3.2s ease-in-out infinite 0.4s' }} />
-                    </svg>
+                    <KairosIcon size={14} />
                   </div>
                   <span className="text-sm font-bold text-foreground">Kairos</span>
                 </div>
@@ -117,11 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {!isMobile && <PresenceBar />}
             <ProxyBanner />
 
-            <div style={{
-              maxWidth: '900px',
-              margin: '0 auto',
-              padding: isMobile ? '16px 16px 24px' : '24px',
-            }}>
+            <div className={`max-w-[900px] mx-auto ${isMobile ? 'px-4 pt-4 pb-6' : 'p-6'}`}>
               {children}
             </div>
           </main>
@@ -130,11 +110,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {isMobile && <MobileNav />}
         </div>
 
-        <style>{`
-          @keyframes slideIn     { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-          @keyframes razorFuture { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
-          @keyframes razorPast   { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.38; } }
-        `}</style>
       </WorkspaceProvider>
     </I18nProvider>
   )

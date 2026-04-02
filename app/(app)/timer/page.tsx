@@ -106,7 +106,7 @@ export default function TimerPage() {
     }
     setProjects(visibleProjects)
     setEntries(ents || [])
-    setForgottenTimers((forgottenResult as any)?.data || [])
+    setForgottenTimers(forgottenResult.data || [])
     if (live) {
       setRunning(live)
       const secs = Math.floor((Date.now() - new Date(live.start_time).getTime()) / 1000)
@@ -148,7 +148,7 @@ export default function TimerPage() {
     const blockReason = getWeekBlock(new Date())
     if (blockReason) { alert(blockReason); return }
     const myMember = members.find(m => m.user_id === effectiveUserId)
-    const autoLevelId = (myMember as any)?.level_id || null
+    const autoLevelId = myMember?.level_id || null
     const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
     const { data } = await supabase.from('time_entries').insert({
       user_id: effectiveUserId, workspace_id: workspaceId,
@@ -163,7 +163,7 @@ export default function TimerPage() {
   async function stopTimer(discardIdle = false) {
     if (!running) return
     setShowIdleAlert(false)
-    const project = projects.find(p => p.id === running.project_id) as any
+    const project = projects.find(p => p.id === running.project_id)
     let endTime = new Date()
     if (discardIdle) {
       endTime = new Date(new Date(running.start_time).getTime() + (elapsed - (elapsed % 3600)) * 1000)
@@ -189,9 +189,9 @@ export default function TimerPage() {
 
   async function saveManual() {
     setSaving(true)
-    const proj = projects.find(p => p.id === projectId) as any
+    const proj = projects.find(p => p.id === projectId)
     const myMember = members.find(m => m.user_id === effectiveUserId)
-    const autoLevelId = (myMember as any)?.level_id || null
+    const autoLevelId = myMember?.level_id || null
     let startTime: Date, endTime: Date
 
     if (entryMode === 'fromto') {
@@ -224,7 +224,7 @@ export default function TimerPage() {
 
   async function restartEntry(entry: any) {
     const myMember = members.find(m => m.user_id === effectiveUserId)
-    const autoLevelId = entry.level_id || (myMember as any)?.level_id || null
+    const autoLevelId = entry.level_id || myMember?.level_id || null
     const snapshotRate = (entry.project_id && autoLevelId) ? (levelRates[entry.project_id]?.[autoLevelId] || 0) : 0
     const { data } = await supabase.from('time_entries').insert({
       user_id: effectiveUserId, workspace_id: workspaceId,

@@ -53,6 +53,7 @@ export type Project = {
   rounding_minutes: number
   budget_hours: number | null
   budget_amount: number | null
+  manager_id: string | null
   created_at: string
   client?: Client
   level_rates?: ProjectLevelRate[]

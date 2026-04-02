@@ -154,7 +154,7 @@ export default function ReportsPage() {
       {/* Tabs */}
       <div className="flex gap-0.5 bg-muted p-0.5 rounded-lg w-fit mb-5">
         {[['overview', t('overview')], ...(role === 'admin' || isProjectManager ? [['team', t('team')]] : []), ['entries', t('entries')]].map(([v, label]) => (
-          <button key={v} onClick={() => setActiveTab(v as any)}
+          <button key={v} onClick={() => setActiveTab(v as 'overview' | 'team' | 'entries')}
             className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}
           </button>

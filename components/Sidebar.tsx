@@ -9,13 +9,14 @@ import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { formatDuration } from '@/lib/types'
+import KairosIcon from '@/components/KairosIcon'
 
 export default function Sidebar({ userName, avatarUrl, onClose }: { userName: string; avatarUrl?: string | null; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const { workspaceName, role, isProjectManager } = useWorkspace()
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const [runningEntry, setRunningEntry] = useState<{ start_time: string } | null>(null)
   const [elapsed, setElapsed] = useState(0)
 
@@ -65,25 +66,12 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <aside style={{ width: '224px' }} className="fixed inset-y-0 left-0 bg-card border-r border-border flex flex-col z-30">
+    <aside className="fixed inset-y-0 left-0 w-56 bg-card border-r border-border flex flex-col z-30">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
           <div className="bg-brand-600 p-1.5 rounded-lg shadow-sm shrink-0">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" overflow="visible">
-              {/* Past ghost arms — left, dissolving */}
-              <line x1="8" y1="12" x2="2" y2="4"  stroke="white" strokeWidth="1.5" strokeLinecap="round"
-                style={{ animation: 'razorPast 3.2s ease-in-out infinite' }} />
-              <line x1="8" y1="12" x2="2" y2="20" stroke="white" strokeWidth="1.5" strokeLinecap="round"
-                style={{ animation: 'razorPast 3.2s ease-in-out infinite 0.4s' }} />
-              {/* Razor — the present moment */}
-              <line x1="8" y1="3" x2="8" y2="21" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-              {/* Future arms — right, forming */}
-              <line x1="8" y1="12" x2="19" y2="3"  stroke="white" strokeWidth="2" strokeLinecap="round"
-                style={{ animation: 'razorFuture 3.2s ease-in-out infinite' }} />
-              <line x1="8" y1="12" x2="19" y2="21" stroke="white" strokeWidth="2" strokeLinecap="round"
-                style={{ animation: 'razorFuture 3.2s ease-in-out infinite 0.4s' }} />
-            </svg>
+            <KairosIcon size={16} />
           </div>
           <div className="min-w-0">
             <span className="text-sm font-bold text-foreground tracking-tight block leading-tight">Kairos</span>

@@ -83,46 +83,6 @@ export default function KairosLoader() {
         </svg>
       </div>
 
-      <style>{`
-        /* 1. Razor spine draws from the junction outward (0–22%) */
-        @keyframes klSpine {
-          0%         { stroke-dashoffset: 34; opacity: 0; }
-          5%         { opacity: 1; }
-          22%, 78%   { stroke-dashoffset: 0; opacity: 1; }
-          90%        { stroke-dashoffset: 0; opacity: 0; }
-          100%       { stroke-dashoffset: 34; opacity: 0; }
-        }
-
-        /* 2. Future arms draw from junction outward (17–45%) */
-        @keyframes klFuture {
-          0%, 17%    { stroke-dashoffset: 55; opacity: 0; }
-          20%        { opacity: 1; }
-          45%, 78%   { stroke-dashoffset: 0; opacity: 1; }
-          90%        { stroke-dashoffset: 0; opacity: 0; }
-          100%       { stroke-dashoffset: 55; opacity: 0; }
-        }
-
-        /* 3. Past ghost arms bloom then dissolve (28–68%) */
-        @keyframes klPast {
-          0%, 28%    { stroke-dashoffset: 38; opacity: 0; }
-          42%        { stroke-dashoffset: 0;  opacity: 0.45; }
-          68%        { stroke-dashoffset: 0;  opacity: 0; }
-          100%       { stroke-dashoffset: 38; opacity: 0; }
-        }
-
-        /* Progress shimmer */
-        @keyframes klBar {
-          0%   { transform: translateX(-50px); opacity: 0.4; }
-          50%  { opacity: 1; }
-          100% { transform: translateX(160px); opacity: 0.4; }
-        }
-
-        /* Tagline pulse */
-        @keyframes klFade {
-          0%, 100% { opacity: 0.45; }
-          50%      { opacity: 1; }
-        }
-      `}</style>
     </div>
   )
 }
