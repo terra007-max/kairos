@@ -10,6 +10,7 @@ import { I18nProvider } from '@/lib/i18n'
 import ProxyBanner from '@/components/ProxyBanner'
 import KairosLoader from '@/components/KairosLoader'
 import KairosIcon from '@/components/KairosIcon'
+import AIChat from '@/components/AIChat'
 import { Menu } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -108,6 +109,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Bottom nav — mobile only */}
           {isMobile && <MobileNav />}
+
+          {/* AI Chat — always visible */}
+          <AIChat />
         </div>
 
       </WorkspaceProvider>
