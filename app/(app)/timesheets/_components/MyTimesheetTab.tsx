@@ -39,7 +39,7 @@ export function MyTimesheetTab({
   onReload: () => void
 }) {
   const supabase = createClient()
-  const { workspaceId, role } = useWorkspace()
+  const { workspaceId, role, isProxying, effectiveUserId } = useWorkspace()
   const { t, locale } = useI18n()
   const dateFnsLocale = locale === 'de' ? de : enUS
   const canReview = can(role, 'review:all')
@@ -84,28 +84,33 @@ export function MyTimesheetTab({
   async function submitTimesheet() {
     setSubmitting(true)
     const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd')
-    if (currentWeekTs) {
-      // Clear stale per-project approvals from a previous review cycle so
-      // reviewers don't see rejected/approved pills from before the resubmission
-      const wasRejected = currentWeekTs.status === 'rejected'
-      await supabase.from('timesheets').update({
-        status: 'submitted',
+    await fetch('/api/timesheets/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId,
+        weekStart: weekStartStr,
         note: note || null,
-        submitted_at: new Date().toISOString(),
-        ...(wasRejected ? { project_approvals: {}, reviewer_note: null } : {}),
-      }).eq('id', currentWeekTs.id)
-    } else {
-      await supabase.from('timesheets').insert({
-        user_id: userId, workspace_id: workspaceId, week_start: weekStartStr,
-        status: 'submitted', note: note || null, submitted_at: new Date().toISOString(),
-      })
-    }
+        action: 'submit',
+        timesheetId: currentWeekTs?.id,
+        proxyUserId: isProxying ? effectiveUserId : undefined,
+      }),
+    })
     setNote(''); setSubmitting(false); onReload()
   }
 
   async function withdrawTimesheet() {
     if (!currentWeekTs) return
-    await supabase.from('timesheets').update({ status: 'draft', submitted_at: null }).eq('id', currentWeekTs.id)
+    await fetch('/api/timesheets/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId,
+        action: 'withdraw',
+        timesheetId: currentWeekTs.id,
+        proxyUserId: isProxying ? effectiveUserId : undefined,
+      }),
+    })
     onReload()
   }
 
