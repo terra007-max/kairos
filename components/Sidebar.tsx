@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, FolderOpen, Users, LogOut, Timer, Settings, FileText, User, Scale, ClipboardList, LineChart } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Users, LogOut, Timer, Settings, FileText, User, Scale, ClipboardList, LineChart, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
@@ -52,6 +52,7 @@ export default function Sidebar({ userName, avatarUrl, onClose }: { userName: st
     { href: '/timesheets',  label: t('timesheets'),    icon: ClipboardList,   show: true },
     { href: '/invoices',    label: t('invoices'),      icon: FileText,        show: can(role, 'manage:invoices') },
     { href: '/analytics',   label: 'Analytics',        icon: LineChart,       show: can(role, 'view:analytics') || isProjectManager },
+    { href: '/absence',     label: 'Absences',         icon: CalendarDays,    show: can(role, 'view:analytics') || isProjectManager },
     { href: '/settings',    label: t('settings'),      icon: Settings,        show: true },
     { href: '/impressum',   label: t('legalNotice'),   icon: Scale,           show: true },
   ]

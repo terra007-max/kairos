@@ -13,6 +13,7 @@ import { MyProfileSection }        from './_components/MyProfileSection'
 import { UnassignedUsersSection }  from './_components/UnassignedUsersSection'
 import { TeamMembersSection }      from './_components/TeamMembersSection'
 import { ConsultantLevelsSection } from './_components/ConsultantLevelsSection'
+import { FeedbackSection }         from './_components/FeedbackSection'
 
 export default function SettingsPage() {
   const { workspaceId, workspaceName, role, reload } = useWorkspace()
@@ -31,6 +32,7 @@ export default function SettingsPage() {
         <MyProfileSection />
         <AppearanceSection />
         <LanguageSection />
+        <FeedbackSection />
 
         {role === 'admin' && (
           <>

@@ -9,7 +9,7 @@ import { Users, Mail, Crown, Eye, Trash2, Plus } from 'lucide-react'
 export function TeamMembersSection({ levels }: { levels: ConsultantLevel[] }) {
   const { t } = useI18n()
   const supabase = createClient()
-  const { workspaceId, members, role, reload, startProxy } = useWorkspace()
+  const { workspaceId, members, reload, startProxy } = useWorkspace()
 
   const [currentUserId, setCurrentUserId] = useState('')
   const [memberLevels, setMemberLevels] = useState<Record<string, string>>({})
@@ -121,25 +121,26 @@ export function TeamMembersSection({ levels }: { levels: ConsultantLevel[] }) {
               || (m.id in pendingRoles && pendingRoles[m.id] !== m.role)
 
             return (
-              <div key={m.id} className="flex flex-col gap-2 p-3 bg-muted/30 rounded-lg group border border-transparent hover:border-border transition-colors">
-                {/* Row 1: avatar + name + actions */}
+              <div key={m.id} className="flex flex-col gap-2.5 p-4 bg-muted/30 rounded-xl border border-transparent hover:border-border transition-colors">
+
+                {/* Row 1: avatar + name + icon actions */}
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 dark:text-brand-500 text-xs font-bold shrink-0">
                     {(m.full_name || m.email)[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{m.full_name || m.email}</p>
-                    {m.full_name && <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>}
+                    <p className="text-sm font-medium text-foreground truncate leading-tight">{m.full_name || m.email}</p>
+                    {m.full_name && <p className="text-xs text-muted-foreground truncate leading-tight">{m.email}</p>}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {m.role === 'partner' && <span title="Partner"><Crown className="w-3.5 h-3.5 text-amber-500" /></span>}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {m.role === 'partner' && <Crown className="w-3.5 h-3.5 text-amber-500 mr-1" />}
                     {m.status === 'pending' && (
-                      <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">{t('pending')}</span>
+                      <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full mr-1">{t('pending')}</span>
                     )}
                     {m.user_id !== currentUserId && m.user_id && (
                       <button
                         onClick={() => { startProxy({ userId: m.user_id!, name: m.full_name || m.email }); window.location.href = '/dashboard' }}
-                        className="p-1 text-muted-foreground hover:text-brand-600 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-600 hover:bg-brand-600/10 transition-all"
                         title="View as this user"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -148,7 +149,7 @@ export function TeamMembersSection({ levels }: { levels: ConsultantLevel[] }) {
                     {m.user_id !== currentUserId && (
                       <button
                         onClick={() => setConfirmDeleteId(m.id)}
-                        className="p-1 text-muted-foreground hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -156,11 +157,11 @@ export function TeamMembersSection({ levels }: { levels: ConsultantLevel[] }) {
                   </div>
                 </div>
 
-                {/* Row 2: level + hours + role controls */}
-                <div className="flex items-center gap-2 pl-10">
+                {/* Row 2: level + weekly hours */}
+                <div className="flex items-center gap-2">
                   {levels.length > 0 && (
                     <select
-                      className="bg-card border border-border rounded-md text-xs px-2 py-1 text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      className="flex-1 min-w-0 bg-card border border-border rounded-lg text-xs px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand-500"
                       value={currentLevel}
                       onChange={e => setPendingLevels(prev => ({ ...prev, [m.id]: e.target.value }))}
                     >
@@ -168,41 +169,47 @@ export function TeamMembersSection({ levels }: { levels: ConsultantLevel[] }) {
                       {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   )}
-                  <div className="flex items-center gap-1 border border-border rounded-md px-2 py-1 shrink-0">
+                  <div className="flex items-center gap-1 border border-border rounded-lg bg-card px-2.5 py-1.5 shrink-0">
                     <input
-                      type="number" min={0} max={40}
-                      className="w-7 bg-transparent text-xs text-center text-foreground focus:outline-none"
+                      type="number" min={0} max={60}
+                      className="w-8 bg-transparent text-xs text-center text-foreground focus:outline-none"
                       value={currentHours}
-                      onChange={e => setPendingHours(prev => ({ ...prev, [m.id]: Math.min(40, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                      onChange={e => setPendingHours(prev => ({ ...prev, [m.id]: Math.min(60, Math.max(0, parseInt(e.target.value) || 0)) }))}
                       title="Weekly contracted hours"
                     />
                     <span className="text-[10px] text-muted-foreground">h/w</span>
                   </div>
-                  {m.role !== 'admin' && (
-                    <div className="flex rounded-md border border-border overflow-hidden shrink-0">
+                </div>
+
+                {/* Row 3: role selector + save */}
+                {m.role !== 'admin' && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 rounded-lg border border-border overflow-hidden">
                       {(['member', 'project_manager', 'partner'] as const).map(r => (
                         <button
                           key={r}
                           onClick={() => setPendingRoles(prev => ({ ...prev, [m.id]: r }))}
-                          className={`px-2 py-1 text-[10px] font-medium transition-colors ${
-                            currentRole === r ? 'bg-brand-600 text-white' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
+                            currentRole === r
+                              ? 'bg-brand-600 text-white'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                           }`}
                         >
                           {r === 'member' ? 'Member' : r === 'project_manager' ? 'PM' : 'Partner'}
                         </button>
                       ))}
                     </div>
-                  )}
-                  {isDirty && (
-                    <button
-                      onClick={() => saveMember(m.id)}
-                      disabled={savingId === m.id}
-                      className="btn-primary text-xs py-1 px-2.5 ml-auto"
-                    >
-                      {savingId === m.id ? '…' : 'Save'}
-                    </button>
-                  )}
-                </div>
+                    {isDirty && (
+                      <button
+                        onClick={() => saveMember(m.id)}
+                        disabled={savingId === m.id}
+                        className="btn-primary text-xs py-1.5 px-3 shrink-0"
+                      >
+                        {savingId === m.id ? '…' : 'Save'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}

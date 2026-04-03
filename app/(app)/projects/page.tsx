@@ -147,9 +147,9 @@ export default function ProjectsPage() {
                   </div>
                   {(isAdmin || managedProjectIds.includes(p.id)) && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditProject(p); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
-                      {isAdmin && <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>}
-                      {isAdmin && <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>}
+                      <button onClick={() => { setEditProject(p); setShowForm(false) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
+                      {isAdmin && <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">{p.status === 'active' ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}</button>}
+                      {isAdmin && <button onClick={() => remove(p.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                   )}
                 </div>

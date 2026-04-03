@@ -11,7 +11,7 @@ import {
   parseISO, differenceInDays, startOfWeek, endOfWeek, subWeeks,
 } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
-import { Lock } from 'lucide-react'
+import { Lock, Download } from 'lucide-react'
 import KairosLoader from '@/components/KairosLoader'
 
 import AIChat from '@/components/AIChat'
@@ -115,6 +115,56 @@ export default function AnalyticsPage() {
     const spent = withEarnings.filter(e => e.project_id === p.id && e.billable).reduce((a, e) => a + e.earnings, 0)
     return s + Math.max(0, (p.budget_amount || 0) - spent)
   }, 0)
+
+  // ── Comparison vs previous period ────────────────────────────────────────
+  const periodMs = periodBounds.to.getTime() - periodBounds.from.getTime()
+  const prevBounds = {
+    from: new Date(periodBounds.from.getTime() - periodMs - 1),
+    to:   new Date(periodBounds.from.getTime() - 1),
+    weeks: periodBounds.weeks,
+  }
+  const prevEntries     = withEarnings.filter(e => { const t = new Date(e.start_time); return t >= prevBounds.from && t <= prevBounds.to })
+  const prevRevenue     = prevEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
+  const prevBillH       = prevEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
+  const prevCapacity    = activeMembers.reduce((s, m) => s + (m.weekly_hours ?? 40) * prevBounds.weeks, 0)
+  const prevUtilization = prevCapacity > 0 ? Math.round(prevBillH / prevCapacity * 100) : 0
+  const prevAvgRate     = prevBillH > 0 ? prevRevenue / prevBillH : 0
+
+  // ── CSV export ────────────────────────────────────────────────────────────
+  function exportCSV(type: 'consultant' | 'project' | 'client') {
+    let rows: string[][]
+    let filename: string
+    const d = format(now, 'yyyy-MM-dd')
+
+    if (type === 'consultant') {
+      rows = [['Consultant', 'Billable Hours', 'Non-Billable Hours', 'Revenue', 'Utilization %']]
+      teamUtilUnified.forEach(m => {
+        rows.push([m.name, m.billable.toFixed(1), m.nonBillable.toFixed(1), m.revenue.toFixed(2), String(m.pct)])
+      })
+      filename = `kairos-consultants-${d}.csv`
+    } else if (type === 'project') {
+      rows = [['Project', 'Client', 'Hours Spent', 'Revenue', 'Budget Amount', 'Budget Used %', 'Hours Budget', 'Hours Used %']]
+      projectHealth.forEach(({ p, spent, hoursSpent, budgetPct, hoursPct }) => {
+        const client = (p.client as any)?.name || ''
+        rows.push([p.name, client, hoursSpent.toFixed(1), spent.toFixed(2), String(p.budget_amount || ''), String(budgetPct ?? ''), String(p.budget_hours || ''), String(hoursPct ?? '')])
+      })
+      filename = `kairos-projects-${d}.csv`
+    } else {
+      rows = [['Client', 'Revenue', 'Share %']]
+      const total = clientData.reduce((s, c) => s + c.revenue, 0)
+      clientData.forEach(c => {
+        rows.push([c.name, c.revenue.toFixed(2), total > 0 ? Math.round(c.revenue / total * 100).toString() : '0'])
+      })
+      filename = `kairos-clients-${d}.csv`
+    }
+
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // ── Forecast ─────────────────────────────────────────────────────────────
   const dayOfMonth = now.getDate()
@@ -289,12 +339,24 @@ export default function AnalyticsPage() {
           <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{t('analyticsSubtitle')}</p>
         </div>
-        <select className="input w-auto text-xs py-1.5" value={period} onChange={e => setPeriod(e.target.value as typeof period)}>
-          <option value="this_week">{t('thisWeekLabel')}</option>
-          <option value="this_month">{t('thisMonthLabel')}</option>
-          <option value="last_month">{t('lastMonthLabel')}</option>
-          <option value="last_3m">{t('last3Months')}</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select className="input w-auto text-xs py-1.5" value={period} onChange={e => setPeriod(e.target.value as typeof period)}>
+            <option value="this_week">{t('thisWeekLabel')}</option>
+            <option value="this_month">{t('thisMonthLabel')}</option>
+            <option value="last_month">{t('lastMonthLabel')}</option>
+            <option value="last_3m">{t('last3Months')}</option>
+          </select>
+          <div className="relative group">
+            <button className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
+            <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-lg py-1 z-20 hidden group-hover:block">
+              <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Consultant</button>
+              <button onClick={() => exportCSV('project')}    className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Project</button>
+              <button onClick={() => exportCSV('client')}     className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Client</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <AlertsSection burnoutRisks={burnoutRisks} anomalies={anomalies} />
@@ -306,6 +368,9 @@ export default function AnalyticsPage() {
         avgRate={avgRate}
         revenueForecast={revenueForecast}
         periodLabel={periodLabel}
+        prevRevenue={prevRevenue}
+        prevUtilization={prevUtilization}
+        prevAvgRate={prevAvgRate}
       />
 
       {cashflow && (

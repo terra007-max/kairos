@@ -20,7 +20,5 @@ BEGIN
     WHERE project_id IN (SELECT id FROM public.projects WHERE workspace_id = ws_id);
   DELETE FROM public.projects           WHERE workspace_id = ws_id;
   DELETE FROM public.clients            WHERE workspace_id = ws_id;
-  DELETE FROM public.consultant_levels  WHERE workspace_id = ws_id;
-
-  RAISE NOTICE '✓ Cleared all data. Workspace, users, profiles and workspace_members untouched.';
+  RAISE NOTICE '✓ Cleared all data. Workspace, users, profiles, workspace_members and consultant_levels untouched.';
 END $$;
