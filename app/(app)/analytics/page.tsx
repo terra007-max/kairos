@@ -14,6 +14,7 @@ import { de, enUS } from 'date-fns/locale'
 import { Lock } from 'lucide-react'
 import KairosLoader from '@/components/KairosLoader'
 
+import AIChat from '@/components/AIChat'
 import { AlertsSection } from './_components/AlertsSection'
 import { KPIRow } from './_components/KPIRow'
 import { CashflowSection } from './_components/CashflowSection'
@@ -345,6 +346,8 @@ export default function AnalyticsPage() {
       />
 
       <ProjectHealthSection projectHealth={projectHealth} />
+
+      <AIChat />
     </div>
   )
 }

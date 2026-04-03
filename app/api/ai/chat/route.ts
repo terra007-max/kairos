@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json().catch(() => null)
-    const { messages, workspaceId } = body || {}
+    const { messages, workspaceId, proxyUserId } = body || {}
     if (!messages || !workspaceId) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
     const adminDb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -202,16 +202,32 @@ export async function POST(req: NextRequest) {
     if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const role = membership.role as string
-    const userName = (membership.profile as any)?.full_name || 'the user'
+
+    // Proxy mode: admin viewing data as another user
+    // Verify the real user is an admin before trusting proxyUserId
+    let effectiveUserId = user.id
+    let effectiveRole = role
+    let userName = (membership.profile as any)?.full_name || 'the user'
+
+    if (proxyUserId && role === 'admin' && proxyUserId !== user.id) {
+      const { data: proxyMembership } = await adminDb
+        .from('workspace_members').select('role, profile:profiles(full_name)')
+        .eq('workspace_id', workspaceId).eq('user_id', proxyUserId).eq('status', 'active').single()
+      if (proxyMembership) {
+        effectiveUserId = proxyUserId
+        effectiveRole = proxyMembership.role as string
+        userName = (proxyMembership.profile as any)?.full_name || 'the proxied user'
+      }
+    }
 
     let managedIds: string[] = []
-    if (role === 'project_manager') {
-      const { data } = await adminDb.from('projects').select('id').eq('workspace_id', workspaceId).eq('manager_id', user.id).is('deleted_at', null)
+    if (effectiveRole === 'project_manager') {
+      const { data } = await adminDb.from('projects').select('id').eq('workspace_id', workspaceId).eq('manager_id', effectiveUserId).is('deleted_at', null)
       managedIds = (data || []).map((p: any) => p.id)
     }
 
     const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    const systemPrompt = `You are Kairos AI, a helpful assistant in a time-tracking app. Today is ${today}. You are speaking with ${userName} (role: ${role}). Use tools to fetch real data — never make up numbers. Be concise and friendly. Format numbers like "12.5 hours" or "€ 3,200". admin/partner see all team data; project_manager sees managed projects; member sees own data only.`
+    const systemPrompt = `You are Kairos AI, a helpful assistant in a time-tracking app. Today is ${today}. You are speaking with ${userName} (role: ${effectiveRole}). Use tools to fetch real data — never make up numbers. Be concise and friendly. Format numbers like "12.5 hours" or "€ 3,200". admin/partner see all team data; project_manager sees managed projects; member sees own data only.`
 
     // Build message list for Mistral (OpenAI-compatible format)
     const mistralMessages: any[] = [
@@ -256,10 +272,10 @@ export async function POST(req: NextRequest) {
         try {
           const args = JSON.parse(toolCall.function.arguments || '{}')
           const name = toolCall.function.name
-          if (name === 'get_hours_summary') result = await runGetHoursSummary(adminDb, workspaceId, user.id, role, args)
-          else if (name === 'get_project_status') result = await runGetProjectStatus(adminDb, workspaceId, role, managedIds, args)
-          else if (name === 'get_team_overview') result = await runGetTeamOverview(adminDb, workspaceId, role, args)
-          else if (name === 'get_timesheet_status') result = await runGetTimesheetStatus(adminDb, workspaceId, role, args)
+          if (name === 'get_hours_summary') result = await runGetHoursSummary(adminDb, workspaceId, effectiveUserId, effectiveRole, args)
+          else if (name === 'get_project_status') result = await runGetProjectStatus(adminDb, workspaceId, effectiveRole, managedIds, args)
+          else if (name === 'get_team_overview') result = await runGetTeamOverview(adminDb, workspaceId, effectiveRole, args)
+          else if (name === 'get_timesheet_status') result = await runGetTimesheetStatus(adminDb, workspaceId, effectiveRole, args)
           else result = { error: 'Unknown tool' }
         } catch (e: any) {
           result = { error: e.message || 'Tool failed' }

@@ -3,18 +3,27 @@
 import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
 import { useWorkspace } from '@/lib/workspace-context'
+import { can } from '@/lib/permissions'
+import type { WorkspaceRole } from '@/lib/permissions'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-const SUGGESTIONS = [
-  'How many hours did the team log this week?',
-  'Which project has the most hours this month?',
-  'Who hasn\'t submitted their timesheet yet?',
-  'Show me project budget status',
-]
+function getSuggestions(role: WorkspaceRole | undefined, isProjectManager: boolean) {
+  const canSeeTeam = can(role, 'review:all') || isProjectManager
+  const canSeeAll  = can(role, 'review:all')
+
+  const suggestions = [
+    ...(canSeeTeam ? ['How many hours did the team log this week?'] : []),
+    ...(canSeeTeam ? ['Which project has the most hours this month?'] : []),
+    ...(canSeeAll  ? ['Who hasn\'t submitted their timesheet yet?'] : []),
+    ...(canSeeTeam ? ['Show me project budget status'] : []),
+    ...(canSeeAll  ? ['Show team utilization this month'] : []),
+  ]
+  return suggestions.slice(0, 4)
+}
 
 export default function AIChat() {
-  const { workspaceId } = useWorkspace()
+  const { workspaceId, role, isProjectManager, effectiveUserId, isProxying, proxyUser } = useWorkspace()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -22,15 +31,18 @@ export default function AIChat() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Reset chat when proxy user changes
+  useEffect(() => { setMessages([]) }, [effectiveUserId])
+
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  const suggestions = getSuggestions(role, isProjectManager)
 
   async function send(text?: string) {
     const msg = (text ?? input).trim()
@@ -48,6 +60,8 @@ export default function AIChat() {
         body: JSON.stringify({
           workspaceId,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          // When proxying, tell the API to answer from the proxied user's perspective
+          proxyUserId: isProxying ? effectiveUserId : undefined,
         }),
       })
       const data = await res.json()
@@ -63,6 +77,8 @@ export default function AIChat() {
     }
   }
 
+  const proxyLabel = isProxying && proxyUser ? `Viewing as ${proxyUser.name}` : null
+
   return (
     <>
       {/* Floating button */}
@@ -77,7 +93,8 @@ export default function AIChat() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed right-4 z-50 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
+        <div
+          className="fixed right-4 z-50 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
           style={{
             bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
             height: 'min(480px, calc(100dvh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 160px))',
@@ -86,9 +103,11 @@ export default function AIChat() {
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 bg-brand-600 text-white">
             <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">K</div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-none">Kairos AI</p>
-              <p className="text-[10px] text-white/70 mt-0.5">Ask anything about your data</p>
+              <p className="text-[10px] text-white/70 mt-0.5 truncate">
+                {proxyLabel ?? 'Ask anything about your data'}
+              </p>
             </div>
           </div>
 
@@ -97,10 +116,12 @@ export default function AIChat() {
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                  Ask me anything about hours, projects, or your team.
+                  {proxyLabel
+                    ? `Answering questions from ${proxyUser?.name}'s perspective.`
+                    : 'Ask me anything about hours, projects, or your team.'}
                 </p>
                 <div className="space-y-1.5">
-                  {SUGGESTIONS.map(s => (
+                  {suggestions.map(s => (
                     <button
                       key={s}
                       onClick={() => send(s)}
