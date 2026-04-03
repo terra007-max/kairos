@@ -192,7 +192,7 @@ export default function AbsencePage() {
                     </td>
 
                     {workdays.map(day => {
-                      const entry = getEntry(m.user_id, day)
+                      const entry = getEntry(m.user_id!, day)
                       const cfg = entry ? TYPE_CONFIG[entry.type as keyof typeof TYPE_CONFIG] : null
                       const IconComp = cfg?.icon
 
