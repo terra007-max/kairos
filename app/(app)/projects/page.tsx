@@ -33,8 +33,8 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const [{ data: proj }, { data: cl }, { data: entries }, { data: lvls }, { data: rates }, { data: pm }] = await Promise.all([
-      supabase.from('projects').select('*, client:clients(*), manager_id').eq('workspace_id', workspaceId).is('deleted_at', null).order('created_at', { ascending: false }),
-      supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
+      supabase.from('projects').select('*, client:clients(*), manager_id').eq('workspace_id', workspaceId).is('deleted_at', null).order('created_at', { ascending: true }),
+      supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: true }),
       supabase.from('time_entries').select('project_id, duration_sec, level_id').eq('workspace_id', workspaceId).not('end_time', 'is', null).gte('start_time', new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString()),
       supabase.from('consultant_levels').select('*').eq('workspace_id', workspaceId).order('sort_order'),
       supabase.from('project_level_rates').select('*, level:consultant_levels(*)'),

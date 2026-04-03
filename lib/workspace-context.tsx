@@ -85,7 +85,8 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       supabase
         .from('workspace_members')
         .select('id, user_id, email, role, status, level_id, weekly_hours, profile:profiles(full_name)')
-        .eq('workspace_id', memberRow.workspace_id),
+        .eq('workspace_id', memberRow.workspace_id)
+        .order('created_at', { ascending: true }),
       supabase
         .from('projects')
         .select('id')

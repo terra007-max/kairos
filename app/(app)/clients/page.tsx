@@ -26,7 +26,7 @@ export default function ClientsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const [{ data: cl }, { data: proj }] = await Promise.all([
-      supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('name'),
+      supabase.from('clients').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: true }),
       supabase.from('projects').select('id, client_id').eq('workspace_id', workspaceId),
     ])
     const countMap: Record<string, number> = {}
