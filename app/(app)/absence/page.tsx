@@ -181,7 +181,7 @@ export default function AbsencePage() {
                 const isEven = i % 2 === 0
 
                 return (
-                  <tr key={m.user_id} className={`border-b border-border last:border-0 ${isEven ? '' : 'bg-muted/20'}`}>
+                  <tr key={m.user_id!} className={`border-b border-border last:border-0 ${isEven ? '' : 'bg-muted/20'}`}>
                     <td
                       className="px-4 py-2 sticky left-0 z-10"
                       style={{ background: isEven ? 'hsl(var(--card))' : 'hsl(var(--muted) / 0.2)' }}
@@ -209,7 +209,7 @@ export default function AbsencePage() {
                             </button>
                           ) : isAdmin ? (
                             <button
-                              onClick={() => setAddingFor({ userId: m.user_id, date: format(day, 'yyyy-MM-dd') })}
+                              onClick={() => setAddingFor({ userId: m.user_id!, date: format(day, 'yyyy-MM-dd') })}
                               className="w-[30px] h-[30px] rounded-md flex items-center justify-center mx-auto text-transparent hover:text-muted-foreground hover:bg-muted/60 transition-all"
                             >
                               <Plus className="w-3 h-3" />
