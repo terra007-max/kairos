@@ -53,6 +53,7 @@ export function FeedbackSection() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
+    if (!workspaceId) return
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       setCurrentUserId(user.id)
