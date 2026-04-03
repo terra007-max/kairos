@@ -68,7 +68,8 @@ export default function AIChat() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-lg flex items-center justify-center transition-all md:bottom-6"
+        className="fixed right-4 z-50 w-12 h-12 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-lg flex items-center justify-center transition-all"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
         aria-label="Open AI assistant"
       >
         {open ? <X size={20} /> : <MessageCircle size={20} />}
@@ -76,8 +77,11 @@ export default function AIChat() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-40 right-4 z-50 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden md:bottom-20"
-          style={{ height: '480px' }}
+        <div className="fixed right-4 z-50 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
+          style={{
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
+            height: 'min(480px, calc(100dvh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 160px))',
+          }}
         >
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 bg-brand-600 text-white">
