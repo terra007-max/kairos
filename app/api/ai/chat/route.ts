@@ -113,6 +113,69 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_client_analysis',
+      description: 'Analyse hours and revenue by client. Answers: which client is most profitable, total unbilled revenue, all hours for a specific client, which client has most hours without a budget.',
+      parameters: {
+        type: 'object',
+        properties: {
+          period: { type: 'string', description: 'this_week, last_week, this_month, last_month, last_3_months, or all_time' },
+          client_name: { type: 'string', description: 'Filter to a specific client (optional)' },
+          metric: { type: 'string', description: 'profitability | unbilled | hours | no_budget — what to calculate' },
+        },
+        required: ['period', 'metric'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_billability_report',
+      description: 'Billability and productivity stats. Answers: billability rate %, who worked overtime, who logged zero hours, effective hourly rate per consultant, revenue lost to non-billable hours.',
+      parameters: {
+        type: 'object',
+        properties: {
+          period: { type: 'string', description: 'this_week, last_week, this_month, or last_month' },
+          metric: { type: 'string', description: 'billability | overtime | zero_hours | effective_rate | non_billable_cost' },
+          user_name: { type: 'string', description: 'Filter to a specific consultant (optional)' },
+        },
+        required: ['period', 'metric'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_project_activity',
+      description: 'Project health and activity checks. Answers: which projects have had no activity recently, which projects are near their deadline, total budget remaining across all active projects.',
+      parameters: {
+        type: 'object',
+        properties: {
+          metric: { type: 'string', description: 'idle | near_deadline | budget_remaining' },
+          idle_days: { type: 'number', description: 'Days of inactivity threshold for idle check (default 14)' },
+          deadline_days: { type: 'number', description: 'Days ahead to look for upcoming deadlines (default 30)' },
+        },
+        required: ['metric'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_timesheet_analytics',
+      description: 'Deeper timesheet analysis. Answers: who has never submitted a timesheet, locked vs submitted vs approved counts, which consultants submit late most often.',
+      parameters: {
+        type: 'object',
+        properties: {
+          metric: { type: 'string', description: 'never_submitted | status_breakdown | late_submissions' },
+          weeks_back: { type: 'number', description: 'How many past weeks to analyse (default 8)' },
+        },
+        required: ['metric'],
+      },
+    },
+  },
 ]
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -344,6 +407,231 @@ async function runGetBudgetBurndown(db: any, workspaceId: string, role: string, 
   return { projects: results }
 }
 
+async function runGetClientAnalysis(db: any, workspaceId: string, role: string, managedIds: string[], input: any) {
+  if (role === 'member') return { error: 'No permission.' }
+  const { start, end } = input.period === 'all_time'
+    ? { start: new Date('2020-01-01'), end: new Date() }
+    : getPeriodBounds(input.period)
+
+  // Fetch entries with project+client info
+  let q = db.from('time_entries')
+    .select('user_id, duration_sec, billable, hourly_rate, project_id, project:projects(id, name, hourly_rate, budget_hours, client_id, client:clients(id, name))')
+    .eq('workspace_id', workspaceId).not('end_time', 'is', null)
+    .gte('start_time', start.toISOString()).lte('start_time', end.toISOString())
+  if (role === 'project_manager' && managedIds.length) q = q.in('project_id', managedIds)
+  const { data: entries, error } = await q
+  if (error) return { error: error.message }
+  let rows: any[] = entries || []
+  if (input.client_name) rows = rows.filter((e: any) => e.project?.client?.name?.toLowerCase().includes(input.client_name.toLowerCase()))
+  if (!rows.length) return { result: 'No data found.' }
+
+  // Group by client
+  const byClient: Record<string, { name: string; hours: number; billableHours: number; revenue: number; hasBudget: boolean }> = {}
+  for (const e of rows) {
+    const cName = e.project?.client?.name || 'No client'
+    if (!byClient[cName]) byClient[cName] = { name: cName, hours: 0, billableHours: 0, revenue: 0, hasBudget: !!e.project?.budget_hours }
+    const h = (e.duration_sec || 0) / 3600
+    const rate = e.hourly_rate || e.project?.hourly_rate || 0
+    byClient[cName].hours += h
+    if (e.billable) { byClient[cName].billableHours += h; byClient[cName].revenue += h * rate }
+    if (e.project?.budget_hours) byClient[cName].hasBudget = true
+  }
+
+  const clients = Object.values(byClient).map(c => ({
+    client: c.name,
+    total_hours: Math.round(c.hours * 10) / 10,
+    billable_hours: Math.round(c.billableHours * 10) / 10,
+    revenue: Math.round(c.revenue),
+    hasBudget: c.hasBudget,
+  }))
+
+  if (input.metric === 'profitability') {
+    return { period: input.period, clients: clients.sort((a, b) => b.revenue - a.revenue) }
+  }
+  if (input.metric === 'no_budget') {
+    return { clients_without_budget: clients.filter(c => !c.hasBudget).sort((a, b) => b.total_hours - a.total_hours) }
+  }
+  if (input.metric === 'unbilled') {
+    // Unbilled = billable hours not yet invoiced — approximate as billable revenue with no paid invoice
+    const { data: invoices } = await db.from('invoices').select('client_name, subtotal, status').eq('workspace_id', workspaceId).eq('status', 'paid')
+    const paidByClient: Record<string, number> = {}
+    for (const inv of invoices || []) paidByClient[inv.client_name] = (paidByClient[inv.client_name] || 0) + (inv.subtotal || 0)
+    return {
+      period: input.period,
+      unbilled: clients.map(c => ({
+        client: c.client,
+        billable_revenue: c.revenue,
+        paid_invoices: Math.round(paidByClient[c.client] || 0),
+        estimated_unbilled: Math.round(Math.max(0, c.revenue - (paidByClient[c.client] || 0))),
+      })).sort((a, b) => b.estimated_unbilled - a.estimated_unbilled),
+    }
+  }
+  return { period: input.period, clients: clients.sort((a, b) => b.total_hours - a.total_hours) }
+}
+
+async function runGetBillabilityReport(db: any, workspaceId: string, userId: string, role: string, input: any) {
+  const canSeeAll = ['admin', 'partner'].includes(role)
+  const { start, end } = getPeriodBounds(input.period)
+
+  let q = db.from('time_entries')
+    .select('user_id, duration_sec, billable, hourly_rate, project:projects(hourly_rate), profile:profiles(full_name)')
+    .eq('workspace_id', workspaceId).not('end_time', 'is', null)
+    .gte('start_time', start.toISOString()).lte('start_time', end.toISOString())
+  if (!canSeeAll) q = q.eq('user_id', userId)
+  const { data: entries, error } = await q
+  if (error) return { error: error.message }
+  let rows: any[] = entries || []
+  if (input.user_name) rows = rows.filter((e: any) => e.profile?.full_name?.toLowerCase().includes(input.user_name.toLowerCase()))
+
+  // Get members for targets
+  const { data: members } = await db.from('workspace_members')
+    .select('user_id, weekly_hours, profile:profiles(full_name)').eq('workspace_id', workspaceId).eq('status', 'active')
+
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000))
+  const wdays = Math.round(days * 5 / 7)
+
+  // Aggregate per user
+  const byUser: Record<string, { name: string; total: number; billable: number; revenue: number }> = {}
+  for (const e of rows) {
+    const uid = e.user_id; const n = e.profile?.full_name || uid
+    if (!byUser[uid]) byUser[uid] = { name: n, total: 0, billable: 0, revenue: 0 }
+    const h = (e.duration_sec || 0) / 3600
+    const rate = e.hourly_rate || e.project?.hourly_rate || 0
+    byUser[uid].total += h
+    if (e.billable) { byUser[uid].billable += h; byUser[uid].revenue += h * rate }
+  }
+
+  if (input.metric === 'billability') {
+    const stats = Object.values(byUser).map(u => ({
+      name: u.name,
+      total_hours: Math.round(u.total * 10) / 10,
+      billable_hours: Math.round(u.billable * 10) / 10,
+      billability_pct: u.total > 0 ? Math.round(u.billable / u.total * 100) : 0,
+    })).sort((a, b) => b.billability_pct - a.billability_pct)
+    const teamTotal = Object.values(byUser).reduce((s, u) => s + u.total, 0)
+    const teamBillable = Object.values(byUser).reduce((s, u) => s + u.billable, 0)
+    return { period: input.period, team_billability_pct: teamTotal > 0 ? Math.round(teamBillable / teamTotal * 100) : 0, by_consultant: stats }
+  }
+
+  if (input.metric === 'overtime') {
+    const result = (members || []).map((m: any) => {
+      const u = byUser[m.user_id]
+      const target = m.weekly_hours ? m.weekly_hours * wdays / 5 : null
+      const logged = u?.total || 0
+      return { name: m.profile?.full_name || 'Unknown', hours_logged: Math.round(logged * 10) / 10, target_hours: target ? Math.round(target * 10) / 10 : null, overtime: target ? Math.round((logged - target) * 10) / 10 : null }
+    }).filter((m: any) => m.overtime !== null && m.overtime > 0).sort((a: any, b: any) => b.overtime - a.overtime)
+    return { period: input.period, overtime_consultants: result }
+  }
+
+  if (input.metric === 'zero_hours') {
+    const withHours = new Set(Object.keys(byUser).filter(uid => byUser[uid].total > 0))
+    const zero = (members || []).filter((m: any) => !withHours.has(m.user_id)).map((m: any) => m.profile?.full_name || m.user_id)
+    return { period: input.period, consultants_with_zero_hours: zero }
+  }
+
+  if (input.metric === 'effective_rate') {
+    const rates = Object.values(byUser)
+      .filter(u => u.billable > 0)
+      .map(u => ({ name: u.name, billable_hours: Math.round(u.billable * 10) / 10, revenue: Math.round(u.revenue), effective_rate: Math.round(u.revenue / u.billable) }))
+      .sort((a, b) => b.effective_rate - a.effective_rate)
+    return { period: input.period, effective_rates: rates }
+  }
+
+  if (input.metric === 'non_billable_cost') {
+    const avgRate = (() => { let r = 0, h = 0; for (const u of Object.values(byUser)) { r += u.revenue; h += u.billable }; return h > 0 ? r / h : 0 })()
+    const stats = Object.values(byUser).map(u => {
+      const nonBillable = u.total - u.billable
+      return { name: u.name, non_billable_hours: Math.round(nonBillable * 10) / 10, revenue_opportunity_lost: Math.round(nonBillable * avgRate) }
+    }).sort((a, b) => b.revenue_opportunity_lost - a.revenue_opportunity_lost)
+    const totalLost = stats.reduce((s, u) => s + u.revenue_opportunity_lost, 0)
+    return { period: input.period, team_avg_rate: Math.round(avgRate), total_revenue_opportunity_lost: totalLost, by_consultant: stats }
+  }
+
+  return { error: 'Unknown metric' }
+}
+
+async function runGetProjectActivity(db: any, workspaceId: string, role: string, managedIds: string[], input: any) {
+  if (role === 'member') return { error: 'No permission.' }
+  let q = db.from('projects').select('id, name, end_date, budget_hours, budget_amount, hourly_rate, client:clients(name)').eq('workspace_id', workspaceId).is('deleted_at', null).eq('status', 'active')
+  if (role === 'project_manager' && managedIds.length) q = q.in('id', managedIds)
+  const { data: projects } = await q
+  if (!projects?.length) return { result: 'No active projects found.' }
+
+  if (input.metric === 'idle') {
+    const idleDays = input.idle_days || 14
+    const since = new Date(); since.setDate(since.getDate() - idleDays)
+    const { data: recent } = await db.from('time_entries').select('project_id').eq('workspace_id', workspaceId).not('end_time', 'is', null).gte('start_time', since.toISOString()).in('project_id', projects.map((p: any) => p.id))
+    const activeIds = new Set((recent || []).map((e: any) => e.project_id))
+    const idle = projects.filter((p: any) => !activeIds.has(p.id)).map((p: any) => ({ name: p.name, client: (p.client as any)?.name || null }))
+    return { idle_projects: idle, threshold_days: idleDays }
+  }
+
+  if (input.metric === 'near_deadline') {
+    const lookAhead = input.deadline_days || 30
+    const now = new Date(); const future = new Date(); future.setDate(future.getDate() + lookAhead)
+    const near = projects
+      .filter((p: any) => p.end_date && new Date(p.end_date) >= now && new Date(p.end_date) <= future)
+      .map((p: any) => ({ name: p.name, client: (p.client as any)?.name || null, deadline: p.end_date, days_remaining: Math.round((new Date(p.end_date).getTime() - now.getTime()) / 86400000) }))
+      .sort((a: any, b: any) => a.days_remaining - b.days_remaining)
+    return { projects_near_deadline: near, within_days: lookAhead }
+  }
+
+  if (input.metric === 'budget_remaining') {
+    const ago = new Date(); ago.setMonth(ago.getMonth() - 6)
+    const { data: entries } = await db.from('time_entries').select('project_id, duration_sec').eq('workspace_id', workspaceId).not('end_time', 'is', null).gte('start_time', ago.toISOString()).in('project_id', projects.map((p: any) => p.id))
+    const hrs: Record<string, number> = {}
+    for (const e of entries || []) hrs[e.project_id] = (hrs[e.project_id] || 0) + (e.duration_sec || 0) / 3600
+    const withBudget = projects.filter((p: any) => p.budget_hours).map((p: any) => {
+      const spent = hrs[p.id] || 0
+      const remaining = p.budget_hours - spent
+      return { name: p.name, client: (p.client as any)?.name || null, budget_hours: p.budget_hours, hours_spent: Math.round(spent * 10) / 10, hours_remaining: Math.round(remaining * 10) / 10, pct_used: Math.round(spent / p.budget_hours * 100), revenue_remaining: p.hourly_rate ? Math.round(remaining * p.hourly_rate) : null }
+    }).sort((a: any, b: any) => b.pct_used - a.pct_used)
+    const totalRemaining = withBudget.reduce((s: number, p: any) => s + p.hours_remaining, 0)
+    const totalRevenueLeft = withBudget.reduce((s: number, p: any) => s + (p.revenue_remaining || 0), 0)
+    return { total_hours_remaining: Math.round(totalRemaining * 10) / 10, total_revenue_remaining: Math.round(totalRevenueLeft), projects: withBudget }
+  }
+
+  return { error: 'Unknown metric' }
+}
+
+async function runGetTimesheetAnalytics(db: any, workspaceId: string, role: string, input: any) {
+  if (!['admin', 'partner'].includes(role)) return { error: 'No permission.' }
+  const weeksBack = input.weeks_back || 8
+
+  const { data: members } = await db.from('workspace_members').select('user_id, profile:profiles(full_name)').eq('workspace_id', workspaceId).eq('status', 'active')
+
+  if (input.metric === 'never_submitted') {
+    const { data: submitted } = await db.from('timesheets').select('user_id').eq('workspace_id', workspaceId)
+    const everSubmitted = new Set((submitted || []).map((t: any) => t.user_id))
+    const never = (members || []).filter((m: any) => !everSubmitted.has(m.user_id)).map((m: any) => (m.profile as any)?.full_name || m.user_id)
+    return { consultants_never_submitted: never }
+  }
+
+  if (input.metric === 'status_breakdown') {
+    const { data: ts } = await db.from('timesheets').select('status, user_id').eq('workspace_id', workspaceId)
+    const counts: Record<string, number> = {}
+    for (const t of ts || []) counts[t.status] = (counts[t.status] || 0) + 1
+    return { total_timesheets: (ts || []).length, by_status: counts }
+  }
+
+  if (input.metric === 'late_submissions') {
+    const since = new Date(); since.setDate(since.getDate() - weeksBack * 7)
+    const { data: ts } = await db.from('timesheets').select('user_id, week_start, submitted_at, profile:profiles(full_name)').eq('workspace_id', workspaceId).not('submitted_at', 'is', null).gte('week_start', since.toISOString().slice(0, 10))
+    const lateByUser: Record<string, { name: string; late: number; onTime: number }> = {}
+    for (const t of ts || []) {
+      const uid = t.user_id; const name = (t.profile as any)?.full_name || uid
+      if (!lateByUser[uid]) lateByUser[uid] = { name, late: 0, onTime: 0 }
+      // Late = submitted more than 2 days after week ended (week_start + 7 days)
+      const weekEnd = new Date(t.week_start); weekEnd.setDate(weekEnd.getDate() + 9)
+      const submittedAt = new Date(t.submitted_at)
+      if (submittedAt > weekEnd) lateByUser[uid].late++; else lateByUser[uid].onTime++
+    }
+    return { weeks_analysed: weeksBack, consultants: Object.values(lateByUser).sort((a, b) => b.late - a.late).map(u => ({ ...u, late_rate_pct: Math.round(u.late / (u.late + u.onTime) * 100) })) }
+  }
+
+  return { error: 'Unknown metric' }
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -446,6 +734,10 @@ export async function POST(req: NextRequest) {
           else if (name === 'get_revenue_summary') result = await runGetRevenueSummary(adminDb, workspaceId, effectiveRole, managedIds, args)
           else if (name === 'get_invoice_status') result = await runGetInvoiceStatus(adminDb, workspaceId, effectiveRole, args)
           else if (name === 'get_budget_burndown') result = await runGetBudgetBurndown(adminDb, workspaceId, effectiveRole, managedIds, args)
+          else if (name === 'get_client_analysis') result = await runGetClientAnalysis(adminDb, workspaceId, effectiveRole, managedIds, args)
+          else if (name === 'get_billability_report') result = await runGetBillabilityReport(adminDb, workspaceId, effectiveUserId, effectiveRole, args)
+          else if (name === 'get_project_activity') result = await runGetProjectActivity(adminDb, workspaceId, effectiveRole, managedIds, args)
+          else if (name === 'get_timesheet_analytics') result = await runGetTimesheetAnalytics(adminDb, workspaceId, effectiveRole, args)
           else result = { error: 'Unknown tool' }
         } catch (e: any) {
           result = { error: e.message || 'Tool failed' }
