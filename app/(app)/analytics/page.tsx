@@ -184,9 +184,8 @@ export default function AnalyticsPage() {
   })
 
   // ── Team utilization ─────────────────────────────────────────────────────
-  const periodMs = periodBounds.to.getTime() - periodBounds.from.getTime()
-  const prevFrom = new Date(periodBounds.from.getTime() - periodMs)
-  const prevTo   = new Date(periodBounds.from.getTime() - 1)
+  const prevFrom = prevBounds.from
+  const prevTo   = prevBounds.to
 
   const teamUtilUnified = activeMembers.map(m => {
     const inRange = (e: any) => new Date(e.start_time) >= periodBounds.from && new Date(e.start_time) <= periodBounds.to

@@ -92,7 +92,7 @@ export function InvoiceHistory({ invoices, onUpdate }: {
     <div className="space-y-3">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
-        <input className="input pl-9 pr-8 text-sm" placeholder="Search by client, invoice number, status…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <input className="input pl-9 pr-8 text-sm" placeholder={t('invoiceSearchPlaceholder')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         {searchQuery && (
           <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground">
             <X className="w-3.5 h-3.5" />
