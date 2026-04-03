@@ -44,14 +44,58 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'get_revenue_summary',
+      description: 'Get billable revenue (hours × rate) for a period. Use this for "what is my revenue this week/month" questions. Can group by project or user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          period: { type: 'string', description: 'this_week, last_week, this_month, last_month, or last_3_months' },
+          group_by: { type: 'string', description: 'Group by: project, user, or none' },
+          project_name: { type: 'string', description: 'Filter by project name (optional)' },
+        },
+        required: ['period', 'group_by'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_invoice_status',
+      description: 'Get invoice counts and amounts — overdue, sent/pending, paid. Use for "how many invoices are overdue" questions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          include_paid: { type: 'boolean', description: 'Include paid invoices in the summary (default false)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_team_overview',
-      description: 'Get team hours and utilization vs weekly targets. period: this_week|last_week|this_month.',
+      description: 'Get team hours and utilization vs weekly targets. Can filter to one or two specific consultants by name for comparison. period: this_week|last_week|this_month.',
       parameters: {
         type: 'object',
         properties: {
           period: { type: 'string', description: 'this_week, last_week, or this_month' },
+          user_names: { type: 'string', description: 'Comma-separated member names to filter to (optional — omit for whole team)' },
         },
         required: ['period'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_budget_burndown',
+      description: 'Estimate when a project will exhaust its budget based on recent burn rate. Answers "when will project X run out of budget?"',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_name: { type: 'string', description: 'Project name (partial match)' },
+        },
+        required: ['project_name'],
       },
     },
   },
@@ -154,11 +198,23 @@ async function runGetTeamOverview(db: any, workspaceId: string, role: string, in
   for (const e of entries || []) hrs[e.user_id] = (hrs[e.user_id] || 0) + (e.duration_sec || 0) / 3600
   const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000))
   const wdays = Math.round(days * 5 / 7)
-  return { period: input.period, team: (members || []).map((m: any) => {
+
+  // Optional name filter for consultant comparison
+  const nameFilters = input.user_names
+    ? input.user_names.split(',').map((n: string) => n.trim().toLowerCase()).filter(Boolean)
+    : null
+
+  let team = (members || []).map((m: any) => {
     const h = Math.round((hrs[m.user_id] || 0) * 10) / 10
     const target = m.weekly_hours ? Math.round(m.weekly_hours * wdays / 5 * 10) / 10 : null
     return { name: m.profile?.full_name || 'Unknown', hours_logged: h, target_hours: target, utilization_pct: target ? Math.round(h / target * 100) : null }
-  }).sort((a: any, b: any) => b.hours_logged - a.hours_logged) }
+  }).sort((a: any, b: any) => b.hours_logged - a.hours_logged)
+
+  if (nameFilters) {
+    team = team.filter((m: any) => nameFilters.some((f: string) => m.name.toLowerCase().includes(f)))
+  }
+
+  return { period: input.period, team }
 }
 
 async function runGetTimesheetStatus(db: any, workspaceId: string, role: string, input: any) {
@@ -175,6 +231,117 @@ async function runGetTimesheetStatus(db: any, workspaceId: string, role: string,
   const groups: Record<string, string[]> = {}
   for (const t of ts || []) { const n = (t.profile as any)?.full_name || t.user_id; groups[t.status] = [...(groups[t.status] || []), n] }
   return { week: weekStr, not_submitted: notSubmitted, ...groups }
+}
+
+async function runGetRevenueSummary(db: any, workspaceId: string, role: string, managedIds: string[], input: any) {
+  if (role === 'member') return { error: 'No permission.' }
+  const { start, end } = getPeriodBounds(input.period)
+  let q = db.from('time_entries')
+    .select('user_id, duration_sec, hourly_rate, billable, project_id, project:projects(id, name, hourly_rate, client:clients(name)), profile:profiles(full_name)')
+    .eq('workspace_id', workspaceId).not('end_time', 'is', null).eq('billable', true)
+    .gte('start_time', start.toISOString()).lte('start_time', end.toISOString())
+  if (role === 'project_manager' && managedIds.length) q = q.in('project_id', managedIds)
+  if (input.project_name) q = q.ilike('project.name', `%${input.project_name}%`)
+  const { data, error } = await q
+  if (error) return { error: error.message }
+  const entries: any[] = data || []
+  if (!entries.length) return { result: 'No billable entries found for this period.' }
+
+  const calcRate = (e: any) => e.hourly_rate || e.project?.hourly_rate || 0
+  const totalRevenue = entries.reduce((s: number, e: any) => s + (e.duration_sec / 3600) * calcRate(e), 0)
+  const totalHours = entries.reduce((s: number, e: any) => s + e.duration_sec / 3600, 0)
+
+  if (input.group_by === 'project') {
+    const byP: Record<string, { hours: number; revenue: number }> = {}
+    for (const e of entries) {
+      const n = e.project?.name || 'Unknown'
+      if (!byP[n]) byP[n] = { hours: 0, revenue: 0 }
+      byP[n].hours += e.duration_sec / 3600
+      byP[n].revenue += (e.duration_sec / 3600) * calcRate(e)
+    }
+    return { period: input.period, total_hours: Math.round(totalHours * 10) / 10, total_revenue: Math.round(totalRevenue), by_project: Object.entries(byP).sort((a, b) => b[1].revenue - a[1].revenue).map(([name, v]) => ({ name, hours: Math.round(v.hours * 10) / 10, revenue: Math.round(v.revenue) })) }
+  }
+  if (input.group_by === 'user') {
+    const byU: Record<string, { hours: number; revenue: number }> = {}
+    for (const e of entries) {
+      const n = e.profile?.full_name || 'Unknown'
+      if (!byU[n]) byU[n] = { hours: 0, revenue: 0 }
+      byU[n].hours += e.duration_sec / 3600
+      byU[n].revenue += (e.duration_sec / 3600) * calcRate(e)
+    }
+    return { period: input.period, total_hours: Math.round(totalHours * 10) / 10, total_revenue: Math.round(totalRevenue), by_user: Object.entries(byU).sort((a, b) => b[1].revenue - a[1].revenue).map(([name, v]) => ({ name, hours: Math.round(v.hours * 10) / 10, revenue: Math.round(v.revenue) })) }
+  }
+  return { period: input.period, total_billable_hours: Math.round(totalHours * 10) / 10, total_revenue: Math.round(totalRevenue) }
+}
+
+async function runGetInvoiceStatus(db: any, workspaceId: string, role: string, input: any) {
+  if (!['admin', 'partner'].includes(role)) return { error: 'No permission to view invoices.' }
+  const now = new Date().toISOString()
+  const { data: invoices, error } = await db.from('invoices')
+    .select('id, status, subtotal, due_date, client_name, sent_at')
+    .eq('workspace_id', workspaceId)
+  if (error) return { error: error.message }
+  if (!invoices?.length) return { result: 'No invoices found.' }
+
+  const overdue = invoices.filter((i: any) => i.status !== 'paid' && i.due_date && i.due_date < now)
+  const pending = invoices.filter((i: any) => i.status === 'sent' && (!i.due_date || i.due_date >= now))
+  const draft   = invoices.filter((i: any) => i.status === 'draft')
+  const paid    = invoices.filter((i: any) => i.status === 'paid')
+
+  const sum = (arr: any[]) => arr.reduce((s: number, i: any) => s + (i.subtotal || 0), 0)
+
+  return {
+    overdue:  { count: overdue.length, total: Math.round(sum(overdue)), items: overdue.map((i: any) => ({ client: i.client_name, amount: Math.round(i.subtotal || 0), due: i.due_date?.slice(0, 10) })) },
+    pending:  { count: pending.length, total: Math.round(sum(pending)) },
+    draft:    { count: draft.length,   total: Math.round(sum(draft)) },
+    ...(input.include_paid ? { paid: { count: paid.length, total: Math.round(sum(paid)) } } : {}),
+  }
+}
+
+async function runGetBudgetBurndown(db: any, workspaceId: string, role: string, managedIds: string[], input: any) {
+  if (role === 'member') return { error: 'No permission.' }
+  let q = db.from('projects').select('id, name, budget_hours, budget_amount, hourly_rate, client:clients(name)').eq('workspace_id', workspaceId).is('deleted_at', null)
+  if (input.project_name) q = q.ilike('name', `%${input.project_name}%`)
+  if (role === 'project_manager' && managedIds.length) q = q.in('id', managedIds)
+  const { data: projects } = await q
+  if (!projects?.length) return { result: 'Project not found.' }
+
+  const results = await Promise.all(projects.map(async (p: any) => {
+    // Total hours spent ever
+    const { data: allEntries } = await db.from('time_entries').select('duration_sec, start_time').eq('workspace_id', workspaceId).eq('project_id', p.id).not('end_time', 'is', null)
+    const totalSpent = (allEntries || []).reduce((s: number, e: any) => s + (e.duration_sec || 0) / 3600, 0)
+
+    // Burn rate: hours in last 4 weeks
+    const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+    const recent = (allEntries || []).filter((e: any) => new Date(e.start_time) >= fourWeeksAgo)
+    const recentHours = recent.reduce((s: number, e: any) => s + (e.duration_sec || 0) / 3600, 0)
+    const weeklyBurnRate = recentHours / 4
+
+    const budgetH = p.budget_hours
+    if (!budgetH) return { name: p.name, client: (p.client as any)?.name || null, hours_spent: Math.round(totalSpent * 10) / 10, note: 'No budget hours set' }
+
+    const remaining = budgetH - totalSpent
+    const pctUsed = Math.round(totalSpent / budgetH * 100)
+
+    if (remaining <= 0) return { name: p.name, client: (p.client as any)?.name || null, hours_spent: Math.round(totalSpent * 10) / 10, budget_hours: budgetH, pct_used: pctUsed, status: 'Over budget' }
+    if (weeklyBurnRate <= 0) return { name: p.name, hours_spent: Math.round(totalSpent * 10) / 10, budget_hours: budgetH, pct_used: pctUsed, status: 'No recent activity — cannot estimate burndown date' }
+
+    const weeksLeft = remaining / weeklyBurnRate
+    const burndownDate = new Date(); burndownDate.setDate(burndownDate.getDate() + Math.round(weeksLeft * 7))
+
+    return {
+      name: p.name,
+      client: (p.client as any)?.name || null,
+      hours_spent: Math.round(totalSpent * 10) / 10,
+      budget_hours: budgetH,
+      pct_used: pctUsed,
+      hours_remaining: Math.round(remaining * 10) / 10,
+      weekly_burn_rate: Math.round(weeklyBurnRate * 10) / 10,
+      estimated_burndown_date: burndownDate.toISOString().slice(0, 10),
+      weeks_remaining: Math.round(weeksLeft * 10) / 10,
+    }
+  }))
+  return { projects: results }
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -276,6 +443,9 @@ export async function POST(req: NextRequest) {
           else if (name === 'get_project_status') result = await runGetProjectStatus(adminDb, workspaceId, effectiveRole, managedIds, args)
           else if (name === 'get_team_overview') result = await runGetTeamOverview(adminDb, workspaceId, effectiveRole, args)
           else if (name === 'get_timesheet_status') result = await runGetTimesheetStatus(adminDb, workspaceId, effectiveRole, args)
+          else if (name === 'get_revenue_summary') result = await runGetRevenueSummary(adminDb, workspaceId, effectiveRole, managedIds, args)
+          else if (name === 'get_invoice_status') result = await runGetInvoiceStatus(adminDb, workspaceId, effectiveRole, args)
+          else if (name === 'get_budget_burndown') result = await runGetBudgetBurndown(adminDb, workspaceId, effectiveRole, managedIds, args)
           else result = { error: 'Unknown tool' }
         } catch (e: any) {
           result = { error: e.message || 'Tool failed' }
