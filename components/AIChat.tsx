@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
+import { Send, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
 import type { WorkspaceRole } from '@/lib/permissions'
@@ -9,17 +9,13 @@ import type { WorkspaceRole } from '@/lib/permissions'
 type Message = { role: 'user' | 'assistant'; content: string }
 
 function getSuggestions(role: WorkspaceRole | undefined, isProjectManager: boolean) {
-  const canSeeTeam = can(role, 'review:all') || isProjectManager
-  const canSeeAll  = can(role, 'review:all')
-
-  const suggestions = [
-    ...(canSeeTeam ? ['How many hours did the team log this week?'] : []),
-    ...(canSeeTeam ? ['Which project has the most hours this month?'] : []),
-    ...(canSeeAll  ? ['Who hasn\'t submitted their timesheet yet?'] : []),
-    ...(canSeeTeam ? ['Show me project budget status'] : []),
-    ...(canSeeAll  ? ['Show team utilization this month'] : []),
-  ]
-  return suggestions.slice(0, 4)
+  const canSeeAll = can(role, 'review:all')
+  return [
+    ...(canSeeAll  ? ['What is our revenue this week?'] : []),
+    ...(canSeeAll  ? ['Which projects are near their budget limit?'] : []),
+    ...(canSeeAll || isProjectManager ? ['Show me team utilization this month'] : []),
+    ...(canSeeAll  ? ['How many invoices are overdue?'] : []),
+  ].slice(0, 4)
 }
 
 export default function AIChat() {
@@ -31,11 +27,10 @@ export default function AIChat() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Reset chat when proxy user changes
   useEffect(() => { setMessages([]) }, [effectiveUserId])
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100)
+    if (open) setTimeout(() => inputRef.current?.focus(), 150)
   }, [open])
 
   useEffect(() => {
@@ -60,16 +55,14 @@ export default function AIChat() {
         body: JSON.stringify({
           workspaceId,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          // When proxying, tell the API to answer from the proxied user's perspective
           proxyUserId: isProxying ? effectiveUserId : undefined,
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.error || 'Something went wrong.' }])
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Something went wrong.' }])
-      }
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: res.ok ? (data.reply || 'No response.') : (data.error || 'Something went wrong.'),
+      }])
     } catch (e: any) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e?.message || 'Could not reach the AI.'}` }])
     } finally {
@@ -80,52 +73,42 @@ export default function AIChat() {
   const proxyLabel = isProxying && proxyUser ? `Viewing as ${proxyUser.name}` : null
 
   return (
-    <>
-      {/* Floating button */}
+    <div className="card overflow-hidden">
+      {/* Header — always visible, click to expand */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed right-4 z-50 w-12 h-12 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-lg flex items-center justify-center transition-all"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
-        aria-label="Open AI assistant"
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
       >
-        {open ? <X size={20} /> : <MessageCircle size={20} />}
+        <div className="w-8 h-8 rounded-lg bg-brand-600/10 flex items-center justify-center shrink-0">
+          <Sparkles size={15} className="text-brand-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground leading-none">Ask Kairos AI</p>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            {proxyLabel ?? 'Ask anything about your data'}
+          </p>
+        </div>
+        {open ? <ChevronUp size={15} className="text-muted-foreground shrink-0" /> : <ChevronDown size={15} className="text-muted-foreground shrink-0" />}
       </button>
 
-      {/* Chat panel */}
+      {/* Expandable body */}
       {open && (
-        <div
-          className="fixed right-4 z-50 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
-          style={{
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
-            height: 'min(480px, calc(100dvh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 160px))',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center gap-2.5 px-4 py-3 bg-brand-600 text-white">
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">K</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold leading-none">Kairos AI</p>
-              <p className="text-[10px] text-white/70 mt-0.5 truncate">
-                {proxyLabel ?? 'Ask anything about your data'}
-              </p>
-            </div>
-          </div>
-
+        <>
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+          <div className="border-t border-border px-4 py-3 space-y-3 overflow-y-auto" style={{ maxHeight: '380px' }}>
             {messages.length === 0 && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground text-center pt-2">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
                   {proxyLabel
-                    ? `Answering questions from ${proxyUser?.name}'s perspective.`
-                    : 'Ask me anything about hours, projects, or your team.'}
+                    ? `Answering from ${proxyUser?.name}'s perspective.`
+                    : 'Try one of these or type your own question:'}
                 </p>
-                <div className="space-y-1.5">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                   {suggestions.map(s => (
                     <button
                       key={s}
                       onClick={() => send(s)}
-                      className="w-full text-left text-xs px-3 py-2 rounded-lg border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors"
+                      className="text-left text-xs px-3 py-2 rounded-lg border border-border bg-muted/30 hover:bg-muted text-foreground transition-colors"
                     >
                       {s}
                     </button>
@@ -136,7 +119,12 @@ export default function AIChat() {
 
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                {m.role === 'assistant' && (
+                  <div className="w-6 h-6 rounded-full bg-brand-600/10 flex items-center justify-center shrink-0 mr-2 mt-0.5">
+                    <Sparkles size={11} className="text-brand-600" />
+                  </div>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
                     ? 'bg-brand-600 text-white rounded-br-sm'
                     : 'bg-muted text-foreground rounded-bl-sm'
@@ -147,18 +135,30 @@ export default function AIChat() {
             ))}
 
             {loading && (
-              <div className="flex justify-start">
+              <div className="flex justify-start items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-brand-600/10 flex items-center justify-center shrink-0">
+                  <Sparkles size={11} className="text-brand-600" />
+                </div>
                 <div className="bg-muted rounded-2xl rounded-bl-sm px-3 py-2">
-                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                  <Loader2 size={13} className="animate-spin text-muted-foreground" />
                 </div>
               </div>
+            )}
+
+            {messages.length > 0 && !loading && (
+              <button
+                onClick={() => setMessages([])}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear conversation
+              </button>
             )}
 
             <div ref={bottomRef} />
           </div>
 
           {/* Input */}
-          <div className="px-3 pb-3 pt-2 border-t border-border flex gap-2">
+          <div className="border-t border-border px-3 py-2.5 flex gap-2">
             <input
               ref={inputRef}
               type="text"
@@ -181,8 +181,8 @@ export default function AIChat() {
               <Send size={14} />
             </button>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   )
 }
