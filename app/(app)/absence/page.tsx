@@ -43,7 +43,7 @@ export default function AbsencePage() {
   const [newHours, setNewHours] = useState('8')
   const [saving, setSaving] = useState(false)
 
-  const activeMembers = members.filter(m => m.status === 'active')
+  const activeMembers = members.filter(m => m.status === 'active' && m.user_id)
 
   const load = useCallback(async () => {
     if (!workspaceId) return
