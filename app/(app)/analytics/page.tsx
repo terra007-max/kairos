@@ -455,9 +455,9 @@ export default function AnalyticsPage() {
               <ChevronDown className="w-3 h-3" />
             </button>
             <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-lg py-1 z-20 hidden group-hover:block">
-              <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Consultant</button>
-              <button onClick={() => exportCSV('project')}    className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Project</button>
-              <button onClick={() => exportCSV('client')}     className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Client</button>
+              <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byConsultant')}</button>
+              <button onClick={() => exportCSV('project')}    className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byProject')}</button>
+              <button onClick={() => exportCSV('client')}     className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byClient')}</button>
             </div>
           </div>
         </div>

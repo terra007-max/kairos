@@ -95,7 +95,7 @@ export function TeamUtilizationSection({
             }`}
           >
             <GitCompare className="w-3.5 h-3.5" />
-            {compareMode ? `${selectedForCompare.size} selected` : 'Compare'}
+            {compareMode ? `${selectedForCompare.size} ${t('compareSelected')}` : t('compareBtn')}
           </button>
         )}
 
@@ -181,7 +181,7 @@ export function TeamUtilizationSection({
           {compareRows.length >= 2 && (
             <div className="border-t border-border bg-muted/20 p-5 space-y-5">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comparison · {periodLabel}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('comparisonTitle')} · {periodLabel}</p>
                 <button onClick={onToggleCompareMode} className="text-muted-foreground hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
@@ -209,13 +209,13 @@ export function TeamUtilizationSection({
                       </div>
                       <div className="h-px bg-border" />
                       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
-                        <span className="text-muted-foreground">Billable</span>
+                        <span className="text-muted-foreground">{t('billableHours2')}</span>
                         <span className="text-right font-medium text-foreground">{row.billable}h</span>
-                        <span className="text-muted-foreground">Capacity</span>
+                        <span className="text-muted-foreground">{t('capacityLabel')}</span>
                         <span className="text-right font-medium text-foreground">{row.capacity}h</span>
-                        <span className="text-muted-foreground">Revenue</span>
+                        <span className="text-muted-foreground">{t('earnings')}</span>
                         <span className="text-right font-medium text-emerald-600">{formatMoney(row.revenue)}</span>
-                        <span className="text-muted-foreground">Avg rate</span>
+                        <span className="text-muted-foreground">{t('avgEffectiveRate')}</span>
                         <span className="text-right font-medium text-foreground">{formatMoney(row.avgHourlyRate)}/h</span>
                       </div>
                     </div>
@@ -225,7 +225,7 @@ export function TeamUtilizationSection({
 
               {/* Comparison bar chart */}
               <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Billable Hours vs Capacity</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('billableVsCapacity')}</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={compareChartData} barGap={4} barCategoryGap="30%">
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -240,20 +240,20 @@ export function TeamUtilizationSection({
                             <p className="font-semibold text-foreground mb-2">{d?.fullName || label}</p>
                             <div className="space-y-1">
                               <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">Billable</span>
+                                <span className="text-muted-foreground">{t('billableHours2')}</span>
                                 <span className="font-medium text-emerald-500">{d?.billable}h</span>
                               </div>
                               <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">Capacity</span>
+                                <span className="text-muted-foreground">{t('capacityLabel')}</span>
                                 <span className="font-medium text-foreground">{d?.capacity}h</span>
                               </div>
                               <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">Non-billable</span>
+                                <span className="text-muted-foreground">{t('nonBillable2')}</span>
                                 <span className="font-medium text-muted-foreground">{d?.nonBillable}h</span>
                               </div>
                               <div className="h-px bg-border my-1" />
                               <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">Utilization</span>
+                                <span className="text-muted-foreground">{t('utilizationLabel')}</span>
                                 <span className={`font-bold ${utilTextColor(d?.pct ?? 0)}`}>{d?.pct}%</span>
                               </div>
                             </div>
@@ -261,8 +261,8 @@ export function TeamUtilizationSection({
                         )
                       }}
                     />
-                    <Bar dataKey="capacity" name="Capacity" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="billable" name="Billable" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="capacity" name={t('capacityLabel')} fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="billable" name={t('billableHours2')} radius={[4, 4, 0, 0]}>
                       {compareChartData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
@@ -273,7 +273,7 @@ export function TeamUtilizationSection({
 
               {/* Utilization ranking */}
               <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Utilization Ranking</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('utilizationRanking')}</p>
                 <div className="space-y-2">
                   {[...compareRows].sort((a, b) => b.pct - a.pct).map((row, i) => {
                     const originalIdx = compareRows.findIndex(r => r.userId === row.userId)
@@ -306,7 +306,7 @@ export function TeamUtilizationSection({
 
           {compareRows.length === 1 && (
             <div className="px-5 py-3 border-t border-border bg-muted/10">
-              <p className="text-xs text-muted-foreground">Select at least 2 consultants to compare.</p>
+              <p className="text-xs text-muted-foreground">{t('selectAtLeastTwo')}</p>
             </div>
           )}
         </div>
@@ -354,7 +354,7 @@ export function TeamUtilizationSection({
             </button>
           ))}
           <div className="px-5 py-2">
-            <p className="text-[10px] text-muted-foreground/40 text-right">{t('drillDownHint')} · Click "Compare" to compare consultants</p>
+            <p className="text-[10px] text-muted-foreground/40 text-right">{t('drillDownHint')} · {t('compareClickHint')}</p>
           </div>
         </div>
       )}

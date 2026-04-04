@@ -3,13 +3,13 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 import { formatMoney } from '@/lib/types'
 import { useI18n } from '@/lib/i18n'
 
-function Delta({ value, suffix = '' }: { value: number | null; suffix?: string }) {
-  if (value === null || Math.abs(value) < 1) return <span className="text-[10px] text-muted-foreground/40">vs prev —</span>
+function Delta({ value, suffix = '', vsPrev }: { value: number | null; suffix?: string; vsPrev: string }) {
+  if (value === null || Math.abs(value) < 1) return <span className="text-[10px] text-muted-foreground/40">{vsPrev} —</span>
   const up = value > 0
   return (
     <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${up ? 'text-emerald-500' : 'text-red-400'}`}>
       {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-      {up ? '+' : ''}{value}{suffix} vs prev
+      {up ? '+' : ''}{value}{suffix} {vsPrev}
     </span>
   )
 }
@@ -64,14 +64,14 @@ export function KPIRow({
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueMTD')}</p>
         <p className="text-3xl font-bold text-foreground mt-2 tracking-tight leading-none">{formatMoney(revenuePeriod)}</p>
         <div className="mt-3 flex items-center justify-between">
-          <Delta value={revDelta} suffix="%" />
+          <Delta value={revDelta} suffix="%" vsPrev={t('vsPrev')} />
           {revenueForecast && (
             <span className="text-[10px] text-muted-foreground">
-              <span className="text-emerald-500 font-semibold">{formatMoney(revenueForecast)}</span> forecast
+              <span className="text-emerald-500 font-semibold">{formatMoney(revenueForecast)}</span> {t('forecastPrefix').toLowerCase()}
             </span>
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · billable only</p>
+        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · {t('periodBillableOnly')}</p>
       </div>
 
       {/* Utilization */}
@@ -88,7 +88,7 @@ export function KPIRow({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{totalBillableHours.toFixed(0)}h / {totalCapacity.toFixed(0)}h</span>
-            <Delta value={utilDelta} suffix="pp" />
+            <Delta value={utilDelta} suffix="pp" vsPrev={t('vsPrev')} />
           </div>
         </div>
       </div>
@@ -102,9 +102,9 @@ export function KPIRow({
           <p className="text-base text-muted-foreground pb-0.5">/h</p>
         </div>
         <div className="mt-3">
-          <Delta value={rateDelta} suffix="%" />
+          <Delta value={rateDelta} suffix="%" vsPrev={t('vsPrev')} />
         </div>
-        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · revenue ÷ billable hours</p>
+        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · {t('revenueDivBillable')}</p>
       </div>
 
       {/* Pipeline */}

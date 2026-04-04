@@ -35,7 +35,7 @@ export function ProjectHealthSection({ projectHealth }: { projectHealth: Project
     <div className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('projectHealth')}</h2>
-        <span className="text-[10px] text-muted-foreground/50">All-time · budget consumption</span>
+        <span className="text-[10px] text-muted-foreground/50">{t('allTimeBudget')}</span>
       </div>
 
       {projectHealth.length === 0 ? (

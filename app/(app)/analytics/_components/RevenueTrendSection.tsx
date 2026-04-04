@@ -47,7 +47,7 @@ export function RevenueTrendSection({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueHours6mo')}</h2>
-            <p className="text-[10px] text-muted-foreground/50 mt-0.5">6-month rolling · all billable entries</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{t('revenueHours6moSub')}</p>
           </div>
           {revenueForecast && (
             <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full font-medium border border-emerald-500/20">
@@ -75,7 +75,7 @@ export function RevenueTrendSection({
             <Area yAxisId="rev" type="monotone" dataKey="revenue" name={`${t('earnings')} (€)`} stroke="#6366f1" strokeWidth={2} fill="url(#revGrad)" dot={false} activeDot={{ r: 4 }} />
             <Area yAxisId="hrs" type="monotone" dataKey="hours" name={t('hours')} stroke="#0ea5e9" strokeWidth={1.5} fill="url(#hrsGrad)" dot={false} activeDot={{ r: 3 }} strokeDasharray="4 2" />
             {revenueTrend.some(r => r.forecast) && (
-              <Area yAxisId="rev" type="monotone" dataKey="forecast" name="Forecast" stroke="#6366f1" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} />
+              <Area yAxisId="rev" type="monotone" dataKey="forecast" name={t('forecastPrefix')} stroke="#6366f1" strokeWidth={1.5} fill="none" strokeDasharray="5 3" dot={false} />
             )}
           </AreaChart>
         </ResponsiveContainer>
@@ -93,7 +93,7 @@ export function RevenueTrendSection({
       <div className="card p-5 lg:col-span-2">
         <div className="mb-4">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueByClient')}</h2>
-          <p className="text-[10px] text-muted-foreground/50 mt-0.5">{periodLabel} · billable only</p>
+          <p className="text-[10px] text-muted-foreground/50 mt-0.5">{periodLabel} · {t('periodBillableOnly')}</p>
         </div>
 
         {clientData.length === 0 ? (
