@@ -11,7 +11,7 @@ import {
   parseISO, differenceInDays, startOfWeek, endOfWeek, subWeeks,
 } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
-import { Lock, Download } from 'lucide-react'
+import { Lock, Download, ChevronDown } from 'lucide-react'
 import KairosLoader from '@/components/KairosLoader'
 
 import AIChat from '@/components/AIChat'
@@ -22,6 +22,21 @@ import { TeamUtilizationSection } from './_components/TeamUtilizationSection'
 import { RevenueTrendSection } from './_components/RevenueTrendSection'
 import { BurndownSection } from './_components/BurndownSection'
 import { ProjectHealthSection } from './_components/ProjectHealthSection'
+
+export type Period = 'this_week' | 'this_month' | 'last_month' | 'last_3m' | 'custom'
+
+/** Count Mon–Fri days in [from, to] inclusive */
+function countWeekdays(from: Date, to: Date): number {
+  let count = 0
+  const d = new Date(from); d.setHours(0, 0, 0, 0)
+  const end = new Date(to); end.setHours(23, 59, 59, 999)
+  while (d <= end) {
+    const day = d.getDay()
+    if (day !== 0 && day !== 6) count++
+    d.setDate(d.getDate() + 1)
+  }
+  return count
+}
 
 export default function AnalyticsPage() {
   const supabase = createClient()
@@ -34,9 +49,14 @@ export default function AnalyticsPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [timeOffEntries, setTimeOffEntries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
   const [selectedProject, setSelectedProject] = useState('all')
   const [utilMemberId, setUtilMemberId] = useState('all')
-  const [period, setPeriod] = useState<'this_week' | 'this_month' | 'last_month' | 'last_3m'>('this_month')
+  const [period, setPeriod] = useState<Period>('this_month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [compareMode, setCompareMode] = useState(false)
+  const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -95,33 +115,59 @@ export default function AnalyticsPage() {
   const pmMemberUserIdSet = seeAll ? null : new Set(scopedEntries.map(e => e.user_id))
   const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIdSet || pmMemberUserIdSet.has(m.user_id)))
 
-  // ── Time-off helper ──────────────────────────────────────────────────────
+  // ── Time-off & capacity helpers ──────────────────────────────────────────
   function timeOffHours(userId: string, from: Date, to: Date) {
     return timeOffEntries
       .filter(e => e.user_id === userId && e.date >= format(from, 'yyyy-MM-dd') && e.date <= format(to, 'yyyy-MM-dd'))
       .reduce((s: number, e: any) => s + (e.hours || 0), 0)
   }
 
-  // ── Period ───────────────────────────────────────────────────────────────
-  const periodLabel = period === 'this_week' ? t('thisWeekLabel')
-    : period === 'last_month' ? t('lastMonthLabel')
-    : period === 'last_3m' ? t('last3Months')
-    : t('thisMonthLabel')
+  function memberCapacity(weeklyHours: number, workdays: number, userId: string, from: Date, to: Date) {
+    return Math.max(0, weeklyHours * (workdays / 5) - timeOffHours(userId, from, to))
+  }
+
+  // ── Period bounds (workday-based capacity) ───────────────────────────────
+  const PERIODS: { value: Period; label: string }[] = [
+    { value: 'this_week',  label: t('thisWeekLabel') },
+    { value: 'this_month', label: t('thisMonthLabel') },
+    { value: 'last_month', label: t('lastMonthLabel') },
+    { value: 'last_3m',    label: t('last3Months') },
+    { value: 'custom',     label: locale === 'de' ? 'Benutzerdefiniert' : 'Custom' },
+  ]
+  const periodLabel = PERIODS.find(p => p.value === period)?.label ?? ''
 
   const periodBounds = (() => {
     const n = new Date()
     switch (period) {
-      case 'this_week': { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: 1 } }
-      case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000) } }
-      case 'last_3m': { const s = startOfMonth(subMonths(n, 2)); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
-      default: { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      case 'this_week': {
+        const s = startOfWeek(n, { weekStartsOn: 1 })
+        return { from: s, to: n, workdays: 5 }
+      }
+      case 'last_month': {
+        const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm)
+        return { from: s, to: e, workdays: countWeekdays(s, e) }
+      }
+      case 'last_3m': {
+        const s = startOfMonth(subMonths(n, 2))
+        return { from: s, to: n, workdays: countWeekdays(s, n) }
+      }
+      case 'custom': {
+        const from = customFrom ? new Date(customFrom + 'T00:00:00') : startOfMonth(n)
+        const to   = customTo   ? new Date(customTo   + 'T23:59:59') : n
+        return { from, to, workdays: Math.max(countWeekdays(from, to), 1) }
+      }
+      default: {
+        const s = startOfMonth(n)
+        return { from: s, to: n, workdays: Math.max(countWeekdays(s, n), 1) }
+      }
     }
   })()
 
-  const periodEntries = withEarnings.filter(e => new Date(e.start_time) >= periodBounds.from && new Date(e.start_time) <= periodBounds.to)
+  // ── Period-filtered entries & KPIs ───────────────────────────────────────
+  const periodEntries  = withEarnings.filter(e => new Date(e.start_time) >= periodBounds.from && new Date(e.start_time) <= periodBounds.to)
   const revenuePeriod  = periodEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const billableHours  = periodEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-  const totalCapacity  = activeMembers.reduce((s, m) => s + Math.max(0, (m.weekly_hours ?? 40) * periodBounds.weeks - timeOffHours(m.user_id!, periodBounds.from, periodBounds.to)), 0)
+  const totalCapacity  = activeMembers.reduce((s, m) => s + memberCapacity(m.weekly_hours ?? 40, periodBounds.workdays, m.user_id!, periodBounds.from, periodBounds.to), 0)
   const utilization    = totalCapacity > 0 ? Math.round(billableHours / totalCapacity * 100) : 0
   const avgRate        = billableHours > 0 ? revenuePeriod / billableHours : 0
   const pipeline       = scopedProjects.reduce((s, p) => {
@@ -129,93 +175,74 @@ export default function AnalyticsPage() {
     return s + Math.max(0, (p.budget_amount || 0) - spent)
   }, 0)
 
-  // ── Comparison vs previous period ────────────────────────────────────────
+  // ── Previous period (symmetric window) ──────────────────────────────────
   const periodMs = periodBounds.to.getTime() - periodBounds.from.getTime()
-  const prevBounds = {
-    from: new Date(periodBounds.from.getTime() - periodMs - 1),
-    to:   new Date(periodBounds.from.getTime() - 1),
-    weeks: periodBounds.weeks,
-  }
-  const prevEntries     = withEarnings.filter(e => { const t = new Date(e.start_time); return t >= prevBounds.from && t <= prevBounds.to })
+  const prevFrom = new Date(periodBounds.from.getTime() - periodMs - 1)
+  const prevTo   = new Date(periodBounds.from.getTime() - 1)
+  const prevWorkdays = countWeekdays(prevFrom, prevTo)
+  const prevBounds = { from: prevFrom, to: prevTo, workdays: prevWorkdays }
+
+  const prevEntries     = withEarnings.filter(e => { const d = new Date(e.start_time); return d >= prevBounds.from && d <= prevBounds.to })
   const prevRevenue     = prevEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const prevBillH       = prevEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-  const prevCapacity    = activeMembers.reduce((s, m) => s + Math.max(0, (m.weekly_hours ?? 40) * prevBounds.weeks - timeOffHours(m.user_id!, prevBounds.from, prevBounds.to)), 0)
+  const prevCapacity    = activeMembers.reduce((s, m) => s + memberCapacity(m.weekly_hours ?? 40, prevBounds.workdays, m.user_id!, prevBounds.from, prevBounds.to), 0)
   const prevUtilization = prevCapacity > 0 ? Math.round(prevBillH / prevCapacity * 100) : 0
   const prevAvgRate     = prevBillH > 0 ? prevRevenue / prevBillH : 0
 
-  // ── CSV export ────────────────────────────────────────────────────────────
-  function exportCSV(type: 'consultant' | 'project' | 'client') {
-    let rows: string[][]
-    let filename: string
-    const d = format(now, 'yyyy-MM-dd')
-
-    if (type === 'consultant') {
-      rows = [['Consultant', 'Billable Hours', 'Non-Billable Hours', 'Revenue', 'Utilization %']]
-      teamUtilUnified.forEach(m => {
-        rows.push([m.name, m.billable.toFixed(1), m.nonBillable.toFixed(1), m.revenue.toFixed(2), String(m.pct)])
-      })
-      filename = `kairos-consultants-${d}.csv`
-    } else if (type === 'project') {
-      rows = [['Project', 'Client', 'Hours Spent', 'Revenue', 'Budget Amount', 'Budget Used %', 'Hours Budget', 'Hours Used %']]
-      projectHealth.forEach(({ p, spent, hoursSpent, budgetPct, hoursPct }) => {
-        const client = (p.client as any)?.name || ''
-        rows.push([p.name, client, hoursSpent.toFixed(1), spent.toFixed(2), String(p.budget_amount || ''), String(budgetPct ?? ''), String(p.budget_hours || ''), String(hoursPct ?? '')])
-      })
-      filename = `kairos-projects-${d}.csv`
-    } else {
-      rows = [['Client', 'Revenue', 'Share %']]
-      const total = clientData.reduce((s, c) => s + c.revenue, 0)
-      clientData.forEach(c => {
-        rows.push([c.name, c.revenue.toFixed(2), total > 0 ? Math.round(c.revenue / total * 100).toString() : '0'])
-      })
-      filename = `kairos-clients-${d}.csv`
-    }
-
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href = url; a.download = filename; a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // ── Forecast ─────────────────────────────────────────────────────────────
+  // ── Forecast (this_month only) ────────────────────────────────────────────
   const dayOfMonth = now.getDate()
   const daysInMonth = endOfMonth(now).getDate()
   const revenueForecast = period === 'this_month' && dayOfMonth >= 3 ? Math.round(revenuePeriod / dayOfMonth * daysInMonth) : null
 
-  // ── Revenue trend (6 months) ─────────────────────────────────────────────
+  // ── Revenue trend (always 6-month rolling) ───────────────────────────────
   const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now })
   const revenueTrend = months.map(m => {
-    const mStart = startOfMonth(m)
-    const mEnd = endOfMonth(m)
-    const isCurrentMonth = mStart.getTime() === startOfMonth(now).getTime()
+    const mStart = startOfMonth(m); const mEnd = endOfMonth(m)
+    const isCurrent = mStart.getTime() === startOfMonth(now).getTime()
     const rev = withEarnings.filter(e => e.billable && new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + e.earnings, 0)
     const hrs = withEarnings.filter(e => new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    const forecast = isCurrentMonth && revenueForecast ? revenueForecast : undefined
-    return { month: format(m, 'MMM', { locale: dateFnsLocale }), revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), forecast }
+    return { month: format(m, 'MMM', { locale: dateFnsLocale }), revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), forecast: isCurrent && revenueForecast ? revenueForecast : undefined }
   })
 
-  // ── Team utilization ─────────────────────────────────────────────────────
-  const prevFrom = prevBounds.from
-  const prevTo   = prevBounds.to
+  // ── Client revenue (period-filtered) ─────────────────────────────────────
+  const clientMap: Record<string, { name: string; color: string; revenue: number }> = {}
+  periodEntries.filter(e => e.billable).forEach(e => {
+    const n = e.project?.client?.name || 'No client'
+    const c = e.project?.client?.color || e.project?.color || '#6366f1'
+    if (!clientMap[n]) clientMap[n] = { name: n, color: c, revenue: 0 }
+    clientMap[n].revenue += e.earnings
+  })
+  const clientData = Object.values(clientMap).sort((a, b) => b.revenue - a.revenue).slice(0, 6)
 
+  // ── Team utilization (all metrics per member, period-filtered) ───────────
   const teamUtilUnified = activeMembers.map(m => {
     const inRange = (e: any) => new Date(e.start_time) >= periodBounds.from && new Date(e.start_time) <= periodBounds.to
-    const inPrev  = (e: any) => new Date(e.start_time) >= prevFrom && new Date(e.start_time) <= prevTo
+    const inPrev  = (e: any) => new Date(e.start_time) >= prevBounds.from  && new Date(e.start_time) <= prevBounds.to
     const mE = withEarnings.filter(e => e.user_id === m.user_id)
-    const billable    = mE.filter(e => e.billable && inRange(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
+    const billable    = mE.filter(e => e.billable  && inRange(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const nonBillable = mE.filter(e => !e.billable && inRange(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    const revenue     = mE.filter(e => e.billable && inRange(e)).reduce((s, e) => s + e.earnings, 0)
-    const capacity    = Math.max(0, (m.weekly_hours ?? 40) * periodBounds.weeks - timeOffHours(m.user_id!, periodBounds.from, periodBounds.to))
+    const revenue     = mE.filter(e => e.billable  && inRange(e)).reduce((s, e) => s + e.earnings, 0)
+    const capacity    = memberCapacity(m.weekly_hours ?? 40, periodBounds.workdays, m.user_id!, periodBounds.from, periodBounds.to)
     const pct         = capacity > 0 ? Math.round(billable / capacity * 100) : 0
     const prevBill    = mE.filter(e => e.billable && inPrev(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    const prevCapacityM = Math.max(0, (m.weekly_hours ?? 40) * prevBounds.weeks - timeOffHours(m.user_id!, prevBounds.from, prevBounds.to))
-    const prevPct     = prevCapacityM > 0 ? Math.round(prevBill / prevCapacityM * 100) : 0
-    return { userId: m.user_id, name: m.full_name || m.email || 'Unknown', billable: parseFloat(billable.toFixed(1)), nonBillable: parseFloat(nonBillable.toFixed(1)), revenue, capacity: parseFloat(capacity.toFixed(1)), pct, trend: pct - prevPct }
+    const prevCap     = memberCapacity(m.weekly_hours ?? 40, prevBounds.workdays, m.user_id!, prevBounds.from, prevBounds.to)
+    const prevPct     = prevCap > 0 ? Math.round(prevBill / prevCap * 100) : 0
+    const avgHourlyRate = billable > 0 ? revenue / billable : 0
+    return {
+      userId: m.user_id,
+      name: m.full_name || m.email || 'Unknown',
+      email: (m as any).email || '',
+      billable: parseFloat(billable.toFixed(1)),
+      nonBillable: parseFloat(nonBillable.toFixed(1)),
+      revenue,
+      capacity: parseFloat(capacity.toFixed(1)),
+      pct,
+      trend: pct - prevPct,
+      avgHourlyRate: parseFloat(avgHourlyRate.toFixed(0)),
+    }
   }).sort((a, b) => b.pct - a.pct)
 
-  // ── Drill-down ───────────────────────────────────────────────────────────
+  // ── Drill-down (single member) ───────────────────────────────────────────
   const drillMember = utilMemberId !== 'all' ? activeMembers.find(m => m.user_id === utilMemberId) : undefined
 
   const drillWeekData = (() => {
@@ -228,7 +255,7 @@ export default function AnalyticsPage() {
       const effEnd   = wEnd   > periodBounds.to   ? periodBounds.to   : wEnd
       const mE = withEarnings.filter(e => e.user_id === drillMember.user_id && new Date(e.start_time) >= effStart && new Date(e.start_time) <= effEnd)
       const billable = mE.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-      const toHours = timeOffHours(drillMember.user_id!, wStart, wEnd)
+      const toHours  = timeOffHours(drillMember.user_id!, wStart, wEnd)
       const capacity = Math.max(0, (drillMember.weekly_hours ?? 40) - toHours)
       const pct = capacity > 0 ? Math.round(billable / capacity * 100) : 0
       if (billable > 0 || capacity > 0) weeks.push({ week: format(wStart, 'MMM d'), billable: parseFloat(billable.toFixed(1)), capacity: parseFloat(capacity.toFixed(1)), pct })
@@ -249,7 +276,7 @@ export default function AnalyticsPage() {
     return Object.values(byProject).sort((a, b) => b.billable - a.billable)
   })()
 
-  // ── Burnout / anomalies ──────────────────────────────────────────────────
+  // ── Burnout / anomaly detection ──────────────────────────────────────────
   const burnoutRisks = activeMembers.filter(m => {
     if (!m.weekly_hours || m.weekly_hours === 0) return false
     return [1, 2, 3].every(weeksAgo => {
@@ -265,14 +292,13 @@ export default function AnalyticsPage() {
   const lastWeekEnd   = endOfWeek(lastWeekStart, { weekStartsOn: 1 })
   type Anomaly = { message: string; severity: 'error' | 'warning' }
   const anomalies: Anomaly[] = []
-
   scopedProjects.forEach(p => {
     const thisW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= thisWeekStart).reduce((s, e) => s + e.earnings, 0)
     const lastW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= lastWeekStart && new Date(e.start_time) <= lastWeekEnd).reduce((s, e) => s + e.earnings, 0)
     if (lastW > 200 && thisW > lastW * 2.5) anomalies.push({ message: `${p.name} — burn rate ${Math.round(thisW / lastW)}× vs last week`, severity: 'error' })
   })
 
-  // ── Burndown ─────────────────────────────────────────────────────────────
+  // ── Budget burndown ───────────────────────────────────────────────────────
   const burndownProject = selectedProject !== 'all' ? scopedProjects.find(p => p.id === selectedProject) : null
   const burndownEntries = burndownProject ? withEarnings.filter(e => e.project_id === burndownProject.id && e.billable) : []
   let cumulativeCost = 0
@@ -295,16 +321,6 @@ export default function AnalyticsPage() {
       }
     }
   }
-
-  // ── Client revenue ────────────────────────────────────────────────────────
-  const clientMap: Record<string, { name: string; color: string; revenue: number }> = {}
-  withEarnings.filter(e => e.billable).forEach(e => {
-    const n = e.project?.client?.name || 'No client'
-    const c = e.project?.client?.color || e.project?.color || '#6366f1'
-    if (!clientMap[n]) clientMap[n] = { name: n, color: c, revenue: 0 }
-    clientMap[n].revenue += e.earnings
-  })
-  const clientData = Object.values(clientMap).sort((a, b) => b.revenue - a.revenue).slice(0, 6)
 
   // ── Cashflow ──────────────────────────────────────────────────────────────
   const inPeriod = (dateStr: string | null) => {
@@ -336,23 +352,107 @@ export default function AnalyticsPage() {
     return { p, spent, hoursSpent, budgetPct, hoursPct, worstPct }
   }).sort((a, b) => b.worstPct - a.worstPct)
 
+  // ── CSV export ────────────────────────────────────────────────────────────
+  function exportCSV(type: 'consultant' | 'project' | 'client') {
+    let rows: string[][]
+    let filename: string
+    const d = format(now, 'yyyy-MM-dd')
+    if (type === 'consultant') {
+      rows = [['Consultant', 'Billable Hours', 'Non-Billable Hours', 'Revenue', 'Avg Rate', 'Utilization %']]
+      teamUtilUnified.forEach(m => rows.push([m.name, m.billable.toFixed(1), m.nonBillable.toFixed(1), m.revenue.toFixed(2), m.avgHourlyRate.toFixed(0), String(m.pct)]))
+      filename = `kairos-consultants-${d}.csv`
+    } else if (type === 'project') {
+      rows = [['Project', 'Client', 'Hours Spent', 'Revenue', 'Budget Amount', 'Budget Used %', 'Hours Budget', 'Hours Used %']]
+      projectHealth.forEach(({ p, spent, hoursSpent, budgetPct, hoursPct }) => {
+        const client = (p.client as any)?.name || ''
+        rows.push([p.name, client, hoursSpent.toFixed(1), spent.toFixed(2), String(p.budget_amount || ''), String(budgetPct ?? ''), String(p.budget_hours || ''), String(hoursPct ?? '')])
+      })
+      filename = `kairos-projects-${d}.csv`
+    } else {
+      rows = [['Client', 'Revenue', 'Share %']]
+      const total = clientData.reduce((s, c) => s + c.revenue, 0)
+      clientData.forEach(c => rows.push([c.name, c.revenue.toFixed(2), total > 0 ? Math.round(c.revenue / total * 100).toString() : '0']))
+      filename = `kairos-clients-${d}.csv`
+    }
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Compare helpers ───────────────────────────────────────────────────────
+  function toggleCompare(userId: string) {
+    setSelectedForCompare(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else if (next.size < 5) next.add(userId)
+      return next
+    })
+  }
+
+  const periodDateRange = period === 'custom' && (customFrom || customTo)
+    ? `${customFrom ? format(new Date(customFrom + 'T00:00:00'), 'd. MMM', { locale: dateFnsLocale }) : '?'} – ${customTo ? format(new Date(customTo + 'T00:00:00'), 'd. MMM yyyy', { locale: dateFnsLocale }) : '?'}`
+    : null
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-5 pb-10">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{t('analyticsSubtitle')}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {periodDateRange
+              ? periodDateRange
+              : `${t('analyticsSubtitle')} · ${periodLabel}`}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select className="input w-auto text-xs py-1.5" value={period} onChange={e => setPeriod(e.target.value as typeof period)}>
-            <option value="this_week">{t('thisWeekLabel')}</option>
-            <option value="this_month">{t('thisMonthLabel')}</option>
-            <option value="last_month">{t('lastMonthLabel')}</option>
-            <option value="last_3m">{t('last3Months')}</option>
-          </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Period segmented control */}
+          <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
+            {PERIODS.map(p => (
+              <button
+                key={p.value}
+                onClick={() => { setPeriod(p.value); if (p.value !== 'custom') { setCustomFrom(''); setCustomTo('') } }}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  period === p.value
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom date inputs */}
+          {period === 'custom' && (
+            <div className="flex items-center gap-1.5 bg-muted rounded-lg px-3 py-1.5">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="bg-transparent text-xs text-foreground outline-none w-32"
+              />
+              <span className="text-muted-foreground text-xs">–</span>
+              <input
+                type="date"
+                value={customTo}
+                max={format(now, 'yyyy-MM-dd')}
+                onChange={e => setCustomTo(e.target.value)}
+                className="bg-transparent text-xs text-foreground outline-none w-32"
+              />
+            </div>
+          )}
+
+          {/* Export */}
           <div className="relative group">
             <button className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
-              <Download className="w-3.5 h-3.5" /> Export
+              <Download className="w-3.5 h-3.5" />
+              Export
+              <ChevronDown className="w-3 h-3" />
             </button>
             <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-lg py-1 z-20 hidden group-hover:block">
               <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">By Consultant</button>
@@ -363,8 +463,10 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* ── Alerts ──────────────────────────────────────────────────────────── */}
       <AlertsSection burnoutRisks={burnoutRisks} anomalies={anomalies} />
 
+      {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <KPIRow
         revenuePeriod={revenuePeriod}
         pipeline={pipeline}
@@ -375,8 +477,19 @@ export default function AnalyticsPage() {
         prevRevenue={prevRevenue}
         prevUtilization={prevUtilization}
         prevAvgRate={prevAvgRate}
+        totalBillableHours={billableHours}
+        totalCapacity={totalCapacity}
       />
 
+      {/* ── Revenue trend + client breakdown (always 6-month rolling) ───────── */}
+      <RevenueTrendSection
+        revenueTrend={revenueTrend}
+        clientData={clientData}
+        revenueForecast={revenueForecast}
+        periodLabel={periodLabel}
+      />
+
+      {/* ── Cashflow (Partners only) ─────────────────────────────────────────── */}
       {cashflow && (
         <CashflowSection
           cashflow={cashflow}
@@ -387,6 +500,7 @@ export default function AnalyticsPage() {
         />
       )}
 
+      {/* ── Team utilization + comparison ────────────────────────────────────── */}
       <TeamUtilizationSection
         teamUtilUnified={teamUtilUnified}
         drillMember={drillMember}
@@ -396,14 +510,16 @@ export default function AnalyticsPage() {
         setUtilMemberId={setUtilMemberId}
         activeMembers={activeMembers}
         periodLabel={periodLabel}
+        compareMode={compareMode}
+        selectedForCompare={selectedForCompare}
+        onToggleCompareMode={() => { setCompareMode(v => !v); setSelectedForCompare(new Set()) }}
+        onToggleSelectForCompare={toggleCompare}
       />
 
-      <RevenueTrendSection
-        revenueTrend={revenueTrend}
-        clientData={clientData}
-        revenueForecast={revenueForecast}
-      />
+      {/* ── Project health ───────────────────────────────────────────────────── */}
+      <ProjectHealthSection projectHealth={projectHealth} />
 
+      {/* ── Budget burndown ──────────────────────────────────────────────────── */}
       <BurndownSection
         scopedProjects={scopedProjects}
         selectedProject={selectedProject}
@@ -414,8 +530,7 @@ export default function AnalyticsPage() {
         entries={scopedEntries}
       />
 
-      <ProjectHealthSection projectHealth={projectHealth} />
-
+      {/* ── AI ───────────────────────────────────────────────────────────────── */}
       <AIChat />
     </div>
   )
