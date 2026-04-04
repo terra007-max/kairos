@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
   const periodBounds = (() => {
     const n = new Date()
     switch (period) {
-      case 'this_week': { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
+      case 'this_week': { const s = startOfWeek(n, { weekStartsOn: 1 }); return { from: s, to: n, weeks: 1 } }
       case 'last_month': { const lm = subMonths(n, 1); const s = startOfMonth(lm); const e = endOfMonth(lm); return { from: s, to: e, weeks: (e.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000) } }
       case 'last_3m': { const s = startOfMonth(subMonths(n, 2)); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
       default: { const s = startOfMonth(n); return { from: s, to: n, weeks: Math.max((n.getTime() - s.getTime()) / (7 * 24 * 3600 * 1000), 1 / 7) } }
@@ -228,9 +228,8 @@ export default function AnalyticsPage() {
       const effEnd   = wEnd   > periodBounds.to   ? periodBounds.to   : wEnd
       const mE = withEarnings.filter(e => e.user_id === drillMember.user_id && new Date(e.start_time) >= effStart && new Date(e.start_time) <= effEnd)
       const billable = mE.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-      const weekFraction = (effEnd.getTime() - effStart.getTime()) / (7 * 24 * 3600 * 1000)
-      const toHours = timeOffHours(drillMember.user_id!, effStart, effEnd)
-      const capacity = Math.max(0, (drillMember.weekly_hours ?? 40) * Math.max(weekFraction, 1 / 7) - toHours)
+      const toHours = timeOffHours(drillMember.user_id!, wStart, wEnd)
+      const capacity = Math.max(0, (drillMember.weekly_hours ?? 40) - toHours)
       const pct = capacity > 0 ? Math.round(billable / capacity * 100) : 0
       if (billable > 0 || capacity > 0) weeks.push({ week: format(wStart, 'MMM d'), billable: parseFloat(billable.toFixed(1)), capacity: parseFloat(capacity.toFixed(1)), pct })
       wStart = new Date(wStart.getTime() + 7 * 24 * 3600 * 1000)
