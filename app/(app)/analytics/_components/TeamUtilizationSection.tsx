@@ -1,6 +1,6 @@
 'use client'
 import { ChevronLeft, ChevronRight, GitCompare, X } from 'lucide-react'
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import { formatMoney } from '@/lib/types'
 import { useI18n } from '@/lib/i18n'
 import { utilBarColor, TrendPill } from '../_lib/utils'
@@ -66,6 +66,40 @@ export function TeamUtilizationSection({
     pct: r.pct,
     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
   }))
+  const chartMax = compareChartData.length > 0 ? Math.max(...compareChartData.map(d => Math.max(d.billable, d.capacity))) : 40
+
+  // Custom bar: dashed outline = capacity, solid fill = billable
+  function CapacityFillBar(props: any) {
+    const { x, y, width, height, payload, background } = props
+    if (!background || !payload) return null
+    const chartBottom = background.y + background.height
+    const capacityH = chartMax > 0 ? (payload.capacity / chartMax) * background.height : 0
+    const billableH = Math.max(0, Math.min(height, background.height))
+    const r = 4
+    return (
+      <g>
+        {/* Capacity — dashed outline */}
+        <rect
+          x={x + 1} y={chartBottom - capacityH} width={width - 2} height={capacityH}
+          fill="none"
+          stroke={payload.color}
+          strokeOpacity={0.4}
+          strokeDasharray="5 3"
+          strokeWidth={2}
+          rx={r}
+        />
+        {/* Billable — solid fill */}
+        {billableH > 0 && (
+          <rect
+            x={x + 1} y={chartBottom - billableH} width={width - 2} height={billableH}
+            fill={payload.color}
+            fillOpacity={0.85}
+            rx={r}
+          />
+        )}
+      </g>
+    )
+  }
 
   return (
     <div className="card overflow-hidden">
@@ -261,12 +295,14 @@ export function TeamUtilizationSection({
                         )
                       }}
                     />
-                    <Bar dataKey="capacity" name={t('capacityLabel')} fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="billable" name={t('billableHours2')} radius={[4, 4, 0, 0]}>
-                      {compareChartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey="billable"
+                      name={t('billableHours2')}
+                      shape={<CapacityFillBar />}
+                      background={{ fill: 'none' }}
+                      isAnimationActive={false}
+                      barSize={52}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
