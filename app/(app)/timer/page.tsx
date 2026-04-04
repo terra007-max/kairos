@@ -320,7 +320,7 @@ export default function TimerPage() {
           <CalendarClock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-              {isFriday(today) ? 'Submit your hours today — it\'s Friday!' : 'Deadline approaching — submit by Sunday 23:00'}
+              {isFriday(today) ? t('deadlineToday') : t('deadlineApproaching')}
             </p>
             <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
               <a href="/timesheets" className="underline underline-offset-2">{t('deadlineTimerBody')}</a>

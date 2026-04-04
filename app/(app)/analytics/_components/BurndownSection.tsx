@@ -55,7 +55,7 @@ export function BurndownSection({ scopedProjects, selectedProject, setSelectedPr
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">{t('remaining')}</p>
                   <p className="text-lg font-bold text-foreground">{formatMoney(remaining)}</p>
-                  <p className="text-xs text-muted-foreground">{formatDuration(Math.round((remaining / (spent / Math.max(hoursSpent, 0.1))) * 3600))} est.</p>
+                  <p className="text-xs text-muted-foreground">{formatDuration(Math.round((remaining / (spent / Math.max(hoursSpent, 0.1))) * 3600))} {t('estAbbr')}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">{t('hoursLogged')}</p>
@@ -83,8 +83,8 @@ export function BurndownSection({ scopedProjects, selectedProject, setSelectedPr
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), '']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
-              {burndownProject?.budget_amount && <ReferenceLine y={burndownProject.budget_amount} stroke="#ef4444" strokeDasharray="6 3" label={{ value: 'Budget', fill: '#ef4444', fontSize: 10, position: 'insideTopRight' }} />}
-              <Area type="monotone" dataKey="spent" name="Spent" stroke="#6366f1" strokeWidth={2} fill="url(#spentGrad)" />
+              {burndownProject?.budget_amount && <ReferenceLine y={burndownProject.budget_amount} stroke="#ef4444" strokeDasharray="6 3" label={{ value: t('budgetLabel'), fill: '#ef4444', fontSize: 10, position: 'insideTopRight' }} />}
+              <Area type="monotone" dataKey="spent" name={t('spentLabel')} stroke="#6366f1" strokeWidth={2} fill="url(#spentGrad)" />
             </AreaChart>
           </ResponsiveContainer>
         </>

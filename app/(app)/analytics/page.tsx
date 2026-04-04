@@ -317,7 +317,7 @@ export default function AnalyticsPage() {
       if (remaining > 0 && burnPerDay > 0) {
         const daysLeft = Math.ceil(remaining / burnPerDay)
         const forecastDate = new Date(); forecastDate.setDate(forecastDate.getDate() + daysLeft)
-        burndownData.push({ date: `${format(forecastDate, 'MMM d')} (est.)`, spent: parseFloat(burndownProject.budget_amount.toFixed(0)), budget: burndownProject.budget_amount, forecast: parseFloat(burndownProject.budget_amount.toFixed(0)) })
+        burndownData.push({ date: `${format(forecastDate, 'MMM d')} (${t('estAbbr')})`, spent: parseFloat(burndownProject.budget_amount.toFixed(0)), budget: burndownProject.budget_amount, forecast: parseFloat(burndownProject.budget_amount.toFixed(0)) })
       }
     }
   }
