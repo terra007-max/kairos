@@ -145,19 +145,32 @@ export default function TimerPage() {
     return null
   }
 
+  async function insertEntry(entry: Record<string, unknown>) {
+    if (isProxying) {
+      const res = await fetch('/api/time-entries/proxy-insert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry, workspaceId, targetUserId: effectiveUserId }),
+      })
+      const json = await res.json()
+      return { data: json.data, error: json.error ? { message: json.error } : null }
+    }
+    return supabase.from('time_entries').insert({ ...entry, user_id: effectiveUserId, workspace_id: workspaceId }).select('*, project:projects(*)').single()
+  }
+
   async function startTimer() {
+    if (!description.trim()) { alert(t('descriptionRequired')); return }
     const blockReason = getWeekBlock(new Date())
     if (blockReason) { alert(blockReason); return }
     const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = myMember?.level_id || null
     const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
-    const { data } = await supabase.from('time_entries').insert({
-      user_id: effectiveUserId, workspace_id: workspaceId,
+    const { data } = await insertEntry({
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: new Date().toISOString(),
       hourly_rate: snapshotRate,
-    }).select('*, project:projects(*)').single()
+    })
     if (data) { setRunning(data); setElapsed(0); setShowIdleAlert(false) }
   }
 
@@ -189,6 +202,7 @@ export default function TimerPage() {
   }
 
   async function saveManual() {
+    if (!description.trim()) { alert(t('descriptionRequired')); return }
     setSaving(true)
     const proj = projects.find(p => p.id === projectId)
     const myMember = members.find(m => m.user_id === effectiveUserId)
@@ -212,8 +226,7 @@ export default function TimerPage() {
     endTime = applyRounding(endTime, startTime, proj?.rounding_minutes || 0)
 
     const snapshotRate = (projectId && autoLevelId) ? (levelRates[projectId]?.[autoLevelId] || 0) : 0
-    await supabase.from('time_entries').insert({
-      user_id: effectiveUserId, workspace_id: workspaceId,
+    await insertEntry({
       project_id: projectId || null, level_id: autoLevelId,
       description: description || null, billable,
       start_time: startTime.toISOString(), end_time: endTime.toISOString(),
@@ -227,13 +240,12 @@ export default function TimerPage() {
     const myMember = members.find(m => m.user_id === effectiveUserId)
     const autoLevelId = entry.level_id || myMember?.level_id || null
     const snapshotRate = (entry.project_id && autoLevelId) ? (levelRates[entry.project_id]?.[autoLevelId] || 0) : 0
-    const { data } = await supabase.from('time_entries').insert({
-      user_id: effectiveUserId, workspace_id: workspaceId,
+    const { data } = await insertEntry({
       project_id: entry.project_id || null, level_id: autoLevelId,
       description: entry.description || null, billable: entry.billable,
       start_time: new Date().toISOString(),
       hourly_rate: snapshotRate,
-    }).select('*, project:projects(*)').single()
+    })
     if (data) {
       setRunning(data); setElapsed(0)
       setDescription(entry.description || ''); setProjectId(entry.project_id || '')
@@ -377,7 +389,7 @@ export default function TimerPage() {
       {/* Timer card */}
       <div className="card p-5 mb-6">
         <div className="flex items-center gap-3 flex-wrap mb-4">
-          <input className="input flex-1 min-w-48" placeholder={t('whatWorkingOn')} value={description} onChange={e => setDescription(e.target.value)} disabled={!!running} />
+          <input className="input flex-1 min-w-48" placeholder={`${t('whatWorkingOn')} *`} value={description} onChange={e => setDescription(e.target.value)} disabled={!!running} />
           <select className="input w-44" value={projectId} onChange={e => setProjectId(e.target.value)} disabled={!!running}>
             <option value="">{t('noProject')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}

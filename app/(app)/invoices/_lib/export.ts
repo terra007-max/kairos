@@ -350,5 +350,5 @@ export async function generatePDFBlobUrl(inv: SavedInvoice): Promise<string> {
   }
 
   doc.setFontSize(7).setTextColor(180).setFont('helvetica', 'normal').text('Erstellt mit Kairos · EN 16931 konform', 105, 287, { align: 'center' })
-  return doc.output('bloburl') as string
+  return doc.output('bloburl') as unknown as string
 }
