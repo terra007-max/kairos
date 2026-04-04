@@ -39,8 +39,10 @@ export function MyTimesheetTab({
   onReload: () => void
 }) {
   const supabase = createClient()
-  const { workspaceId, role, isProxying, effectiveUserId } = useWorkspace()
+  const { workspaceId, role, isProxying, effectiveUserId, members } = useWorkspace()
   const { t, locale } = useI18n()
+
+  const dayHours = Math.round(((members.find(m => m.user_id === userId)?.weekly_hours ?? 40) / 5) * 10) / 10
   const dateFnsLocale = locale === 'de' ? de : enUS
   const canReview = can(role, 'review:all')
 
@@ -121,7 +123,7 @@ export function MyTimesheetTab({
   }
 
   async function addTimeOff() {
-    const hours = parseFloat(newToHours)
+    const hours = newToType === 'holiday' ? dayHours : (parseFloat(newToHours) || dayHours)
     if (!hours || hours <= 0) return
     await supabase.from('time_off_entries').upsert({
       workspace_id: workspaceId,
@@ -288,7 +290,7 @@ export function MyTimesheetTab({
           </div>
           {!addingTimeOff && (
             <button
-              onClick={() => { setAddingTimeOff(true); setNewToDate(format(currentWeekStart, 'yyyy-MM-dd')) }}
+              onClick={() => { setAddingTimeOff(true); setNewToDate(format(currentWeekStart, 'yyyy-MM-dd')); setNewToType('vacation'); setNewToHours(String(dayHours)) }}
               className="btn-secondary text-xs py-1 px-2.5"
             >
               {t('addDay')}
@@ -321,19 +323,42 @@ export function MyTimesheetTab({
                 </select>
               </div>
             </div>
-            <div>
-              <label className="label text-xs">Hours</label>
-              <input
-                type="number"
-                className="input text-sm"
-                value={newToHours}
-                min="1" max="24" step="0.5"
-                onChange={e => setNewToHours(e.target.value)}
-              />
-            </div>
+            {newToType !== 'holiday' && (
+              <div>
+                <label className="label text-xs flex items-center justify-between">
+                  <span>{t('hours')}</span>
+                  <span className="text-muted-foreground/60 font-normal text-xs">
+                    {parseFloat(newToHours) >= dayHours ? t('absenceFullDay') : `${t('absencePartialDay')} (${newToHours}h)`}
+                  </span>
+                </label>
+                <div className="flex gap-1 mb-2 flex-wrap">
+                  {[1, 2, 3, 4, 6].filter(h => h < dayHours).concat([dayHours]).map(h => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setNewToHours(String(h))}
+                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                        newToHours === String(h)
+                          ? 'bg-brand-600 border-brand-600 text-white'
+                          : 'border-border text-muted-foreground hover:border-brand-600/40 hover:text-foreground'
+                      }`}
+                    >
+                      {h === dayHours ? `${h}h (${t('absenceFullDay')})` : `${h}h`}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  className="input text-sm"
+                  value={newToHours}
+                  min="0.5" max={dayHours} step="0.5"
+                  onChange={e => setNewToHours(e.target.value)}
+                />
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
-              <button onClick={addTimeOff} className="btn-primary text-xs py-1.5 px-3">Save</button>
-              <button onClick={() => setAddingTimeOff(false)} className="btn-secondary text-xs py-1.5 px-3">Cancel</button>
+              <button onClick={addTimeOff} className="btn-primary text-xs py-1.5 px-3">{t('save')}</button>
+              <button onClick={() => setAddingTimeOff(false)} className="btn-secondary text-xs py-1.5 px-3">{t('cancel')}</button>
             </div>
           </div>
         )}
