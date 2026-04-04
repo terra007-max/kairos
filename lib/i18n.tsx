@@ -16,6 +16,7 @@ const translations = {
     settings: 'Settings',
     profile: 'Profile',
     timesheets: 'Timesheets',
+    absences: 'Absences',
     legalNotice: 'Legal Notice',
     signOut: 'Sign out',
 
@@ -464,6 +465,7 @@ const translations = {
     settings: 'Einstellungen',
     profile: 'Profil',
     timesheets: 'Stundenzettel',
+    absences: 'Abwesenheiten',
     legalNotice: 'Impressum',
     signOut: 'Abmelden',
 
