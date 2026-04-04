@@ -3,17 +3,17 @@ import { DollarSign, TrendingUp, Users, Zap, TrendingDown, Minus } from 'lucide-
 import { formatMoney } from '@/lib/types'
 import { useI18n } from '@/lib/i18n'
 
-function Delta({ value }: { value: number | null }) {
+function Delta({ value, label }: { value: number | null; label: string }) {
   if (value === null || Math.abs(value) < 1) return (
     <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
-      <Minus className="w-2.5 h-2.5" /> vs prev
+      <Minus className="w-2.5 h-2.5" /> {label}
     </span>
   )
   const up = value > 0
   return (
     <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
       {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-      {up ? '+' : ''}{value}% vs prev
+      {up ? '+' : ''}{value}% {label}
     </span>
   )
 }
@@ -74,7 +74,7 @@ export function KPIRow({ revenuePeriod, pipeline, utilization, avgRate, revenueF
             <div className={`inline-flex p-2 rounded-lg ${color}`}>
               <Icon className="w-4 h-4 text-white" />
             </div>
-            <Delta value={delta} />
+            <Delta value={delta} label={t('vsPrev')} />
           </div>
           <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
           <p className="text-xs text-muted-foreground mt-1">{label}</p>

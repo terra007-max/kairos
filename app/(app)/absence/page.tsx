@@ -22,15 +22,15 @@ type TimeOffEntry = {
 }
 
 const TYPE_CONFIG = {
-  vacation: { label: 'Vacation', icon: Plane,     dot: 'bg-sky-500',   cell: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30' },
-  holiday:  { label: 'Holiday',  icon: Sun,       dot: 'bg-amber-500', cell: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' },
-  sick:     { label: 'Sick',     icon: Umbrella,  dot: 'bg-red-500',   cell: 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' },
+  vacation: { labelKey: 'timeOffVacation', icon: Plane,     dot: 'bg-sky-500',   cell: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30' },
+  holiday:  { labelKey: 'timeOffHoliday',  icon: Sun,       dot: 'bg-amber-500', cell: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' },
+  sick:     { labelKey: 'timeOffSick',     icon: Umbrella,  dot: 'bg-red-500',   cell: 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' },
 } as const
 
 export default function AbsencePage() {
   const supabase = createClient()
   const { workspaceId, role, members, isProjectManager } = useWorkspace()
-  const { locale } = useI18n()
+  const { locale, t } = useI18n()
   const dateFnsLocale = locale === 'de' ? de : enUS
   const isAdmin = can(role, 'review:all')
   const canView  = isAdmin || isProjectManager
@@ -62,7 +62,7 @@ export default function AbsencePage() {
   if (!canView) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Lock className="w-8 h-8 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground">Access restricted</p>
+      <p className="text-sm text-muted-foreground">{t('absenceAccessRestricted')}</p>
     </div>
   )
 
@@ -102,8 +102,8 @@ export default function AbsencePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Absence Calendar</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Team time-off at a glance</p>
+          <h1 className="text-xl font-semibold text-foreground">{t('absenceCalendarTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('absenceCalendarSubtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -125,7 +125,7 @@ export default function AbsencePage() {
             onClick={() => setMonth(new Date())}
             className="btn-secondary text-xs py-1 px-2.5 ml-1"
           >
-            Today
+            {t('absenceToday')}
           </button>
         </div>
       </div>
@@ -135,12 +135,12 @@ export default function AbsencePage() {
         {(Object.entries(TYPE_CONFIG) as [keyof typeof TYPE_CONFIG, (typeof TYPE_CONFIG)[keyof typeof TYPE_CONFIG]][]).map(([key, cfg]) => (
           <div key={key} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-            <span className="text-xs text-muted-foreground">{cfg.label}</span>
+            <span className="text-xs text-muted-foreground">{t(cfg.labelKey as any)}</span>
           </div>
         ))}
         {isAdmin && (
           <span className="text-xs text-muted-foreground/50 ml-auto">
-            Hover a cell to add · click an icon to remove
+            {t('absenceHoverHint')}
           </span>
         )}
       </div>
@@ -152,7 +152,7 @@ export default function AbsencePage() {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 text-muted-foreground font-medium sticky left-0 bg-muted/30 z-10 min-w-[150px]">
-                  Member
+                  {t('member')}
                 </th>
                 {workdays.map(day => (
                   <th
@@ -170,7 +170,7 @@ export default function AbsencePage() {
                   </th>
                 ))}
                 <th className="px-4 py-3 text-right text-muted-foreground font-medium min-w-[56px]">
-                  Days
+                  {t('absenceDays')}
                 </th>
               </tr>
             </thead>
@@ -202,7 +202,7 @@ export default function AbsencePage() {
                             <button
                               disabled={!isAdmin}
                               onClick={() => isAdmin && removeEntry(entry.id)}
-                              title={`${cfg.label} · ${entry.hours}h${isAdmin ? ' · click to remove' : ''}`}
+                              title={`${t(cfg.labelKey as any)} · ${entry.hours}h${isAdmin ? ' · click to remove' : ''}`}
                               className={`w-[30px] h-[30px] rounded-md flex items-center justify-center mx-auto transition-opacity ${cfg.cell} ${isAdmin ? 'hover:opacity-60 cursor-pointer' : 'cursor-default'}`}
                             >
                               <IconComp className="w-3 h-3" />
@@ -246,7 +246,7 @@ export default function AbsencePage() {
         >
           <div className="card p-6 w-full max-w-xs" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Add Time Off</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('absenceAddTimeOff')}</h3>
               <button onClick={() => setAddingFor(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
@@ -260,19 +260,19 @@ export default function AbsencePage() {
             </p>
             <div className="space-y-3">
               <div>
-                <label className="label text-xs">Type</label>
+                <label className="label text-xs">{t('absenceType')}</label>
                 <select
                   className="input text-sm"
                   value={newType}
                   onChange={e => setNewType(e.target.value as keyof typeof TYPE_CONFIG)}
                 >
-                  <option value="vacation">Vacation</option>
-                  <option value="holiday">Holiday</option>
-                  <option value="sick">Sick</option>
+                  <option value="vacation">{t('timeOffVacation')}</option>
+                  <option value="holiday">{t('timeOffHoliday')}</option>
+                  <option value="sick">{t('timeOffSick')}</option>
                 </select>
               </div>
               <div>
-                <label className="label text-xs">Hours</label>
+                <label className="label text-xs">{t('hours')}</label>
                 <input
                   type="number" className="input text-sm"
                   value={newHours} min="1" max="24" step="0.5"
@@ -280,7 +280,7 @@ export default function AbsencePage() {
                 />
               </div>
               <button onClick={addEntry} disabled={saving} className="btn-primary w-full">
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('saving') : t('save')}
               </button>
             </div>
           </div>

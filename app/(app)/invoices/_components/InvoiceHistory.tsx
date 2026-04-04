@@ -156,7 +156,7 @@ export function InvoiceHistory({ invoices, onUpdate }: {
                 {deleteConfirmId === inv.id ? (
                   <>
                     <button onClick={() => deleteInvoice(inv.id)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 text-red-500 border-red-500/30 hover:bg-red-500/10">
-                      <Check className="w-3 h-3" /> Confirm
+                      <Check className="w-3 h-3" /> {t('confirm')}
                     </button>
                     <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary text-xs py-1 px-2.5"><X className="w-3 h-3" /></button>
                   </>
