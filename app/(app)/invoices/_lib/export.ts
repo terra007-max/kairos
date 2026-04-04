@@ -254,3 +254,101 @@ export async function downloadPDF(inv: SavedInvoice) {
   doc.setFontSize(7).setTextColor(180).setFont('helvetica', 'normal').text('Erstellt mit Kairos · EN 16931 konform', 105, 287, { align: 'center' })
   doc.save(`${inv.invoice_number}.pdf`)
 }
+
+export async function generatePDFBlobUrl(inv: SavedInvoice): Promise<string> {
+  const { default: jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const ml = 20, mr = 190
+  const s = inv.seller_snapshot
+  const b = inv.buyer_snapshot
+  const vatPct = inv.vat_rate ?? 0
+  const vatAmt = inv.vat_amount ?? 0
+  const total  = inv.total ?? inv.subtotal
+
+  doc.setFontSize(26).setFont('helvetica', 'bold').text('RECHNUNG', ml, 26)
+  doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(150).text(`Nr. ${inv.invoice_number}`, ml, 33)
+
+  const sLines = sellerBlock(s, null, null)
+  let srY = 20
+  doc.setTextColor(30)
+  sLines.forEach((l, i) => {
+    if (i === 0) { doc.setFontSize(10).setFont('helvetica', 'bold').text(l, mr, srY, { align: 'right' }) }
+    else { doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(i >= sLines.length - 2 ? 120 : 60).text(l, mr, srY, { align: 'right' }) }
+    srY += 5
+  })
+
+  doc.setDrawColor(220).setLineWidth(0.4).line(ml, 40, mr, 40)
+
+  let y = 50
+  doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('RECHNUNGSEMPFÄNGER', ml, y); y += 5
+  const bLines = buyerBlock(b)
+  bLines.forEach((l, i) => {
+    if (i === 0) { doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(30).text(l, ml, y) }
+    else { doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(80).text(l, ml, y) }
+    y += 4.5
+  })
+
+  const labelX = 130, valX = mr
+  const row = (label: string, val: string, ry: number) => {
+    doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text(label, labelX, ry)
+    doc.setFontSize(8).setTextColor(30).setFont('helvetica', 'normal').text(val, valX, ry, { align: 'right' })
+  }
+  row('RECHNUNGSDATUM',   format(new Date(inv.issue_date), 'dd.MM.yyyy'), 50)
+  row('FÄLLIGKEITSDATUM', format(new Date(inv.due_date),   'dd.MM.yyyy'), 56)
+  row('LEISTUNGSZEITRAUM', `${format(new Date(inv.period_from), 'dd.MM.')} – ${format(new Date(inv.period_to), 'dd.MM.yyyy')}`, 62)
+  if (inv.order_reference) row('BESTELLREFERENZ', inv.order_reference, 68)
+
+  y = Math.max(y + 6, 80)
+  doc.setFillColor(245, 246, 248).rect(ml, y - 5, mr - ml, 8, 'F')
+  doc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold')
+  doc.text('BESCHREIBUNG', ml + 2, y)
+  doc.text('STUNDEN', 120, y, { align: 'right' })
+  doc.text('PREIS/h', 143, y, { align: 'right' })
+  doc.text('NETTO', 163, y, { align: 'right' })
+  doc.text('BETRAG', mr, y, { align: 'right' })
+  y += 5; doc.setDrawColor(210).setLineWidth(0.3)
+
+  for (const line of inv.lines) {
+    doc.line(ml, y, mr, y); y += 5
+    doc.setFontSize(9).setTextColor(30).setFont('helvetica', 'normal').text(line.description, ml + 2, y)
+    doc.setTextColor(90)
+    doc.text(`${line.hours.toFixed(2)}h`, 120, y, { align: 'right' })
+    doc.text(`€${line.rate.toFixed(2)}`, 143, y, { align: 'right' })
+    doc.text(`${line.vat_rate ?? vatPct}%`, 163, y, { align: 'right' })
+    doc.setTextColor(30).setFont('helvetica', 'bold').text(`€${line.amount.toFixed(2)}`, mr, y, { align: 'right' })
+    doc.setFont('helvetica', 'normal'); y += 7
+  }
+
+  y += 4; doc.line(ml, y, mr, y); y += 6
+  doc.setFontSize(8).setTextColor(100)
+  doc.text('Nettobetrag', 145, y)
+  doc.setTextColor(30).text(`€${inv.subtotal.toFixed(2)}`, mr, y, { align: 'right' }); y += 6
+  doc.setTextColor(100).text(`USt. ${vatPct}%`, 145, y)
+  doc.setTextColor(30).text(`€${vatAmt.toFixed(2)}`, mr, y, { align: 'right' }); y += 2
+  doc.setDrawColor(30).setLineWidth(0.6).line(130, y, mr, y); y += 6
+  doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(30)
+  doc.text('Gesamtbetrag', 145, y).text(`€${total.toFixed(2)}`, mr, y, { align: 'right' })
+
+  const iban = inv.payment_iban || s?.iban
+  const bic  = inv.payment_bic  || s?.bic
+  if (iban) {
+    y += 14; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 7
+    doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('ZAHLUNGSINFORMATIONEN', ml, y); y += 5
+    doc.setFontSize(8).setTextColor(60).setFont('helvetica', 'normal')
+    doc.text(`IBAN: ${iban}`, ml, y)
+    if (bic) doc.text(`BIC: ${bic}`, ml + 90, y)
+    y += 5
+    doc.text(`Empfänger: ${s?.legal_name || ''}`, ml, y)
+  }
+
+  if (vatPct === 0 && inv.notes?.length) {
+    y += 10; doc.setFontSize(7).setTextColor(100).text(inv.notes, ml, y, { maxWidth: mr - ml })
+  } else if (inv.notes) {
+    y += 10; doc.setDrawColor(220).setLineWidth(0.3).line(ml, y, mr, y); y += 7
+    doc.setFontSize(7).setTextColor(150).setFont('helvetica', 'bold').text('ANMERKUNGEN', ml, y); y += 5
+    doc.setFontSize(8).setTextColor(80).setFont('helvetica', 'normal').text(doc.splitTextToSize(inv.notes, mr - ml), ml, y)
+  }
+
+  doc.setFontSize(7).setTextColor(180).setFont('helvetica', 'normal').text('Erstellt mit Kairos · EN 16931 konform', 105, 287, { align: 'center' })
+  return doc.output('bloburl') as string
+}

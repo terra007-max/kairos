@@ -8,6 +8,7 @@ import { de as dateFnsDE, enUS as dateFnsEN } from 'date-fns/locale'
 import { FileText, Download, Send, CheckCircle, Clock, Search, X, Pencil, Trash2, Check, Package, Code2 } from 'lucide-react'
 import { type SavedInvoice, type InvoiceStatus } from '../_lib/types'
 import { exportBMDNTCS, exportEBInterface, downloadPDF } from '../_lib/export'
+import { PDFPreviewModal } from './PDFPreviewModal'
 
 function StatusBadge({ status, t }: { status: InvoiceStatus; t: (k: any) => string }) {
   if (status === 'paid') return (
@@ -38,6 +39,7 @@ export function InvoiceHistory({ invoices, onUpdate }: {
   const [searchQuery, setSearchQuery] = useState('')
   const [editingInvoice, setEditingInvoice] = useState<SavedInvoice | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [previewInvoice, setPreviewInvoice] = useState<SavedInvoice | null>(null)
   const [taxCode, setTaxCode] = useState('U20')
   const [revenueAccount, setRevenueAccount] = useState('4000')
   const [debitorAccount, setDebitorAccount] = useState('10000')
@@ -141,7 +143,7 @@ export function InvoiceHistory({ invoices, onUpdate }: {
                     <CheckCircle className="w-3 h-3" /> {t('markAsPaid')}
                   </button>
                 )}
-                <button onClick={() => downloadPDF(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
+                <button onClick={() => setPreviewInvoice(inv)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
                   <Download className="w-3 h-3" /> PDF
                 </button>
                 <button onClick={() => exportBMDNTCS(inv, taxCode, revenueAccount, debitorAccount)} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1">
@@ -208,6 +210,10 @@ export function InvoiceHistory({ invoices, onUpdate }: {
             </div>
           </div>
         </div>
+      )}
+
+      {previewInvoice && (
+        <PDFPreviewModal invoice={previewInvoice} onClose={() => setPreviewInvoice(null)} />
       )}
     </div>
   )
