@@ -242,12 +242,12 @@ export function MyTimesheetTab({
             </div>
             <button
               onClick={submitTimesheet}
-              disabled={submitting || weekTotalSec === 0}
+              disabled={submitting || (!isProxying && weekTotalSec === 0)}
               className="btn-primary w-full disabled:opacity-40"
             >
               {submitting ? t('submitting') : t('submitForReview')}
             </button>
-            {weekTotalSec === 0 && (
+            {!isProxying && weekTotalSec === 0 && (
               <p className="text-xs text-muted-foreground text-center">{t('trackBeforeSubmitting')}</p>
             )}
           </div>

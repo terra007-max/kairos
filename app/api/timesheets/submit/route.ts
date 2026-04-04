@@ -59,18 +59,21 @@ export async function POST(req: NextRequest) {
       if (!ts) return NextResponse.json({ error: 'Timesheet not found.' }, { status: 404 })
 
       const wasRejected = ts.status === 'rejected'
+      const isProxy = targetUserId !== user.id
       const { error } = await adminSupabase
         .from('timesheets')
         .update({
           status: 'submitted',
           note: note || null,
           submitted_at: new Date().toISOString(),
+          ...(isProxy ? { proxy_user_id: user.id } : {}),
           ...(wasRejected ? { project_approvals: {}, reviewer_note: null } : {}),
         })
         .eq('id', timesheetId)
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     } else {
+      const isProxy = targetUserId !== user.id
       const { error } = await adminSupabase
         .from('timesheets')
         .insert({
@@ -80,6 +83,7 @@ export async function POST(req: NextRequest) {
           status: 'submitted',
           note: note || null,
           submitted_at: new Date().toISOString(),
+          ...(isProxy ? { proxy_user_id: user.id } : {}),
         })
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })

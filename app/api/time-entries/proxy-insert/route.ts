@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await adminSupabase
     .from('time_entries')
-    .insert({ ...entry, user_id: targetUserId, workspace_id: workspaceId })
+    .insert({ ...entry, user_id: targetUserId, workspace_id: workspaceId, proxy_user_id: user.id })
     .select('*, project:projects(*)')
     .single()
 

@@ -50,7 +50,7 @@ export default function TimesheetsPage() {
     setUserId(uid)
     const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
 
-    if (can(role, 'record:time')) {
+    if (can(role, 'record:time') || isProxying) {
       const { data: entries } = await supabase
         .from('time_entries')
         .select('duration_sec, project_id, project:projects(name, manager_id)')
