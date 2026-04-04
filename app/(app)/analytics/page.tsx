@@ -32,6 +32,7 @@ export default function AnalyticsPage() {
   const [entries, setEntries] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
+  const [timeOffEntries, setTimeOffEntries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProject, setSelectedProject] = useState('all')
   const [utilMemberId, setUtilMemberId] = useState('all')
@@ -40,7 +41,7 @@ export default function AnalyticsPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return
     const sixMonthsAgo = subMonths(new Date(), 6)
-    const [{ data: entriesData }, { data: projectsData }, { data: invoicesData }] = await Promise.all([
+    const [{ data: entriesData }, { data: projectsData }, { data: invoicesData }, { data: timeOffData }] = await Promise.all([
       supabase.from('time_entries')
         .select('id, user_id, project_id, start_time, duration_sec, billable, hourly_rate, level_id, project:projects(id, name, color, hourly_rate, client:clients(name, color))')
         .eq('workspace_id', workspaceId)
@@ -54,10 +55,15 @@ export default function AnalyticsPage() {
       can(role, 'manage:invoices')
         ? supabase.from('invoices').select('id, subtotal, status, due_date, sent_at, paid_at, created_at, client_name').eq('workspace_id', workspaceId)
         : Promise.resolve({ data: [] }),
+      supabase.from('time_off_entries')
+        .select('user_id, date, hours')
+        .eq('workspace_id', workspaceId)
+        .gte('date', format(sixMonthsAgo, 'yyyy-MM-dd')),
     ])
     setEntries(entriesData || [])
     setProjects(projectsData || [])
     setInvoices(invoicesData || [])
+    setTimeOffEntries(timeOffData || [])
     setLoading(false)
   }, [supabase, workspaceId, role])
 
@@ -89,6 +95,13 @@ export default function AnalyticsPage() {
   const pmMemberUserIdSet = seeAll ? null : new Set(scopedEntries.map(e => e.user_id))
   const activeMembers = members.filter(m => m.status === 'active' && (!pmMemberUserIdSet || pmMemberUserIdSet.has(m.user_id)))
 
+  // ── Time-off helper ──────────────────────────────────────────────────────
+  function timeOffHours(userId: string, from: Date, to: Date) {
+    return timeOffEntries
+      .filter(e => e.user_id === userId && e.date >= format(from, 'yyyy-MM-dd') && e.date <= format(to, 'yyyy-MM-dd'))
+      .reduce((s: number, e: any) => s + (e.hours || 0), 0)
+  }
+
   // ── Period ───────────────────────────────────────────────────────────────
   const periodLabel = period === 'this_week' ? t('thisWeekLabel')
     : period === 'last_month' ? t('lastMonthLabel')
@@ -108,7 +121,7 @@ export default function AnalyticsPage() {
   const periodEntries = withEarnings.filter(e => new Date(e.start_time) >= periodBounds.from && new Date(e.start_time) <= periodBounds.to)
   const revenuePeriod  = periodEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const billableHours  = periodEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-  const totalCapacity  = activeMembers.reduce((s, m) => s + (m.weekly_hours ?? 40) * periodBounds.weeks, 0)
+  const totalCapacity  = activeMembers.reduce((s, m) => s + Math.max(0, (m.weekly_hours ?? 40) * periodBounds.weeks - timeOffHours(m.user_id!, periodBounds.from, periodBounds.to)), 0)
   const utilization    = totalCapacity > 0 ? Math.round(billableHours / totalCapacity * 100) : 0
   const avgRate        = billableHours > 0 ? revenuePeriod / billableHours : 0
   const pipeline       = scopedProjects.reduce((s, p) => {
@@ -126,7 +139,7 @@ export default function AnalyticsPage() {
   const prevEntries     = withEarnings.filter(e => { const t = new Date(e.start_time); return t >= prevBounds.from && t <= prevBounds.to })
   const prevRevenue     = prevEntries.reduce((s, e) => s + (e.billable ? e.earnings : 0), 0)
   const prevBillH       = prevEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-  const prevCapacity    = activeMembers.reduce((s, m) => s + (m.weekly_hours ?? 40) * prevBounds.weeks, 0)
+  const prevCapacity    = activeMembers.reduce((s, m) => s + Math.max(0, (m.weekly_hours ?? 40) * prevBounds.weeks - timeOffHours(m.user_id!, prevBounds.from, prevBounds.to)), 0)
   const prevUtilization = prevCapacity > 0 ? Math.round(prevBillH / prevCapacity * 100) : 0
   const prevAvgRate     = prevBillH > 0 ? prevRevenue / prevBillH : 0
 
@@ -194,10 +207,11 @@ export default function AnalyticsPage() {
     const billable    = mE.filter(e => e.billable && inRange(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const nonBillable = mE.filter(e => !e.billable && inRange(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
     const revenue     = mE.filter(e => e.billable && inRange(e)).reduce((s, e) => s + e.earnings, 0)
-    const capacity    = (m.weekly_hours ?? 40) * periodBounds.weeks
+    const capacity    = Math.max(0, (m.weekly_hours ?? 40) * periodBounds.weeks - timeOffHours(m.user_id!, periodBounds.from, periodBounds.to))
     const pct         = capacity > 0 ? Math.round(billable / capacity * 100) : 0
     const prevBill    = mE.filter(e => e.billable && inPrev(e)).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    const prevPct     = capacity > 0 ? Math.round(prevBill / capacity * 100) : 0
+    const prevCapacityM = Math.max(0, (m.weekly_hours ?? 40) * prevBounds.weeks - timeOffHours(m.user_id!, prevBounds.from, prevBounds.to))
+    const prevPct     = prevCapacityM > 0 ? Math.round(prevBill / prevCapacityM * 100) : 0
     return { userId: m.user_id, name: m.full_name || m.email || 'Unknown', billable: parseFloat(billable.toFixed(1)), nonBillable: parseFloat(nonBillable.toFixed(1)), revenue, capacity: parseFloat(capacity.toFixed(1)), pct, trend: pct - prevPct }
   }).sort((a, b) => b.pct - a.pct)
 
@@ -215,7 +229,8 @@ export default function AnalyticsPage() {
       const mE = withEarnings.filter(e => e.user_id === drillMember.user_id && new Date(e.start_time) >= effStart && new Date(e.start_time) <= effEnd)
       const billable = mE.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
       const weekFraction = (effEnd.getTime() - effStart.getTime()) / (7 * 24 * 3600 * 1000)
-      const capacity = (drillMember.weekly_hours ?? 40) * Math.max(weekFraction, 1 / 7)
+      const toHours = timeOffHours(drillMember.user_id!, effStart, effEnd)
+      const capacity = Math.max(0, (drillMember.weekly_hours ?? 40) * Math.max(weekFraction, 1 / 7) - toHours)
       const pct = capacity > 0 ? Math.round(billable / capacity * 100) : 0
       if (billable > 0 || capacity > 0) weeks.push({ week: format(wStart, 'MMM d'), billable: parseFloat(billable.toFixed(1)), capacity: parseFloat(capacity.toFixed(1)), pct })
       wStart = new Date(wStart.getTime() + 7 * 24 * 3600 * 1000)
