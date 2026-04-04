@@ -6,7 +6,7 @@ import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, AlertTriangle } from 'lucide-react'
 import KairosLoader from '@/components/KairosLoader'
 import { type Timesheet, type TimeOffEntry, isDeadlinePassed } from './_lib/types'
 import { MyTimesheetTab } from './_components/MyTimesheetTab'
@@ -26,6 +26,7 @@ export default function TimesheetsPage() {
   const [weekProjectPMs, setWeekProjectPMs] = useState<{ projectName: string; pmName: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(false)
+  const [membersNoTime, setMembersNoTime] = useState<{ name: string; noBillable: boolean }[]>([])
 
   const canReview = can(role, 'review:all') || isProjectManager
   const [activeTab, setActiveTab] = useState<'mine' | 'team'>(canReview ? 'team' : 'mine')
@@ -166,6 +167,23 @@ export default function TimesheetsPage() {
           return { ...ts, user_email: member?.email, user_name: member?.full_name, projectSummary }
         })
       setTeamTimesheets(enriched)
+
+      // Compute which active members have no time this week
+      if (can(role, 'review:all')) {
+        const thisWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+        const activeM = members.filter(m => m.status === 'active' && m.user_id && m.weekly_hours && m.weekly_hours > 0)
+        const noTime = activeM.map(m => {
+          const weekEntries = (allEntries || []).filter((e: { user_id: string; start_time: string }) =>
+            e.user_id === m.user_id && new Date(e.start_time) >= thisWeekStart
+          )
+          const total = weekEntries.reduce((s: number, e: { duration_sec?: number }) => s + (e.duration_sec || 0), 0)
+          const billable = (weekEntries as any[]).filter(e => e.billable).reduce((s: number, e: { duration_sec?: number }) => s + (e.duration_sec || 0), 0)
+          if (total === 0) return { name: m.full_name || m.email || '', noBillable: false }
+          if (billable === 0) return { name: m.full_name || m.email || '', noBillable: true }
+          return null
+        }).filter(Boolean) as { name: string; noBillable: boolean }[]
+        setMembersNoTime(noTime)
+      }
     }
     setLoading(false)
   }, [supabase, workspaceId, role, members, currentWeekStart, isProjectManager, managedProjectIds, autoLockPastWeeks, canReview, effectiveUserId])
@@ -234,11 +252,27 @@ export default function TimesheetsPage() {
       )}
 
       {activeTab === 'team' && canReview && (
-        <TeamReviewTab
-          teamTimesheets={teamTimesheets}
-          workspaceId={workspaceId}
-          onReload={loadData}
-        />
+        <>
+          {membersNoTime.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {membersNoTime.map((m, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <span className="font-semibold">{m.name}</span>
+                    {' — '}
+                    {m.noBillable ? t('noBillableWeek') : t('noTimeTrackedWeek')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <TeamReviewTab
+            teamTimesheets={teamTimesheets}
+            workspaceId={workspaceId}
+            onReload={loadData}
+          />
+        </>
       )}
     </div>
   )

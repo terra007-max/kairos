@@ -252,15 +252,6 @@ export default function AnalyticsPage() {
   type Anomaly = { message: string; severity: 'error' | 'warning' }
   const anomalies: Anomaly[] = []
 
-  activeMembers.forEach(m => {
-    if (!m.weekly_hours || m.weekly_hours === 0) return
-    const thisWeekE = withEarnings.filter(e => e.user_id === m.user_id && new Date(e.start_time) >= thisWeekStart)
-    const thisWeekBill  = thisWeekE.filter(e => e.billable).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    const thisWeekTotal = thisWeekE.reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    if (thisWeekTotal === 0) anomalies.push({ message: `${m.full_name || m.email} — ${t('noTimeTrackedWeek')}`, severity: 'warning' })
-    else if (thisWeekBill === 0) anomalies.push({ message: `${m.full_name || m.email} — ${t('noBillableWeek')}`, severity: 'warning' })
-  })
-
   scopedProjects.forEach(p => {
     const thisW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= thisWeekStart).reduce((s, e) => s + e.earnings, 0)
     const lastW = withEarnings.filter(e => e.project_id === p.id && e.billable && new Date(e.start_time) >= lastWeekStart && new Date(e.start_time) <= lastWeekEnd).reduce((s, e) => s + e.earnings, 0)
