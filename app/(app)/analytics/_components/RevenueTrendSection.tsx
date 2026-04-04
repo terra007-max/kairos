@@ -33,10 +33,10 @@ export function RevenueTrendSection({ revenueTrend, clientData, revenueForecast 
             <YAxis yAxisId="rev" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
             <YAxis yAxisId="hrs" orientation="right" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar yAxisId="rev" dataKey="revenue" name="Revenue (€)" fill="#6366f1" radius={[4, 4, 0, 0]} />
-            <Bar yAxisId="hrs" dataKey="hours" name="hours" fill="#0ea5e9" radius={[4, 4, 0, 0]} opacity={0.6} />
+            <Bar yAxisId="rev" dataKey="revenue" name={`${t('earnings')} (€)`} fill="#6366f1" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="hrs" dataKey="hours" name={t('hours')} fill="#0ea5e9" radius={[4, 4, 0, 0]} opacity={0.6} />
             {revenueTrend.some(r => r.forecast) && (
-              <Bar yAxisId="rev" dataKey="forecast" name="Forecast" fill="#6366f1" radius={[4, 4, 0, 0]} opacity={0.25} />
+              <Bar yAxisId="rev" dataKey="forecast" name={t('forecastPrefix')} fill="#6366f1" radius={[4, 4, 0, 0]} opacity={0.25} />
             )}
           </BarChart>
         </ResponsiveContainer>
@@ -52,7 +52,7 @@ export function RevenueTrendSection({ revenueTrend, clientData, revenueForecast 
               <Pie data={clientData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="revenue">
                 {clientData.map((c, i) => <Cell key={i} fill={c.color} />)}
               </Pie>
-              <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), 'Revenue']} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
+              <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), t('earnings')]} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
               <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11 }} formatter={(value) => <span className="text-foreground">{value}</span>} />
             </PieChart>
           </ResponsiveContainer>
