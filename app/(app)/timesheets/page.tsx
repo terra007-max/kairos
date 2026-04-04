@@ -14,7 +14,7 @@ import { TeamReviewTab } from './_components/TeamReviewTab'
 
 export default function TimesheetsPage() {
   const supabase = createClient()
-  const { workspaceId, role, members, effectiveUserId, managedProjectIds, isProjectManager } = useWorkspace()
+  const { workspaceId, role, members, effectiveUserId, managedProjectIds, isProjectManager, isProxying } = useWorkspace()
   const { t } = useI18n()
 
   const [userId, setUserId] = useState('')
