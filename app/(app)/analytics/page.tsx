@@ -404,9 +404,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {periodDateRange
-              ? periodDateRange
-              : `${t('analyticsSubtitle')} · ${periodLabel}`}
+            {periodDateRange ? periodDateRange : `${t('analyticsSubtitle')} · ${periodLabel}`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

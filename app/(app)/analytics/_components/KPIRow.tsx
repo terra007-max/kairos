@@ -61,7 +61,7 @@ export function KPIRow({
       {/* Revenue */}
       <div className="card p-5 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-transparent" />
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueMTD')}</p>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueLabel')} · {periodLabel}</p>
         <p className="text-3xl font-bold text-foreground mt-2 tracking-tight leading-none">{formatMoney(revenuePeriod)}</p>
         <div className="mt-3 flex items-center justify-between">
           <Delta value={revDelta} suffix="%" vsPrev={t('vsPrev')} />
@@ -71,13 +71,13 @@ export function KPIRow({
             </span>
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · {t('periodBillableOnly')}</p>
+        <p className="text-[10px] text-muted-foreground/50 mt-1">{t('periodBillableOnly')}</p>
       </div>
 
       {/* Utilization */}
       <div className="card p-5 relative overflow-hidden">
         <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${utilAccentLine(utilization)} via-transparent to-transparent`} />
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('teamUtilization')}</p>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('teamUtilization')} · {periodLabel}</p>
         <p className={`text-3xl font-bold mt-2 tracking-tight leading-none ${utilColor(utilization)}`}>{utilization}%</p>
         <div className="mt-3 space-y-1.5">
           <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -96,7 +96,7 @@ export function KPIRow({
       {/* Avg Rate */}
       <div className="card p-5 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-transparent" />
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('avgEffectiveRate')}</p>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('avgEffectiveRate')} · {periodLabel}</p>
         <div className="mt-2 flex items-end gap-1 leading-none">
           <p className="text-3xl font-bold text-foreground tracking-tight">{formatMoney(avgRate)}</p>
           <p className="text-base text-muted-foreground pb-0.5">/h</p>
@@ -104,7 +104,7 @@ export function KPIRow({
         <div className="mt-3">
           <Delta value={rateDelta} suffix="%" vsPrev={t('vsPrev')} />
         </div>
-        <p className="text-[10px] text-muted-foreground/50 mt-1">{periodLabel} · {t('revenueDivBillable')}</p>
+        <p className="text-[10px] text-muted-foreground/50 mt-1">{t('revenueDivBillable')}</p>
       </div>
 
       {/* Pipeline */}

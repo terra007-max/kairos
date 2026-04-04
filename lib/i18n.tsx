@@ -341,7 +341,8 @@ const translations = {
 
     // Analytics
     analyticsTitle: 'Analytics',
-    analyticsSubtitle: 'Consultancy performance overview — current month',
+    analyticsSubtitle: 'Consultancy performance overview',
+    revenueLabel: 'Revenue',
     analyticsAdminOnly: 'Analytics is only available to admins.',
     revenueMTD: 'Revenue MTD',
     billableOnly2: 'billable only',
@@ -810,7 +811,8 @@ const translations = {
 
     // Analytics
     analyticsTitle: 'Analyse',
-    analyticsSubtitle: 'Unternehmensleistung — aktueller Monat',
+    analyticsSubtitle: 'Unternehmensleistung',
+    revenueLabel: 'Umsatz',
     analyticsAdminOnly: 'Analyse ist nur für Administratoren verfügbar.',
     revenueMTD: 'Umsatz aktueller Monat',
     billableOnly2: 'nur verrechenbar',
