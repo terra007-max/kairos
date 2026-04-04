@@ -79,11 +79,16 @@ export default function AbsencePage() {
     return entries.find(e => e.user_id === userId && e.date === format(date, 'yyyy-MM-dd'))
   }
 
+  function memberDayHours(userId: string) {
+    const member = activeMembers.find(m => m.user_id === userId)
+    return Math.round(((member?.weekly_hours ?? 40) / 5) * 10) / 10
+  }
+
   function openModal(userId: string, date: string) {
     setAddingFor({ userId, date })
     setToDate(date)
     setNewType('vacation')
-    setNewHours('8')
+    setNewHours(String(memberDayHours(userId)))
   }
 
   async function removeEntry(id: string) {
@@ -94,7 +99,8 @@ export default function AbsencePage() {
   async function addEntry() {
     if (!addingFor) return
     setSaving(true)
-    const hours  = newType === 'holiday' ? 8 : (parseFloat(newHours) || 8)
+    const dayHours = memberDayHours(addingFor.userId)
+    const hours  = newType === 'holiday' ? dayHours : (parseFloat(newHours) || dayHours)
     const from   = new Date(addingFor.date + 'T12:00:00')
     const to     = new Date((toDate || addingFor.date) + 'T12:00:00')
     const end    = to >= from ? to : from
@@ -114,7 +120,7 @@ export default function AbsencePage() {
     load()
   }
 
-  const isHourly = (entry: TimeOffEntry) => entry.hours < 8
+  const isHourly = (entry: TimeOffEntry) => entry.hours < memberDayHours(entry.user_id)
 
   return (
     <div className="space-y-6">
@@ -194,7 +200,8 @@ export default function AbsencePage() {
             <tbody>
               {activeMembers.map((m, i) => {
                 const memberEntries = entries.filter(e => e.user_id === m.user_id)
-                const totalDays = memberEntries.reduce((s, e) => s + e.hours, 0) / 8
+                const dayH = memberDayHours(m.user_id!)
+                const totalDays = memberEntries.reduce((s, e) => s + e.hours / dayH, 0)
                 const isEven = i % 2 === 0
 
                 return (
@@ -335,40 +342,46 @@ export default function AbsencePage() {
               )}
 
               {/* Hours — hidden for holiday */}
-              {newType !== 'holiday' && (
-                <div>
-                  <label className="label text-xs flex items-center justify-between">
-                    <span>{t('hours')}</span>
-                    <span className="text-muted-foreground/60 font-normal">
-                      {parseFloat(newHours) >= 8
-                        ? t('absenceFullDay')
-                        : `${t('absencePartialDay')} (${newHours}h)`}
-                    </span>
-                  </label>
-                  {/* Quick select buttons */}
-                  <div className="flex gap-1 mb-2 flex-wrap">
-                    {['1', '2', '3', '4', '6', '8'].map(h => (
-                      <button
-                        key={h}
-                        type="button"
-                        onClick={() => setNewHours(h)}
-                        className={`px-2 py-1 text-xs rounded-md border transition-colors ${
-                          newHours === h
-                            ? 'bg-brand-600 border-brand-600 text-white'
-                            : 'border-border text-muted-foreground hover:border-brand-600/40 hover:text-foreground'
-                        }`}
-                      >
-                        {h === '8' ? `8h (${t('absenceFullDay')})` : `${h}h`}
-                      </button>
-                    ))}
+              {newType !== 'holiday' && addingFor && (() => {
+                const dayH = memberDayHours(addingFor.userId)
+                const parsed = parseFloat(newHours)
+                const isFullDay = parsed >= dayH
+                const quickHours = [1, 2, 3, 4, 6].filter(h => h < dayH).concat([dayH])
+                return (
+                  <div>
+                    <label className="label text-xs flex items-center justify-between">
+                      <span>{t('hours')}</span>
+                      <span className="text-muted-foreground/60 font-normal">
+                        {isFullDay
+                          ? t('absenceFullDay')
+                          : `${t('absencePartialDay')} (${newHours}h)`}
+                      </span>
+                    </label>
+                    {/* Quick select buttons */}
+                    <div className="flex gap-1 mb-2 flex-wrap">
+                      {quickHours.map(h => (
+                        <button
+                          key={h}
+                          type="button"
+                          onClick={() => setNewHours(String(h))}
+                          className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                            newHours === String(h)
+                              ? 'bg-brand-600 border-brand-600 text-white'
+                              : 'border-border text-muted-foreground hover:border-brand-600/40 hover:text-foreground'
+                          }`}
+                        >
+                          {h === dayH ? `${h}h (${t('absenceFullDay')})` : `${h}h`}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number" className="input text-sm"
+                      value={newHours} min="0.5" max={dayH} step="0.5"
+                      onChange={e => setNewHours(e.target.value)}
+                    />
                   </div>
-                  <input
-                    type="number" className="input text-sm"
-                    value={newHours} min="0.5" max="24" step="0.5"
-                    onChange={e => setNewHours(e.target.value)}
-                  />
-                </div>
-              )}
+                )
+              })()}
 
               <button onClick={addEntry} disabled={saving} className="btn-primary w-full">
                 {saving ? t('saving') : t('save')}
