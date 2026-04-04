@@ -100,7 +100,8 @@ export default function AbsencePage() {
     if (!addingFor) return
     setSaving(true)
     const dayHours = memberDayHours(addingFor.userId)
-    const hours  = newType === 'holiday' ? dayHours : (parseFloat(newHours) || dayHours)
+    const isMultiDay = toDate && toDate !== addingFor.date
+    const hours = (newType === 'holiday' || isMultiDay) ? dayHours : (parseFloat(newHours) || dayHours)
     const from   = new Date(addingFor.date + 'T12:00:00')
     const to     = new Date((toDate || addingFor.date) + 'T12:00:00')
     const end    = to >= from ? to : from
@@ -341,9 +342,15 @@ export default function AbsencePage() {
                 </div>
               )}
 
-              {/* Hours — hidden for holiday */}
+              {/* Hours — hidden for holiday or multi-day range */}
               {newType !== 'holiday' && addingFor && (() => {
                 const dayH = memberDayHours(addingFor.userId)
+                const isMultiDay = toDate && toDate !== addingFor.date
+                if (isMultiDay) return (
+                  <p className="text-xs text-muted-foreground">
+                    {t('absenceFullDay')} ({dayH}h {t('absencePerDay')})
+                  </p>
+                )
                 const parsed = parseFloat(newHours)
                 const isFullDay = parsed >= dayH
                 const quickHours = [1, 2, 3, 4, 6].filter(h => h < dayH).concat([dayH])
@@ -357,7 +364,6 @@ export default function AbsencePage() {
                           : `${t('absencePartialDay')} (${newHours}h)`}
                       </span>
                     </label>
-                    {/* Quick select buttons */}
                     <div className="flex gap-1 mb-2 flex-wrap">
                       {quickHours.map(h => (
                         <button
