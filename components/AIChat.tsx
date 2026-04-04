@@ -5,21 +5,20 @@ import { Send, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useWorkspace } from '@/lib/workspace-context'
 import { can } from '@/lib/permissions'
 import type { WorkspaceRole } from '@/lib/permissions'
+import { useI18n } from '@/lib/i18n'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-function getSuggestions(role: WorkspaceRole | undefined, isProjectManager: boolean) {
-  const canSeeAll = can(role, 'review:all')
-  return [
-    ...(canSeeAll  ? ['What is our revenue this week?'] : []),
-    ...(canSeeAll  ? ['Which projects are near their budget limit?'] : []),
-    ...(canSeeAll || isProjectManager ? ['Show me team utilization this month'] : []),
-    ...(canSeeAll  ? ['How many invoices are overdue?'] : []),
-  ].slice(0, 4)
-}
-
 export default function AIChat() {
   const { workspaceId, role, isProjectManager, effectiveUserId, isProxying, proxyUser } = useWorkspace()
+  const { t } = useI18n()
+  const canSeeAll = can(role, 'review:all')
+  const suggestions = [
+    ...(canSeeAll                        ? [t('aiSuggest1')] : []),
+    ...(canSeeAll                        ? [t('aiSuggest2')] : []),
+    ...(canSeeAll || isProjectManager    ? [t('aiSuggest3')] : []),
+    ...(canSeeAll                        ? [t('aiSuggest4')] : []),
+  ].slice(0, 4)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -36,8 +35,6 @@ export default function AIChat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
-
-  const suggestions = getSuggestions(role, isProjectManager)
 
   async function send(text?: string) {
     const msg = (text ?? input).trim()
@@ -70,7 +67,7 @@ export default function AIChat() {
     }
   }
 
-  const proxyLabel = isProxying && proxyUser ? `Viewing as ${proxyUser.name}` : null
+  const proxyLabel = isProxying && proxyUser ? `${t('aiViewingAs')} ${proxyUser.name}` : null
 
   return (
     <div className="card overflow-hidden">
@@ -83,9 +80,9 @@ export default function AIChat() {
           <Sparkles size={15} className="text-brand-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground leading-none">Ask Kairos AI</p>
+          <p className="text-sm font-semibold text-foreground leading-none">{t('aiTitle')}</p>
           <p className="text-xs text-muted-foreground mt-0.5 truncate">
-            {proxyLabel ?? 'Ask anything about your data'}
+            {proxyLabel ?? t('aiSubtitle')}
           </p>
         </div>
         {open ? <ChevronUp size={15} className="text-muted-foreground shrink-0" /> : <ChevronDown size={15} className="text-muted-foreground shrink-0" />}
@@ -100,8 +97,8 @@ export default function AIChat() {
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
                   {proxyLabel
-                    ? `Answering from ${proxyUser?.name}'s perspective.`
-                    : 'Try one of these or type your own question:'}
+                    ? t('aiAnsweringAs').replace('{name}', proxyUser?.name ?? '')
+                    : t('aiTryOne')}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                   {suggestions.map(s => (
@@ -150,7 +147,7 @@ export default function AIChat() {
                 onClick={() => setMessages([])}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Clear conversation
+                {t('aiClear')}
               </button>
             )}
 
@@ -163,7 +160,7 @@ export default function AIChat() {
               ref={inputRef}
               type="text"
               className="flex-1 text-sm px-3 py-2 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
-              placeholder="Ask a question…"
+              placeholder={t('aiPlaceholder')}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send()}
