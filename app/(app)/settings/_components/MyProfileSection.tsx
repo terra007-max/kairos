@@ -13,10 +13,11 @@ export function MyProfileSection() {
   const [workspaces, setWorkspaces] = useState<{ workspace_id: string; name: string }[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
+      if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('workspace_members')
         .select('workspace_id, workspace:workspaces(name)')
@@ -29,10 +30,9 @@ export function MyProfileSection() {
         const active = (saved ? rows.find(r => r.workspace_id === saved) : null) ?? rows[0]
         setSelectedId(active.workspace_id)
       }
+      setLoading(false)
     })
   }, [supabase])
-
-  if (!workspaces.length) return null
 
   function save() {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, selectedId)
@@ -48,19 +48,31 @@ export function MyProfileSection() {
         <h2 className="font-semibold text-foreground text-sm">{t('myProfile')}</h2>
       </div>
       <p className="text-xs text-muted-foreground mb-4">{t('selectWorkspaceHint')}</p>
-      <div className="space-y-3">
-        <div>
-          <label className="label">{t('activeWorkspace')}</label>
-          <select className="input" value={selectedId} onChange={e => setSelectedId(e.target.value)}>
-            {workspaces.map(w => (
-              <option key={w.workspace_id} value={w.workspace_id}>{w.name}</option>
-            ))}
-          </select>
+      {loading ? (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="skeleton h-3 w-28" />
+            <div className="skeleton h-9 w-full rounded-lg" />
+          </div>
+          <div className="skeleton h-8 w-16 rounded-lg" />
         </div>
-      </div>
-      <button onClick={save} className="btn-primary mt-4">
-        {saved ? t('savedCheck') : t('save')}
-      </button>
+      ) : workspaces.length > 0 ? (
+        <>
+          <div className="space-y-3">
+            <div>
+              <label className="label">{t('activeWorkspace')}</label>
+              <select className="input" value={selectedId} onChange={e => setSelectedId(e.target.value)}>
+                {workspaces.map(w => (
+                  <option key={w.workspace_id} value={w.workspace_id}>{w.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button onClick={save} className="btn-primary mt-4">
+            {saved ? t('savedCheck') : t('save')}
+          </button>
+        </>
+      ) : null}
     </div>
   )
 }
