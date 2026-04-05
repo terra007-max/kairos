@@ -485,6 +485,7 @@ const translations = {
     outstandingInvoices: 'Outstanding',
     sentUnpaid: 'sent · unpaid',
     allProjectsOnTrack: 'All projects on track',
+    noBudgetProjects: 'No active projects with budgets set',
     memberLabel: 'members',
   },
   de: {
@@ -965,6 +966,7 @@ const translations = {
     outstandingInvoices: 'Offen',
     sentUnpaid: 'versendet · unbezahlt',
     allProjectsOnTrack: 'Alle Projekte im Plan',
+    noBudgetProjects: 'Keine aktiven Projekte mit gesetztem Budget',
     memberLabel: 'Mitglieder',
   }
 }
