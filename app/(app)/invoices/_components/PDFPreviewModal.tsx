@@ -35,10 +35,13 @@ export function PDFPreviewModal({ invoice, onClose }: {
   const bLines = buyerBlock(b)
 
   const fmt = (d: string) => format(new Date(d), 'dd.MM.yyyy')
-  const money = (n: number) =>
-    `€\u202F${n.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const fmtNum = (n: number, decimals = 2) =>
-    n.toLocaleString('de-AT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  // Manual German format: period thousands separator, comma decimal — guaranteed across all browsers
+  const fmtDE = (n: number, decimals = 2) => {
+    const [int, dec] = n.toFixed(decimals).split('.')
+    return int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec
+  }
+  const money  = (n: number) => `€\u202F${fmtDE(n)}`
+  const fmtNum = (n: number, decimals = 2) => fmtDE(n, decimals)
 
   return (
     <div
