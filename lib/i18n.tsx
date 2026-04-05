@@ -477,6 +477,15 @@ const translations = {
     active2: 'Active',
     pending2: 'Pending',
     member2: 'Member',
+
+    // Dashboard redesign
+    goodMorning: 'Good morning',
+    goodAfternoon: 'Good afternoon',
+    goodEvening: 'Good evening',
+    outstandingInvoices: 'Outstanding',
+    sentUnpaid: 'sent · unpaid',
+    allProjectsOnTrack: 'All projects on track',
+    memberLabel: 'members',
   },
   de: {
     // Nav
@@ -948,6 +957,15 @@ const translations = {
     active2: 'Aktiv',
     pending2: 'Ausstehend',
     member2: 'Mitglied',
+
+    // Dashboard redesign
+    goodMorning: 'Guten Morgen',
+    goodAfternoon: 'Guten Tag',
+    goodEvening: 'Guten Abend',
+    outstandingInvoices: 'Offen',
+    sentUnpaid: 'versendet · unbezahlt',
+    allProjectsOnTrack: 'Alle Projekte im Plan',
+    memberLabel: 'Mitglieder',
   }
 }
 
