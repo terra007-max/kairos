@@ -7,7 +7,8 @@ import { can } from '@/lib/permissions'
 import { useI18n } from '@/lib/i18n'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend,
-  isSameDay, getDate, subMonths, addMonths,
+  isSameDay, getDate, subMonths, addMonths, startOfWeek, endOfWeek,
+  parseISO, getISOWeek,
 } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plane, Sun, Umbrella, Plus, X, Lock } from 'lucide-react'
@@ -269,7 +270,15 @@ export default function AbsencePage() {
         </div>
       </div>
 
-      {/* Add modal */}
+      {/* Capacity Overview */}
+      <CapacityOverview
+        members={activeMembers}
+        entries={entries}
+        month={month}
+        workdays={workdays}
+      />
+
+      {/* ── Add modal ──────────────────────────────────────────────────────── */}
       {addingFor && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -396,6 +405,168 @@ export default function AbsencePage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Capacity Overview ────────────────────────────────────────────────────────
+
+function CapacityOverview({ members, entries, month, workdays }: {
+  members: any[]
+  entries: TimeOffEntry[]
+  month: Date
+  workdays: Date[]
+}) {
+  const { t } = useI18n()
+
+  const today     = new Date()
+  const wkStart   = startOfWeek(today, { weekStartsOn: 1 })
+  const wkEnd     = endOfWeek(today,   { weekStartsOn: 1 })
+  const weekNo    = getISOWeek(today)
+
+  // Workdays in selected month that fall in the current week
+  const weekDaysInMonth = workdays.filter(d => d >= wkStart && d <= wkEnd)
+
+  // Is the selected month the current month?
+  const isCurrentMonth =
+    month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth()
+
+  const rows = members.map(m => {
+    const userId  = m.user_id as string
+    const dayH    = Math.round(((m.weekly_hours ?? 40) / 5) * 10) / 10
+    const weeklyH = m.weekly_hours ?? 40
+
+    // Month metrics
+    const moCapH  = workdays.length * dayH
+    const moEntries = entries.filter(e => e.user_id === userId)
+    const moAbsentH = moEntries.reduce((s, e) => s + e.hours, 0)
+    const moNetH    = Math.max(0, moCapH - moAbsentH)
+    const moNetPct  = moCapH > 0 ? moNetH / moCapH : 1
+
+    // Absence breakdown
+    const vacH  = moEntries.filter(e => e.type === 'vacation').reduce((s, e) => s + e.hours, 0)
+    const holH  = moEntries.filter(e => e.type === 'holiday').reduce((s, e) => s + e.hours, 0)
+    const sickH = moEntries.filter(e => e.type === 'sick').reduce((s, e) => s + e.hours, 0)
+
+    // Week metrics — only meaningful if current week overlaps selected month
+    const wkCapH = weekDaysInMonth.length * dayH
+    const wkAbsentH = isCurrentMonth
+      ? moEntries
+          .filter(e => { const d = parseISO(e.date); return d >= wkStart && d <= wkEnd })
+          .reduce((s, e) => s + e.hours, 0)
+      : 0
+    const wkNetH  = Math.max(0, wkCapH - wkAbsentH)
+    const wkNetPct = wkCapH > 0 ? wkNetH / wkCapH : 1
+
+    return { userId, name: m.full_name || m.email, weeklyH, dayH, moCapH, moNetH, moNetPct, vacH, holH, sickH, moAbsentH, wkCapH, wkNetH, wkNetPct, wkAbsentH }
+  })
+
+  const fmtH = (h: number) => Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`
+  const fmtD = (h: number, dayH: number) => {
+    const d = h / dayH
+    return Number.isInteger(d) ? `${d}d` : `${d.toFixed(1)}d`
+  }
+
+  const barColor = (pct: number) =>
+    pct >= 0.9 ? 'bg-emerald-500' : pct >= 0.6 ? 'bg-amber-500' : 'bg-red-500'
+
+  return (
+    <div className="card overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">{t('capacityOverview')}</h2>
+        <span className="text-xs text-muted-foreground">
+          {format(month, 'MMMM yyyy')}
+        </span>
+      </div>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_200px_280px] gap-0 border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="px-5 py-2.5">{t('member')}</div>
+        <div className="px-4 py-2.5 border-l border-border">
+          {isCurrentMonth ? `${t('weekLabel')} (CW\u202F${weekNo})` : t('weekLabel')}
+        </div>
+        <div className="px-4 py-2.5 border-l border-border">
+          {format(month, 'MMMM yyyy')}
+        </div>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-border">
+        {rows.map((r, i) => (
+          <div
+            key={r.userId}
+            className={`grid grid-cols-[1fr_200px_280px] gap-0 items-center ${i % 2 === 1 ? 'bg-muted/20' : ''}`}
+          >
+            {/* Name */}
+            <div className="px-5 py-3.5 flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold shrink-0">
+                {r.name[0].toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                <p className="text-xs text-muted-foreground">{r.weeklyH}h/w · {fmtH(r.dayH)}/d</p>
+              </div>
+            </div>
+
+            {/* This week */}
+            <div className="px-4 py-3.5 border-l border-border">
+              {r.wkCapH === 0 ? (
+                <p className="text-xs text-muted-foreground">—</p>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <span className={`text-sm font-bold ${r.wkNetPct < 0.6 ? 'text-red-500' : r.wkNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {fmtH(r.wkNetH)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.wkCapH)}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${barColor(r.wkNetPct)}`} style={{ width: `${r.wkNetPct * 100}%` }} />
+                  </div>
+                  {r.wkAbsentH > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">−{fmtH(r.wkAbsentH)} {t('available')}</p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* This month */}
+            <div className="px-4 py-3.5 border-l border-border">
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className={`text-sm font-bold ${r.moNetPct < 0.6 ? 'text-red-500' : r.moNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {fmtH(r.moNetH)}
+                </span>
+                <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.moCapH)}</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
+                <div className={`h-full rounded-full transition-all ${barColor(r.moNetPct)}`} style={{ width: `${r.moNetPct * 100}%` }} />
+              </div>
+              {r.moAbsentH === 0 ? (
+                <p className="text-[10px] text-muted-foreground">{t('noAbsences')}</p>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {r.vacH > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 bg-sky-500/10 rounded px-1.5 py-0.5">
+                      <Plane className="w-2.5 h-2.5" /> {fmtD(r.vacH, r.dayH)}
+                    </span>
+                  )}
+                  {r.holH > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5">
+                      <Sun className="w-2.5 h-2.5" /> {fmtD(r.holH, r.dayH)}
+                    </span>
+                  )}
+                  {r.sickH > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400 bg-red-500/10 rounded px-1.5 py-0.5">
+                      <Umbrella className="w-2.5 h-2.5" /> {fmtD(r.sickH, r.dayH)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

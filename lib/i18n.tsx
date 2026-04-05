@@ -478,6 +478,14 @@ const translations = {
     pending2: 'Pending',
     member2: 'Member',
 
+    // Capacity overview
+    capacityOverview: 'Capacity Overview',
+    netCapacity: 'Net capacity',
+    grossCapacity: 'Gross',
+    noAbsences: 'No absences this month',
+    weekLabel: 'This week',
+    available: 'available',
+
     // Dashboard redesign
     goodMorning: 'Good morning',
     goodAfternoon: 'Good afternoon',
@@ -958,6 +966,14 @@ const translations = {
     active2: 'Aktiv',
     pending2: 'Ausstehend',
     member2: 'Mitglied',
+
+    // Capacity overview
+    capacityOverview: 'Kapazitätsübersicht',
+    netCapacity: 'Netto-Kapazität',
+    grossCapacity: 'Brutto',
+    noAbsences: 'Keine Abwesenheiten diesen Monat',
+    weekLabel: 'Diese Woche',
+    available: 'verfügbar',
 
     // Dashboard redesign
     goodMorning: 'Guten Morgen',
