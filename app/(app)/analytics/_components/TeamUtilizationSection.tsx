@@ -264,7 +264,7 @@ export function TeamUtilizationSection({
                   <BarChart data={compareChartData} barGap={4} barCategoryGap="30%">
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} domain={[0, chartMax]} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null
