@@ -35,7 +35,10 @@ export function PDFPreviewModal({ invoice, onClose }: {
   const bLines = buyerBlock(b)
 
   const fmt = (d: string) => format(new Date(d), 'dd.MM.yyyy')
-  const money = (n: number) => `€\u202F${n.toFixed(2)}`
+  const money = (n: number) =>
+    `€\u202F${n.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const fmtNum = (n: number, decimals = 2) =>
+    n.toLocaleString('de-AT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 
   return (
     <div
@@ -70,7 +73,7 @@ export function PDFPreviewModal({ invoice, onClose }: {
       {/* Scrollable preview area */}
       <div className="flex-1 overflow-y-auto bg-zinc-200 dark:bg-zinc-800 py-8 px-4 flex justify-center">
         {/* A4 paper */}
-        <div className="bg-white text-zinc-900 w-full max-w-[794px] min-h-[1123px] shadow-2xl rounded-sm p-[52px] font-sans text-[13px] leading-snug relative">
+        <div className="bg-white text-zinc-900 w-full max-w-[794px] min-h-[1123px] shadow-2xl rounded-sm p-[52px] font-sans text-[13px] leading-snug flex flex-col">
 
           {/* Header row */}
           <div className="flex justify-between items-start mb-8">
@@ -125,8 +128,8 @@ export function PDFPreviewModal({ invoice, onClose }: {
               {invoice.lines.map((line, i) => (
                 <tr key={i} className="border-t border-zinc-100">
                   <td className="py-3 px-2 text-[13px] text-zinc-800">{line.description}</td>
-                  <td className="py-3 px-2 text-right text-[12px] text-zinc-500 tabular-nums">{line.hours.toFixed(2)}h</td>
-                  <td className="py-3 px-2 text-right text-[12px] text-zinc-500 tabular-nums">€{line.rate.toFixed(2)}</td>
+                  <td className="py-3 px-2 text-right text-[12px] text-zinc-500 tabular-nums">{fmtNum(line.hours)}h</td>
+                  <td className="py-3 px-2 text-right text-[12px] text-zinc-500 tabular-nums">€{fmtNum(line.rate)}</td>
                   <td className="py-3 px-2 text-right text-[12px] text-zinc-500 tabular-nums">{line.vat_rate ?? vatPct}%</td>
                   <td className="py-3 px-2 text-right text-[13px] font-semibold text-zinc-800 tabular-nums">{money(line.amount)}</td>
                 </tr>
@@ -150,15 +153,6 @@ export function PDFPreviewModal({ invoice, onClose }: {
             </div>
           </div>
 
-          {/* Payment info */}
-          {iban && (
-            <div className="border-t border-zinc-200 pt-5 space-y-0.5">
-              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Zahlungsinformationen</p>
-              <p className="text-[12px] text-zinc-600">IBAN: {iban}{bic ? `  ·  BIC: ${bic}` : ''}</p>
-              {s?.legal_name && <p className="text-[12px] text-zinc-600">Empfänger: {s.legal_name}</p>}
-            </div>
-          )}
-
           {/* Notes */}
           {invoice.notes && (
             <div className="border-t border-zinc-200 pt-5 mt-5">
@@ -167,8 +161,20 @@ export function PDFPreviewModal({ invoice, onClose }: {
             </div>
           )}
 
+          {/* Spacer — pushes payment info to bottom */}
+          <div className="flex-1" />
+
+          {/* Payment info — always at bottom */}
+          {iban && (
+            <div className="border-t border-zinc-200 pt-5 mt-8 space-y-0.5">
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Zahlungsinformationen</p>
+              <p className="text-[12px] text-zinc-600">IBAN: {iban}{bic ? `  ·  BIC: ${bic}` : ''}</p>
+              {s?.legal_name && <p className="text-[12px] text-zinc-600">Empfänger: {s.legal_name}</p>}
+            </div>
+          )}
+
           {/* Footer */}
-          <p className="absolute bottom-8 left-0 right-0 text-center text-[9px] text-zinc-300">
+          <p className="text-center text-[9px] text-zinc-300 mt-6">
             Erstellt mit Kairos · EN 16931 konform
           </p>
         </div>
