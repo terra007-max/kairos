@@ -143,35 +143,33 @@ export default function DashboardPage() {
 
     const uf = seesTeam ? {} : { user_id: effectiveUserId }
 
-    const base = [
+    const dataQueries = [
       supabase.from('time_entries').select('duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).match(uf).gte('start_time', wkS.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).match(uf).gte('start_time', moS.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec,billable').eq('workspace_id', workspaceId).match(uf).gte('start_time', pWkS.toISOString()).lte('start_time', pWkE.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).match(uf).gte('start_time', pMoS.toISOString()).lte('start_time', pMoE.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('*,project:projects(*,client:clients(*))').eq('workspace_id', workspaceId).match(uf).order('start_time', { ascending: false }).limit(8),
-      supabase.auth.getUser(),
       supabase.from('projects').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'active').is('deleted_at', null),
     ]
-    if (canInvoices) base.push(
-      supabase.from('invoices').select('total,due_date,status').eq('workspace_id', workspaceId)
+    if (canInvoices) dataQueries.push(
+      supabase.from('invoices').select('total,due_date,status').eq('workspace_id', workspaceId) as any
     )
-    if (isTeamViewer) base.push(
-      supabase.from('projects').select('id,name,color,budget_hours,budget_amount,client:clients(name)').eq('workspace_id', workspaceId).eq('status', 'active').is('deleted_at', null),
-      supabase.from('time_entries').select('project_id,duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).not('end_time', 'is', null),
+    if (isTeamViewer) dataQueries.push(
+      supabase.from('projects').select('id,name,color,budget_hours,budget_amount,client:clients(name)').eq('workspace_id', workspaceId).eq('status', 'active').is('deleted_at', null) as any,
+      supabase.from('time_entries').select('project_id,duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).not('end_time', 'is', null) as any,
     )
 
-    const res = await Promise.all(base)
+    const [{ data: { user } }, ...res] = await Promise.all([supabase.auth.getUser(), ...dataQueries])
     let i = 0
-    const week     = res[i++]?.data ?? []
-    const month    = res[i++]?.data ?? []
-    const prevWeek = res[i++]?.data ?? []
-    const prevMonth = res[i++]?.data ?? []
+    const week       = res[i++]?.data ?? []
+    const month      = res[i++]?.data ?? []
+    const prevWeek   = res[i++]?.data ?? []
+    const prevMonth  = res[i++]?.data ?? []
     const recentData = res[i++]?.data ?? []
-    const { data: { user } } = res[i++]
-    const projCount = res[i++]?.count ?? 0
+    const projCount  = res[i++]?.count ?? 0
     const invoicesData = canInvoices ? (res[i++]?.data ?? []) : []
-    const projects   = isTeamViewer ? (res[i++]?.data ?? []) : []
-    const allEntries = isTeamViewer ? (res[i++]?.data ?? []) : []
+    const projects     = isTeamViewer ? (res[i++]?.data ?? []) : []
+    const allEntries   = isTeamViewer ? (res[i++]?.data ?? []) : []
 
     if (user) {
       const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
