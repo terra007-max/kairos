@@ -13,13 +13,11 @@ export function PDFPreviewModal({ invoice, onClose }: {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let url: string
-    generatePDFBlobUrl(invoice).then(u => {
-      url = u
-      setBlobUrl(u)
-      setLoading(false)
-    })
-    return () => { if (url) URL.revokeObjectURL(url) }
+    let cancelled = false
+    generatePDFBlobUrl(invoice).then(uri => {
+      if (!cancelled) { setBlobUrl(uri); setLoading(false) }
+    }).catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [invoice])
 
   const handleKey = useCallback((e: KeyboardEvent) => {
