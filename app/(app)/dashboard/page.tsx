@@ -143,7 +143,7 @@ export default function DashboardPage() {
 
     const uf = seesTeam ? {} : { user_id: effectiveUserId }
 
-    const base: Promise<any>[] = [
+    const base = [
       supabase.from('time_entries').select('duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).match(uf).gte('start_time', wkS.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec,billable,hourly_rate').eq('workspace_id', workspaceId).match(uf).gte('start_time', moS.toISOString()).not('end_time', 'is', null),
       supabase.from('time_entries').select('duration_sec,billable').eq('workspace_id', workspaceId).match(uf).gte('start_time', pWkS.toISOString()).lte('start_time', pWkE.toISOString()).not('end_time', 'is', null),
