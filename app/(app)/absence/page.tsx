@@ -176,7 +176,7 @@ export default function AbsencePage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium sticky left-0 bg-muted/30 z-10 min-w-[150px]">
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium sticky left-0 bg-card z-10 min-w-[150px] border-r border-border">
                   {t('member')}
                 </th>
                 {workdays.map(day => (
@@ -209,8 +209,8 @@ export default function AbsencePage() {
                 return (
                   <tr key={m.user_id!} className={`border-b border-border last:border-0 ${isEven ? '' : 'bg-muted/20'}`}>
                     <td
-                      className="px-4 py-2 sticky left-0 z-10"
-                      style={{ background: isEven ? 'hsl(var(--card))' : 'hsl(var(--muted) / 0.2)' }}
+                      className="px-4 py-2 sticky left-0 z-10 border-r border-border"
+                      style={{ background: 'hsl(var(--card))' }}
                     >
                       <span className="font-medium text-foreground text-xs block truncate max-w-[130px]">
                         {m.full_name || m.email}

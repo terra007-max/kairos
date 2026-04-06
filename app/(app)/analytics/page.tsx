@@ -194,15 +194,63 @@ export default function AnalyticsPage() {
   const daysInMonth = endOfMonth(now).getDate()
   const revenueForecast = period === 'this_month' && dayOfMonth >= 3 ? Math.round(revenuePeriod / dayOfMonth * daysInMonth) : null
 
-  // ── Revenue trend (always 6-month rolling) ───────────────────────────────
-  const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now })
-  const revenueTrend = months.map(m => {
-    const mStart = startOfMonth(m); const mEnd = endOfMonth(m)
-    const isCurrent = mStart.getTime() === startOfMonth(now).getTime()
-    const rev = withEarnings.filter(e => e.billable && new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + e.earnings, 0)
-    const hrs = withEarnings.filter(e => new Date(e.start_time) >= mStart && new Date(e.start_time) <= mEnd).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
-    return { month: format(m, 'MMM', { locale: dateFnsLocale }), revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), forecast: isCurrent && revenueForecast ? revenueForecast : undefined }
-  })
+  // ── Revenue trend (period-aware) ─────────────────────────────────────────
+  type TrendPoint = { month: string; revenue: number; hours: number; forecast?: number }
+  function revPoint(label: string, from: Date, to: Date, fc?: number | null): TrendPoint {
+    const rev = withEarnings.filter(e => e.billable && new Date(e.start_time) >= from && new Date(e.start_time) <= to).reduce((s, e) => s + e.earnings, 0)
+    const hrs = withEarnings.filter(e => new Date(e.start_time) >= from && new Date(e.start_time) <= to).reduce((s, e) => s + (e.duration_sec || 0) / 3600, 0)
+    return { month: label, revenue: parseFloat(rev.toFixed(0)), hours: parseFloat(hrs.toFixed(1)), ...(fc ? { forecast: fc } : {}) }
+  }
+  const revenueTrend: TrendPoint[] = (() => {
+    if (period === 'this_week') {
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+      return Array.from({ length: 5 }, (_, i) => {
+        const day = new Date(weekStart.getTime() + i * 24 * 3600 * 1000)
+        const dayEnd = new Date(day.getTime() + 24 * 3600 * 1000 - 1)
+        return revPoint(format(day, 'EEE', { locale: dateFnsLocale }), day, dayEnd)
+      })
+    }
+    if (period === 'this_month' || period === 'last_month') {
+      const result: TrendPoint[] = []
+      let wStart = startOfWeek(periodBounds.from, { weekStartsOn: 1 })
+      while (wStart <= periodBounds.to) {
+        const wEnd = endOfWeek(wStart, { weekStartsOn: 1 })
+        const effStart = wStart < periodBounds.from ? periodBounds.from : wStart
+        const effEnd   = wEnd   > periodBounds.to   ? periodBounds.to   : wEnd
+        result.push(revPoint(format(effStart, 'MMM d', { locale: dateFnsLocale }), effStart, effEnd))
+        wStart = new Date(wStart.getTime() + 7 * 24 * 3600 * 1000)
+      }
+      return result
+    }
+    if (period === 'last_3m') {
+      return eachMonthOfInterval({ start: subMonths(now, 2), end: now }).map(m =>
+        revPoint(format(m, 'MMM', { locale: dateFnsLocale }), startOfMonth(m), endOfMonth(m))
+      )
+    }
+    if (period === 'custom' && (customFrom || customTo)) {
+      const range = differenceInDays(periodBounds.to, periodBounds.from)
+      if (range <= 56) {
+        const result: TrendPoint[] = []
+        let wStart = startOfWeek(periodBounds.from, { weekStartsOn: 1 })
+        while (wStart <= periodBounds.to) {
+          const wEnd = endOfWeek(wStart, { weekStartsOn: 1 })
+          const effStart = wStart < periodBounds.from ? periodBounds.from : wStart
+          const effEnd   = wEnd   > periodBounds.to   ? periodBounds.to   : wEnd
+          result.push(revPoint(format(effStart, 'MMM d', { locale: dateFnsLocale }), effStart, effEnd))
+          wStart = new Date(wStart.getTime() + 7 * 24 * 3600 * 1000)
+        }
+        return result
+      }
+      return eachMonthOfInterval({ start: startOfMonth(periodBounds.from), end: periodBounds.to }).map(m =>
+        revPoint(format(m, 'MMM', { locale: dateFnsLocale }), startOfMonth(m), endOfMonth(m))
+      )
+    }
+    // Default: 6-month rolling
+    return eachMonthOfInterval({ start: subMonths(now, 5), end: now }).map(m => {
+      const isCurrent = startOfMonth(m).getTime() === startOfMonth(now).getTime()
+      return revPoint(format(m, 'MMM', { locale: dateFnsLocale }), startOfMonth(m), endOfMonth(m), isCurrent ? revenueForecast : null)
+    })
+  })()
 
   // ── Client revenue (period-filtered) ─────────────────────────────────────
   const clientMap: Record<string, { name: string; color: string; revenue: number }> = {}
@@ -414,7 +462,7 @@ export default function AnalyticsPage() {
               <button
                 key={p.value}
                 onClick={() => { setPeriod(p.value); if (p.value !== 'custom') { setCustomFrom(''); setCustomTo('') } }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                   period === p.value
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -479,12 +527,13 @@ export default function AnalyticsPage() {
         totalCapacity={totalCapacity}
       />
 
-      {/* ── Revenue trend + client breakdown (always 6-month rolling) ───────── */}
+      {/* ── Revenue trend + client breakdown ────────────────────────────────── */}
       <RevenueTrendSection
         revenueTrend={revenueTrend}
         clientData={clientData}
         revenueForecast={revenueForecast}
         periodLabel={periodLabel}
+        period={period}
       />
 
       {/* ── Cashflow (Partners only) ─────────────────────────────────────────── */}

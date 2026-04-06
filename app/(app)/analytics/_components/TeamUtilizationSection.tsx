@@ -1,6 +1,6 @@
 'use client'
 import { ChevronLeft, ChevronRight, GitCompare, X } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { formatMoney } from '@/lib/types'
 import { useI18n } from '@/lib/i18n'
 import { utilBarColor, TrendPill } from '../_lib/utils'
@@ -429,40 +429,56 @@ export function TeamUtilizationSection({
             </div>
 
             {/* Week-by-week chart */}
-            {drillWeekData.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('weekByWeekLabel')}</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={drillWeekData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
-                    <ReferenceLine
-                      y={drillMember.weekly_hours ?? 40}
-                      stroke="var(--muted-foreground)"
-                      strokeDasharray="4 2"
-                      label={{ value: 'Capacity', fill: 'var(--muted-foreground)', fontSize: 9, position: 'insideTopRight' }}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label: l }) => {
-                        if (!active || !payload?.length) return null
-                        const d = payload[0]?.payload
-                        return (
-                          <div className="bg-card border border-border rounded-xl p-2.5 text-xs shadow-lg">
-                            <p className="font-semibold text-foreground mb-1">{l}</p>
-                            <p className="text-emerald-500">Billable: {d.billable}h</p>
-                            <p className="text-muted-foreground">Capacity: {d.capacity}h</p>
-                            <p className={`font-bold ${utilTextColor(d.pct)}`}>{d.pct}% utilization</p>
-                          </div>
-                        )
-                      }}
-                    />
-                    <Bar dataKey="capacity" fill="var(--muted)" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="billable" fill="#10b981" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('weekByWeekLabel')}</p>
+              {drillWeekData.length === 0 ? (
+                <p className="text-xs text-muted-foreground/50 text-center py-8">No data for this period</p>
+              ) : (() => {
+                const wkChartMax = Math.max(...drillWeekData.map(d => Math.max(d.billable, d.capacity)), 1)
+                function DrillWeekBar(props: any) {
+                  const { x, y, width, height, payload, background } = props
+                  if (!background || !payload) return null
+                  const chartBottom = background.y + background.height
+                  const capH = wkChartMax > 0 ? (payload.capacity / wkChartMax) * background.height : 0
+                  const billH = Math.max(0, Math.min(height, background.height))
+                  const r = 3
+                  return (
+                    <g>
+                      <rect x={x + 1} y={chartBottom - capH} width={width - 2} height={capH}
+                        fill="none" stroke="#10b981" strokeOpacity={0.3} strokeDasharray="5 3" strokeWidth={2} rx={r} />
+                      {billH > 0 && (
+                        <rect x={x + 1} y={chartBottom - billH} width={width - 2} height={billH}
+                          fill="#10b981" fillOpacity={0.85} rx={r} />
+                      )}
+                    </g>
+                  )
+                }
+                return (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={drillWeekData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} domain={[0, wkChartMax]} />
+                      <Tooltip
+                        content={({ active, payload, label: l }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0]?.payload
+                          return (
+                            <div className="bg-card border border-border rounded-xl p-2.5 text-xs shadow-lg">
+                              <p className="font-semibold text-foreground mb-1">{l}</p>
+                              <p className="text-emerald-500">Billable: {d.billable}h</p>
+                              <p className="text-muted-foreground">Capacity: {d.capacity}h</p>
+                              <p className={`font-bold ${utilTextColor(d.pct)}`}>{d.pct}% utilization</p>
+                            </div>
+                          )
+                        }}
+                      />
+                      <Bar dataKey="billable" shape={<DrillWeekBar />} background={{ fill: 'none' }} isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )
+              })()}
+            </div>
 
             {/* Project breakdown */}
             {drillProjectBreakdown.length > 0 && (

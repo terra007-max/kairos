@@ -29,25 +29,40 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function RevenueTrendSection({
-  revenueTrend, clientData, revenueForecast, periodLabel,
+  revenueTrend, clientData, revenueForecast, periodLabel, period,
 }: {
   revenueTrend: RevMonth[]
   clientData: ClientData[]
   revenueForecast: number | null
   periodLabel: string
+  period: string
 }) {
   const { t } = useI18n()
   const totalClientRev = clientData.reduce((s, c) => s + c.revenue, 0)
 
+  const trendTitle = period === 'this_week' || period === 'this_month' || period === 'last_month'
+    ? `Revenue & Hours — ${periodLabel}`
+    : period === 'last_3m'
+      ? 'Revenue & Hours — Last 3 months'
+      : period === 'custom'
+        ? `Revenue & Hours — ${periodLabel}`
+        : t('revenueHours6mo')
+
+  const trendSub = period === 'this_week'
+    ? 'Daily breakdown · all billable entries'
+    : period === 'this_month' || period === 'last_month'
+      ? 'Week-by-week · all billable entries'
+      : t('revenueHours6moSub')
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-      {/* Revenue + hours trend (6mo rolling) */}
+      {/* Revenue + hours trend */}
       <div className="card p-5 lg:col-span-3">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueHours6mo')}</h2>
-            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{t('revenueHours6moSub')}</p>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{trendTitle}</h2>
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{trendSub}</p>
           </div>
           {revenueForecast && (
             <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full font-medium border border-emerald-500/20">
@@ -92,7 +107,7 @@ export function RevenueTrendSection({
       {/* Client revenue breakdown (period-filtered) */}
       <div className="card p-5 lg:col-span-2">
         <div className="mb-4">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueByClient')}</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('revenueByClientTitle')}</h2>
           <p className="text-[10px] text-muted-foreground/50 mt-0.5">{periodLabel} · {t('periodBillableOnly')}</p>
         </div>
 
