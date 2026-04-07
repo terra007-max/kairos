@@ -9,7 +9,6 @@ import { type Project, type Client, type ConsultantLevel, type ProjectLevelRate,
 import { FolderOpen, Plus, Pencil, Archive, ArchiveRestore, Trash2, CalendarDays, Users, Crown } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { de, enUS } from 'date-fns/locale'
-import Link from 'next/link'
 import KairosLoader from '@/components/KairosLoader'
 
 const COLORS = ['#f97316','#6366f1','#10b981','#ef4444','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6']
@@ -141,7 +140,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: p.color }} />
                     <div>
-                      <Link href={`/projects/${p.id}`} className="font-semibold text-foreground hover:text-brand-600 transition-colors text-sm">{p.name}</Link>
+                      <span className="font-semibold text-foreground text-sm">{p.name}</span>
                       {p.client && <p className="text-xs text-muted-foreground mt-0.5">{(p.client as Client).name}</p>}
                     </div>
                   </div>
