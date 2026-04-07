@@ -448,13 +448,31 @@ export default function AnalyticsPage() {
     <div className="space-y-5 pb-10">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {periodDateRange ? periodDateRange : `${t('analyticsSubtitle')} · ${periodLabel}`}
-          </p>
+      <div className="space-y-3">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">{t('analyticsTitle')}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {periodDateRange ? periodDateRange : `${t('analyticsSubtitle')} · ${periodLabel}`}
+            </p>
+          </div>
+          {/* Export — always top-right */}
+          <div className="relative group shrink-0">
+            <button className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+              <Download className="w-3.5 h-3.5" />
+              Export
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-lg py-1 z-20 hidden group-hover:block">
+              <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byConsultant')}</button>
+              <button onClick={() => exportCSV('project')}    className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byProject')}</button>
+              <button onClick={() => exportCSV('client')}     className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byClient')}</button>
+            </div>
+          </div>
         </div>
+
+        {/* Controls row — always on its own line, never wraps against title */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Period segmented control */}
           <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
@@ -492,20 +510,6 @@ export default function AnalyticsPage() {
               />
             </div>
           )}
-
-          {/* Export */}
-          <div className="relative group">
-            <button className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
-              <Download className="w-3.5 h-3.5" />
-              Export
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-lg py-1 z-20 hidden group-hover:block">
-              <button onClick={() => exportCSV('consultant')} className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byConsultant')}</button>
-              <button onClick={() => exportCSV('project')}    className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byProject')}</button>
-              <button onClick={() => exportCSV('client')}     className="w-full text-left px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors">{t('byClient')}</button>
-            </div>
-          </div>
         </div>
       </div>
 

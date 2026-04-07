@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { X, Download, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { type SavedInvoice } from '../_lib/types'
 import { downloadPDF, sellerBlock, buyerBlock } from '../_lib/export'
+
+const A4_WIDTH = 794
 
 export function PDFPreviewModal({ invoice, onClose }: {
   invoice: SavedInvoice
@@ -22,6 +24,20 @@ export function PDFPreviewModal({ invoice, onClose }: {
       document.body.style.overflow = ''
     }
   }, [handleKey])
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const update = () => {
+      if (!scrollRef.current) return
+      const available = scrollRef.current.clientWidth - 32 // 16px padding each side
+      setScale(Math.min(1, available / A4_WIDTH))
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   const s       = invoice.seller_snapshot
   const b       = invoice.buyer_snapshot
@@ -74,9 +90,14 @@ export function PDFPreviewModal({ invoice, onClose }: {
       </div>
 
       {/* Scrollable preview area */}
-      <div className="flex-1 overflow-y-auto bg-zinc-200 dark:bg-zinc-800 py-8 px-4 flex justify-center">
-        {/* A4 paper */}
-        <div className="bg-white text-zinc-900 w-full max-w-[794px] min-h-[1123px] shadow-2xl rounded-sm p-[52px] font-sans text-[13px] leading-snug flex flex-col">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-zinc-200 dark:bg-zinc-800 py-8 px-4 flex justify-center">
+        {/* Scale wrapper: takes up correct layout space at the scaled size */}
+        <div style={{ width: A4_WIDTH * scale, minHeight: 1123 * scale }}>
+          {/* A4 paper at full 794px, scaled down to fit */}
+          <div
+            style={{ width: A4_WIDTH, transformOrigin: 'top left', transform: `scale(${scale})` }}
+            className="bg-white text-zinc-900 min-h-[1123px] shadow-2xl rounded-sm p-[52px] font-sans text-[13px] leading-snug flex flex-col"
+          >
 
           {/* Header row */}
           <div className="flex justify-between items-start mb-8">
@@ -180,6 +201,7 @@ export function PDFPreviewModal({ invoice, onClose }: {
           <p className="text-center text-[9px] text-zinc-300 mt-6">
             Erstellt mit Kairos · EN 16931 konform
           </p>
+          </div>
         </div>
       </div>
     </div>

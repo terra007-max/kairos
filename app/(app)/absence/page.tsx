@@ -176,7 +176,7 @@ export default function AbsencePage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium sticky left-0 bg-card z-10 min-w-[150px] border-r border-border">
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium sticky left-0 bg-card z-20 min-w-[150px] border-r border-border">
                   {t('member')}
                 </th>
                 {workdays.map(day => (
@@ -194,7 +194,7 @@ export default function AbsencePage() {
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right text-muted-foreground font-medium min-w-[56px]">
+                <th className="px-4 py-3 text-right text-muted-foreground font-medium min-w-[56px] sticky right-0 bg-card z-20 border-l border-border">
                   {t('absenceDays')}
                 </th>
               </tr>
@@ -209,7 +209,7 @@ export default function AbsencePage() {
                 return (
                   <tr key={m.user_id!} className={`border-b border-border last:border-0 ${isEven ? '' : 'bg-muted/20'}`}>
                     <td
-                      className="px-4 py-2 sticky left-0 z-10 border-r border-border"
+                      className="px-4 py-2 sticky left-0 z-10 border-r border-border bg-card"
                       style={{ background: 'hsl(var(--card))' }}
                     >
                       <span className="font-medium text-foreground text-xs block truncate max-w-[130px]">
@@ -253,7 +253,10 @@ export default function AbsencePage() {
                       )
                     })}
 
-                    <td className="px-4 py-2 text-right">
+                    <td
+                      className="px-4 py-2 text-right sticky right-0 z-10 border-l border-border"
+                      style={{ background: 'hsl(var(--card))' }}
+                    >
                       {totalDays > 0 ? (
                         <span className="font-semibold text-foreground">
                           {totalDays % 1 === 0 ? totalDays : totalDays.toFixed(1)}d
