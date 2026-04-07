@@ -480,8 +480,8 @@ function CapacityOverview({ members, entries, month, workdays }: {
         </span>
       </div>
 
-      {/* Column headers */}
-      <div className="grid grid-cols-[1fr_200px_280px] gap-0 border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {/* Column headers — desktop only */}
+      <div className="hidden md:grid grid-cols-[1fr_200px_280px] gap-0 border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <div className="px-5 py-2.5">{t('member')}</div>
         <div className="px-4 py-2.5 border-l border-border">
           {isCurrentMonth ? `${t('weekLabel')} (CW\u202F${weekNo})` : t('weekLabel')}
@@ -494,76 +494,139 @@ function CapacityOverview({ members, entries, month, workdays }: {
       {/* Rows */}
       <div className="divide-y divide-border">
         {rows.map((r, i) => (
-          <div
-            key={r.userId}
-            className={`grid grid-cols-[1fr_200px_280px] gap-0 items-center ${i % 2 === 1 ? 'bg-muted/20' : ''}`}
-          >
-            {/* Name */}
-            <div className="px-5 py-3.5 flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold shrink-0">
-                {r.name[0].toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
-                <p className="text-xs text-muted-foreground">{r.weeklyH}h/w · {fmtH(r.dayH)}/d</p>
-              </div>
-            </div>
+          <div key={r.userId} className={i % 2 === 1 ? 'bg-muted/20' : ''}>
 
-            {/* This week */}
-            <div className="px-4 py-3.5 border-l border-border">
-              {r.wkCapH === 0 ? (
-                <p className="text-xs text-muted-foreground">—</p>
-              ) : (
-                <>
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <span className={`text-sm font-bold ${r.wkNetPct < 0.6 ? 'text-red-500' : r.wkNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {fmtH(r.wkNetH)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.wkCapH)}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${barColor(r.wkNetPct)}`} style={{ width: `${r.wkNetPct * 100}%` }} />
-                  </div>
-                  {r.wkAbsentH > 0 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">−{fmtH(r.wkAbsentH)} {t('available')}</p>
-                  )}
-                </>
-              )}
-            </div>
+            {/* ── Mobile: stacked card ───────────────────────────── */}
+            <div className="md:hidden px-4 py-4 space-y-3">
+              {/* Name */}
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold shrink-0">
+                  {r.name[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">{r.weeklyH}h/w · {fmtH(r.dayH)}/d</p>
+                </div>
+              </div>
 
-            {/* This month */}
-            <div className="px-4 py-3.5 border-l border-border">
-              <div className="flex items-baseline justify-between mb-1.5">
-                <span className={`text-sm font-bold ${r.moNetPct < 0.6 ? 'text-red-500' : r.moNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {fmtH(r.moNetH)}
-                </span>
-                <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.moCapH)}</span>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
-                <div className={`h-full rounded-full transition-all ${barColor(r.moNetPct)}`} style={{ width: `${r.moNetPct * 100}%` }} />
-              </div>
-              {r.moAbsentH === 0 ? (
-                <p className="text-[10px] text-muted-foreground">{t('noAbsences')}</p>
-              ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {r.vacH > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 bg-sky-500/10 rounded px-1.5 py-0.5">
-                      <Plane className="w-2.5 h-2.5" /> {fmtD(r.vacH, r.dayH)}
-                    </span>
-                  )}
-                  {r.holH > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5">
-                      <Sun className="w-2.5 h-2.5" /> {fmtD(r.holH, r.dayH)}
-                    </span>
-                  )}
-                  {r.sickH > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400 bg-red-500/10 rounded px-1.5 py-0.5">
-                      <Umbrella className="w-2.5 h-2.5" /> {fmtD(r.sickH, r.dayH)}
-                    </span>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Week */}
+                <div className="bg-muted/30 rounded-lg px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {isCurrentMonth ? `CW\u202F${weekNo}` : t('weekLabel')}
+                  </p>
+                  {r.wkCapH === 0 ? (
+                    <p className="text-xs text-muted-foreground">—</p>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline justify-between">
+                        <span className={`text-base font-bold ${r.wkNetPct < 0.6 ? 'text-red-500' : r.wkNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {fmtH(r.wkNetH)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">/ {fmtH(r.wkCapH)}</span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor(r.wkNetPct)}`} style={{ width: `${r.wkNetPct * 100}%` }} />
+                      </div>
+                    </>
                   )}
                 </div>
-              )}
+
+                {/* Month */}
+                <div className="bg-muted/30 rounded-lg px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {format(month, 'MMM yyyy')}
+                  </p>
+                  <div className="flex items-baseline justify-between">
+                    <span className={`text-base font-bold ${r.moNetPct < 0.6 ? 'text-red-500' : r.moNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {fmtH(r.moNetH)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">/ {fmtH(r.moCapH)}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${barColor(r.moNetPct)}`} style={{ width: `${r.moNetPct * 100}%` }} />
+                  </div>
+                  {r.moAbsentH > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      {r.vacH > 0 && <span className="inline-flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 bg-sky-500/10 rounded px-1.5 py-0.5"><Plane className="w-2.5 h-2.5" /> {fmtD(r.vacH, r.dayH)}</span>}
+                      {r.holH > 0 && <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5"><Sun className="w-2.5 h-2.5" /> {fmtD(r.holH, r.dayH)}</span>}
+                      {r.sickH > 0 && <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400 bg-red-500/10 rounded px-1.5 py-0.5"><Umbrella className="w-2.5 h-2.5" /> {fmtD(r.sickH, r.dayH)}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* ── Desktop: 3-column grid ─────────────────────────── */}
+            <div className="hidden md:grid grid-cols-[1fr_200px_280px] gap-0 items-center">
+              {/* Name */}
+              <div className="px-5 py-3.5 flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-brand-600/10 flex items-center justify-center text-brand-600 text-xs font-bold shrink-0">
+                  {r.name[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">{r.weeklyH}h/w · {fmtH(r.dayH)}/d</p>
+                </div>
+              </div>
+
+              {/* This week */}
+              <div className="px-4 py-3.5 border-l border-border">
+                {r.wkCapH === 0 ? (
+                  <p className="text-xs text-muted-foreground">—</p>
+                ) : (
+                  <>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className={`text-sm font-bold ${r.wkNetPct < 0.6 ? 'text-red-500' : r.wkNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {fmtH(r.wkNetH)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.wkCapH)}</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${barColor(r.wkNetPct)}`} style={{ width: `${r.wkNetPct * 100}%` }} />
+                    </div>
+                    {r.wkAbsentH > 0 && (
+                      <p className="text-[10px] text-muted-foreground mt-1">−{fmtH(r.wkAbsentH)} {t('available')}</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* This month */}
+              <div className="px-4 py-3.5 border-l border-border">
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className={`text-sm font-bold ${r.moNetPct < 0.6 ? 'text-red-500' : r.moNetPct < 0.9 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {fmtH(r.moNetH)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{t('grossCapacity')} {fmtH(r.moCapH)}</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
+                  <div className={`h-full rounded-full transition-all ${barColor(r.moNetPct)}`} style={{ width: `${r.moNetPct * 100}%` }} />
+                </div>
+                {r.moAbsentH === 0 ? (
+                  <p className="text-[10px] text-muted-foreground">{t('noAbsences')}</p>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {r.vacH > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 bg-sky-500/10 rounded px-1.5 py-0.5">
+                        <Plane className="w-2.5 h-2.5" /> {fmtD(r.vacH, r.dayH)}
+                      </span>
+                    )}
+                    {r.holH > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5">
+                        <Sun className="w-2.5 h-2.5" /> {fmtD(r.holH, r.dayH)}
+                      </span>
+                    )}
+                    {r.sickH > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400 bg-red-500/10 rounded px-1.5 py-0.5">
+                        <Umbrella className="w-2.5 h-2.5" /> {fmtD(r.sickH, r.dayH)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         ))}
       </div>
